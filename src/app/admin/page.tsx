@@ -112,6 +112,17 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('admin_authenticated');
+    toast({
+      title: "Logged Out",
+      description: "You have been securely signed out.",
+    });
+  };
+
+  const handleComingSoon = () => {
+    toast({
+      title: "Notice",
+      description: "This module is currently in development.",
+    });
   };
 
   if (!isAuthenticated) {
@@ -168,22 +179,22 @@ export default function AdminDashboard() {
           <Button variant="secondary" className="w-full justify-start gap-3 bg-white/5 border-white/5 hover:bg-white/10 tracking-normal">
             <LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
+          <Button variant="ghost" onClick={handleComingSoon} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Search className="w-4 h-4" /> Live Audits
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
+          <Button variant="ghost" onClick={handleComingSoon} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Users className="w-4 h-4" /> Permissions
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
+          <Button variant="ghost" onClick={handleComingSoon} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Database className="w-4 h-4" /> Knowledge Base
           </Button>
           <div className="pt-6 pb-2 px-3 text-[10px] uppercase tracking-[0.25em] text-slate-500 font-bold">Settings</div>
-          <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
+          <Button variant="ghost" onClick={handleComingSoon} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Settings className="w-4 h-4" /> System Config
           </Button>
         </nav>
         <div className="p-4 border-t border-white/5 space-y-2">
-          <Link href="/">
+          <Link href="/" passHref legacyBehavior>
             <Button 
               variant="ghost" 
               className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal"
@@ -213,7 +224,13 @@ export default function AdminDashboard() {
               <Badge variant="outline" className={isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 tracking-widest font-bold" : "bg-slate-500/10 text-slate-400 border-slate-500/20 tracking-widest font-bold"}>
                 {isActive ? "ACTIVE" : "IDLE"}
               </Badge>
-              <Switch checked={isActive} onCheckedChange={setIsActive} className="data-[state=checked]:bg-emerald-500" />
+              <Switch checked={isActive} onCheckedChange={(val) => {
+                setIsActive(val);
+                toast({
+                  title: val ? "Engine Started" : "Engine Stopped",
+                  description: val ? "The crawler is now auditing global infrastructure." : "Scanning operations have been suspended.",
+                });
+              }} className="data-[state=checked]:bg-emerald-500" />
             </div>
           </div>
         </header>
