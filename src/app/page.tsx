@@ -6,7 +6,7 @@ import { Shield, Search, Lock, Info, Mail, ChevronRight, Globe, CheckCircle2 } f
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-50 selection:bg-primary/30">
+    <div className="min-h-screen bg-[#020617] text-slate-50 selection:bg-primary/30 font-body">
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full" />
@@ -74,13 +74,13 @@ export default function Home() {
                 </div>
                 
                 <div className="grid gap-4">
-                  <div className="bg-[#0b1120] p-6 rounded-2xl border border-white/5 space-y-3 group hover:border-primary/30 transition-colors">
+                  <div className="bg-[#0b1120] p-6 rounded-2xl border border-white/5 space-y-3 group hover:border-primary/30 transition-colors shadow-xl">
                     <label className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Verified User-Agent</label>
                     <p className="font-mono text-xs md:text-sm break-all text-slate-300 leading-relaxed bg-black/40 p-3 rounded-lg border border-white/5">
                       Mozilla/5.0 (compatible; HumangoBot/1.0; +http://bot.humango.app)
                     </p>
                   </div>
-                  <div className="bg-[#0b1120] p-6 rounded-2xl border border-white/5 space-y-3 group hover:border-primary/30 transition-colors">
+                  <div className="bg-[#0b1120] p-6 rounded-2xl border border-white/5 space-y-3 group hover:border-primary/30 transition-colors shadow-xl">
                     <label className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Source IP Address</label>
                     <div className="flex items-center gap-3 font-mono text-lg text-slate-200">
                       <Globe className="w-4 h-4 text-slate-500" />
@@ -91,7 +91,7 @@ export default function Home() {
               </div>
 
               <div className="grid gap-8">
-                <div className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md relative overflow-hidden group">
+                <div className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md relative overflow-hidden group hover:bg-white/[0.07] transition-all">
                   <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                     <Search className="w-32 h-32 -mr-8 -mt-8 rotate-12" />
                   </div>
@@ -106,7 +106,7 @@ export default function Home() {
                   </p>
                 </div>
                 
-                <div className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md relative overflow-hidden group">
+                <div className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md relative overflow-hidden group hover:bg-white/[0.07] transition-all">
                   <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                     <Lock className="w-32 h-32 -mr-8 -mt-8 -rotate-12" />
                   </div>
@@ -125,10 +125,10 @@ export default function Home() {
         {/* Opt-out Section */}
         <section className="py-32 px-6">
           <div className="container mx-auto max-w-4xl text-center">
-            <div className="bg-gradient-to-br from-primary/10 to-indigo-500/10 rounded-[3rem] p-12 md:p-20 border border-white/5 backdrop-blur-xl relative overflow-hidden">
+            <div className="bg-gradient-to-br from-primary/10 to-indigo-500/10 rounded-[3rem] p-12 md:p-20 border border-white/5 backdrop-blur-xl relative overflow-hidden shadow-2xl">
                <div className="absolute top-[-20%] right-[-10%] w-[300px] h-[300px] bg-primary/20 blur-[100px] rounded-full" />
               <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Opt-out & Governance</h2>
-              <p className="text-lg text-slate-400 mb-10 leading-relaxed max-w-2xl mx-auto">
+              <p className="text-lg text-slate-400 mb-10 leading-relaxed max-w-2xl mx-auto font-medium">
                 If you wish to exclude your domain from our audits, update your robots.txt or contact our security desk directly.
               </p>
               <a href="mailto:abuse@humango.app" className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/30 font-bold group">
@@ -141,7 +141,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="py-16 px-6 border-t border-white/5">
+      <footer className="py-16 px-6 border-t border-white/5 bg-[#010413]">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-2 opacity-60">
             <Shield className="w-5 h-5" />
