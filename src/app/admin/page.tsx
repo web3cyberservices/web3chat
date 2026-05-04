@@ -156,11 +156,13 @@ export default function AdminDashboard() {
     <div className="flex h-screen bg-[#020617] text-slate-50 overflow-hidden font-body selection:bg-primary/30">
       {/* Sidebar */}
       <aside className="w-64 border-r border-white/5 bg-[#0b1120] hidden md:flex flex-col">
-        <div className="p-6 border-b border-white/5 flex items-center gap-3">
-          <div className="bg-primary p-1.5 rounded-lg shadow-lg shadow-primary/20">
+        <div className="p-6 border-b border-white/5 flex items-center gap-3 group">
+          <div className="bg-primary p-2 rounded-xl shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform duration-300">
             <Shield className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-lg tracking-normal">bot.humango.app</span>
+          <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-slate-400">
+            HumangoBot
+          </span>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <Button variant="secondary" className="w-full justify-start gap-3 bg-white/5 border-white/5 hover:bg-white/10 tracking-normal">
@@ -181,10 +183,18 @@ export default function AdminDashboard() {
           </Button>
         </nav>
         <div className="p-4 border-t border-white/5">
+          <Link href="/">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal"
+            >
+              <LogOut className="w-4 h-4" /> Exit to Public
+            </Button>
+          </Link>
           <Button 
             variant="ghost" 
             onClick={handleLogout}
-            className="w-full justify-start gap-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 tracking-normal"
+            className="w-full justify-start gap-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 tracking-normal mt-2"
           >
             <LogOut className="w-4 h-4" /> Sign Out
           </Button>
@@ -301,7 +311,7 @@ export default function AdminDashboard() {
                   ) : (
                     logs.map((log, i) => (
                       <div key={i} className="flex gap-4 leading-relaxed tracking-normal animate-in fade-in slide-in-from-left-2 duration-300">
-                        <span className="text-primary font-bold opacity-30 shrink-0">CRAWLER &gt;</span>
+                        <span className="text-primary font-bold opacity-30 shrink-0">CRAWLER ></span>
                         <span className="text-emerald-400/90 font-medium">{log}</span>
                       </div>
                     ))
