@@ -1,14 +1,16 @@
-
 {
   "userAgent": "Mozilla/5.0 (compatible; HumangoBot/1.0; +http://bot.humango.app)",
   "timeout": 30000,
   "maxConcurrency": 5,
   "proxyEnabled": false,
-  "scanIntervalMs": 1200,
+  "scanIntervalMs": 1500,
   "complianceRules": [
     "GDPR_PII_LEAK",
-    "SSL_EXPIRED",
-    "ROBOTS_TXT_MISSING",
-    "SENSITIVE_HEADERS"
-  ]
+    "SSL_TLS_VERSION_CHECK",
+    "ROBOTS_TXT_ADHERENCE",
+    "HEADER_TRANSPARENCY",
+    "RFC_9309_COMPLIANCE"
+  ],
+  "abuseEmail": "abuse@humango.app",
+  "staticIp": "116.203.3.75"
 }

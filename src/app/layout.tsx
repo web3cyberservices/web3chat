@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   title: 'HumangoBot | Official Web Crawler Identity & Compliance',
   description: 'Verified identity and verification portal for HumangoBot. Auditing global infrastructure for GDPR compliance, SSL/TLS security, and data privacy protocols.',
-  keywords: 'HumangoBot, web crawler, security audit, GDPR compliance, SSL scanner, Cloudflare verified bot',
+  keywords: 'HumangoBot, web crawler, security audit, GDPR compliance, SSL scanner, Cloudflare verified bot, RFC 9309',
   robots: {
     index: true,
     follow: true,
@@ -22,9 +22,9 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'HumangoBot | Identity Portal',
-    description: 'Official crawler specifications and GDPR compliance standards.',
+    description: 'Official crawler specifications, GDPR compliance standards and verified origin data.',
     url: 'https://bot.humango.app',
-    siteName: 'HumangoBot',
+    siteName: 'HumangoBot Compliance',
     type: 'website',
   },
 };
