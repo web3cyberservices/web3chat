@@ -30,11 +30,11 @@ export default function Home() {
             <Badge variant="outline" className="hidden sm:flex border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-[10px] font-bold tracking-[0.2em] px-3 py-1 rounded-full">
               V1.0.2 STABLE
             </Badge>
-            <Link href="/admin">
-              <Button size="sm" className="bg-white/5 hover:bg-white/10 text-white border border-white/10 h-9 rounded-full px-6 text-xs font-semibold tracking-normal transition-all">
+            <Button size="sm" className="bg-white/5 hover:bg-white/10 text-white border border-white/10 h-9 rounded-full px-6 text-xs font-semibold tracking-normal transition-all" asChild>
+              <Link href="/admin">
                 Admin Portal
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </nav>
         </div>
       </header>
@@ -121,11 +121,11 @@ export default function Home() {
               <p className="text-[11px] text-slate-400 leading-relaxed mb-5">
                 To exclude your domain, update <code className="text-primary font-mono font-bold bg-primary/5 px-1.5 py-0.5 rounded">robots.txt</code> or email our abuse desk for assistance.
               </p>
-              <a href="mailto:abuse@humango.app" className="block">
-                <Button className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11 text-xs gap-2 shadow-lg shadow-primary/20 transition-all">
+              <Button className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11 text-xs gap-2 shadow-lg shadow-primary/20 transition-all" asChild>
+                <a href="mailto:abuse@humango.app">
                   Contact abuse@humango.app
-                </Button>
-              </a>
+                </a>
+              </Button>
             </Card>
           </div>
         </div>

@@ -194,14 +194,15 @@ export default function AdminDashboard() {
           </Button>
         </nav>
         <div className="p-4 border-t border-white/5 space-y-2">
-          <Link href="/" passHref legacyBehavior>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal"
-            >
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal"
+            asChild
+          >
+            <Link href="/">
               <LogOut className="w-4 h-4" /> Exit to Public
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           <Button 
             variant="ghost" 
             onClick={handleLogout}
