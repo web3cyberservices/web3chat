@@ -155,7 +155,7 @@ export default function AdminDashboard() {
   return (
     <div className="flex h-screen bg-[#020617] text-slate-50 overflow-hidden font-body selection:bg-primary/30">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-white/5 bg-[#0b1120] hidden md:flex flex-col">
+      <aside className="w-64 border-r border-white/5 bg-[#0b1120] hidden md:flex flex-col shrink-0">
         <div className="p-6 border-b border-white/5 flex items-center gap-3 group">
           <div className="bg-primary p-2 rounded-xl shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform duration-300">
             <Shield className="w-5 h-5 text-white" />
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
             HumangoBot
           </span>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
           <Button variant="secondary" className="w-full justify-start gap-3 bg-white/5 border-white/5 hover:bg-white/10 tracking-normal">
             <LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard
           </Button>
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
             <Settings className="w-4 h-4" /> System Config
           </Button>
         </nav>
-        <div className="p-4 border-t border-white/5">
+        <div className="p-4 border-t border-white/5 space-y-2">
           <Link href="/">
             <Button 
               variant="ghost" 
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
           <Button 
             variant="ghost" 
             onClick={handleLogout}
-            className="w-full justify-start gap-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 tracking-normal mt-2"
+            className="w-full justify-start gap-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 tracking-normal"
           >
             <LogOut className="w-4 h-4" /> Sign Out
           </Button>
@@ -203,12 +203,12 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl z-10">
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl z-10 shrink-0">
           <div>
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">Control Center</h2>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-4 bg-white/5 px-5 py-2 rounded-full border border-white/10 shadow-inner transition-all">
+            <div className="flex items-center gap-4 bg-white/5 px-5 py-2 rounded-full border border-white/10 shadow-inner">
               <span className="text-xs font-semibold text-slate-300 tracking-normal">Crawler Status</span>
               <Badge variant="outline" className={isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 tracking-widest font-bold" : "bg-slate-500/10 text-slate-400 border-slate-500/20 tracking-widest font-bold"}>
                 {isActive ? "ACTIVE" : "IDLE"}
@@ -268,7 +268,7 @@ export default function AdminDashboard() {
               <CardHeader className="border-b border-white/5 bg-white/[0.01] py-4">
                 <CardTitle className="text-sm font-bold flex items-center justify-between tracking-normal">
                   <span className="flex items-center gap-2 font-bold"><ChartIcon className="w-4 h-4 text-primary opacity-80" /> Scan Frequency (24h)</span>
-                  <Badge variant="ghost" className="text-[10px] font-mono text-slate-500 tracking-normal opacity-70 font-bold">LIVE DATASET</Badge>
+                  <Badge variant="ghost" className="text-[10px] font-mono text-slate-500 tracking-normal opacity-70 font-bold uppercase">Live Dataset</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-8 px-4">
