@@ -118,6 +118,14 @@ export default function AdminDashboard() {
     });
   };
 
+  const handleIssuesClick = () => {
+    toast({
+      variant: "destructive",
+      title: "4 Urgent Security Actions Required",
+      description: "Critical: SSL expired on server-09. GDPR leak detected in /api/v1/users. Missing robots.txt on 2 domains.",
+    });
+  };
+
   const handleComingSoon = () => {
     toast({
       title: "Notice",
@@ -238,10 +246,10 @@ export default function AdminDashboard() {
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-primary/50 transition-all duration-300 shadow-lg">
+            <Card className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-primary/50 transition-all duration-300 shadow-lg cursor-pointer group" onClick={() => toast({ title: "Real-time Metrics", description: "All scan clusters reporting optimal performance." })}>
               <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
                 <CardTitle className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Pages Scanned</CardTitle>
-                <Database className="h-4 w-4 text-primary" />
+                <Database className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tracking-tight">{metrics.pagesScanned.toLocaleString()}</div>
@@ -251,10 +259,14 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 shadow-lg">
+            
+            <Card 
+              className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 shadow-lg cursor-pointer group"
+              onClick={handleIssuesClick}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
                 <CardTitle className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Compliance Issues</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertTriangle className="h-4 w-4 text-amber-500 group-hover:animate-pulse" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tracking-tight text-amber-50">{metrics.issuesFound}</div>
@@ -264,10 +276,11 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-indigo-400/50 transition-all duration-300 shadow-lg">
+
+            <Card className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-indigo-400/50 transition-all duration-300 shadow-lg cursor-pointer group" onClick={() => toast({ title: "System Load", description: "CPU and memory usage are within normal enterprise thresholds." })}>
               <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
                 <CardTitle className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Engine Load</CardTitle>
-                <Server className="h-4 w-4 text-indigo-400" />
+                <Server className="h-4 w-4 text-indigo-400 group-hover:rotate-12 transition-transform" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tracking-tight">{Math.round(metrics.serverLoad)}%</div>
