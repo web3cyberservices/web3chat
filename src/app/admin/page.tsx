@@ -126,10 +126,10 @@ export default function AdminDashboard() {
     });
   };
 
-  const handleComingSoon = () => {
+  const handleComingSoon = (feature: string) => {
     toast({
       title: "Notice",
-      description: "This module is currently in development.",
+      description: `${feature} module is currently in development.`,
     });
   };
 
@@ -187,17 +187,17 @@ export default function AdminDashboard() {
           <Button variant="secondary" className="w-full justify-start gap-3 bg-white/5 border-white/5 hover:bg-white/10 tracking-normal">
             <LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard
           </Button>
-          <Button variant="ghost" onClick={handleComingSoon} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
+          <Button variant="ghost" onClick={() => handleComingSoon('Live Audits')} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Search className="w-4 h-4" /> Live Audits
           </Button>
-          <Button variant="ghost" onClick={handleComingSoon} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
+          <Button variant="ghost" onClick={() => handleComingSoon('Permissions')} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Users className="w-4 h-4" /> Permissions
           </Button>
-          <Button variant="ghost" onClick={handleComingSoon} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
+          <Button variant="ghost" onClick={() => handleComingSoon('Knowledge Base')} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Database className="w-4 h-4" /> Knowledge Base
           </Button>
           <div className="pt-6 pb-2 px-3 text-[10px] uppercase tracking-[0.25em] text-slate-500 font-bold">Settings</div>
-          <Button variant="ghost" onClick={handleComingSoon} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
+          <Button variant="ghost" onClick={() => handleComingSoon('System Config')} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Settings className="w-4 h-4" /> System Config
           </Button>
         </nav>
