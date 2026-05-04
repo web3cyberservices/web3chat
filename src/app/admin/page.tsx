@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Activity, 
   LayoutDashboard, 
@@ -18,7 +20,8 @@ import {
   Shield, 
   LineChart as ChartIcon,
   Search,
-  AlertTriangle
+  AlertTriangle,
+  Lock
 } from "lucide-react";
 import { 
   AreaChart,
@@ -41,8 +44,12 @@ const chartData = [
 ];
 
 export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const { toast } = useToast();
+  
   const [metrics, setMetrics] = useState({
     pagesScanned: 12450,
     issuesFound: 842,
@@ -50,7 +57,12 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    if (isActive) {
+    const auth = sessionStorage.getItem('admin_authenticated');
+    if (auth === 'true') setIsAuthenticated(true);
+  }, []);
+
+  useEffect(() => {
+    if (isActive && isAuthenticated) {
       const interval = setInterval(() => {
         const timestamp = new Date().toLocaleTimeString();
         const actions = [
@@ -77,7 +89,68 @@ export default function AdminDashboard() {
       }, 1200);
       return () => clearInterval(interval);
     }
-  }, [isActive]);
+  }, [isActive, isAuthenticated]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passphrase === "humango-admin-2025") {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('admin_authenticated', 'true');
+      toast({
+        title: "Access Granted",
+        description: "Welcome back, Administrator.",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Access Denied",
+        description: "Invalid administrative password.",
+      });
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('admin_authenticated');
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 font-body">
+        <Card className="w-full max-w-md bg-white/[0.03] border-white/10 backdrop-blur-xl shadow-2xl p-8 space-y-8">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="bg-primary/20 p-4 rounded-2xl border border-primary/30">
+              <Lock className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight">Admin Authentication</h1>
+              <p className="text-sm text-slate-500 font-medium">Access restricted to authorized personnel only.</p>
+            </div>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold ml-1">Secret Passphrase</label>
+              <Input 
+                type="password" 
+                placeholder="••••••••••••" 
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value)}
+                className="bg-white/5 border-white/10 h-12 focus:ring-primary text-center tracking-[0.3em]"
+              />
+            </div>
+            <Button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 font-bold shadow-lg shadow-primary/20">
+              Unlock Terminal
+            </Button>
+          </form>
+          <div className="pt-4 text-center">
+            <Link href="/" className="text-xs text-slate-600 hover:text-primary transition-colors uppercase tracking-widest font-bold">
+              Back to Public Page
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[#020617] text-slate-50 overflow-hidden font-body selection:bg-primary/30">
@@ -108,11 +181,13 @@ export default function AdminDashboard() {
           </Button>
         </nav>
         <div className="p-4 border-t border-white/5">
-          <Link href="/">
-            <Button variant="ghost" className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
-              <LogOut className="w-4 h-4" /> Exit to Public
-            </Button>
-          </Link>
+          <Button 
+            variant="ghost" 
+            onClick={handleLogout}
+            className="w-full justify-start gap-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 tracking-normal"
+          >
+            <LogOut className="w-4 h-4" /> Sign Out
+          </Button>
         </div>
       </aside>
 
