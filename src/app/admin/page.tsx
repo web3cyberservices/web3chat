@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
@@ -55,13 +55,14 @@ interface DetectedIssue {
 }
 
 export default function AdminDashboard() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [passphrase, setPassphrase] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [detectedIssues, setDetectedIssues] = useState<DetectedIssue[]>([]);
   const [showIssuesDialog, setShowIssuesDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
   
   const [metrics, setMetrics] = useState({
     pagesScanned: 0,
@@ -69,51 +70,66 @@ export default function AdminDashboard() {
     serverLoad: 12,
   });
 
+  // Проверка авторизации на клиенте
   useEffect(() => {
-    const auth = document.cookie.includes('admin_authenticated=true');
-    if (auth) setIsAuthenticated(true);
+    const checkAuth = () => {
+      const auth = document.cookie.includes('admin_authenticated=true');
+      setIsAuthenticated(auth);
+    };
+    checkAuth();
   }, []);
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
+  const fetchData = useCallback(async () => {
+    // Если мы уже знаем, что не авторизованы, не делаем запрос
+    if (!document.cookie.includes('admin_authenticated=true')) {
+      setIsAuthenticated(false);
+      return;
+    }
 
-    const fetchData = async () => {
-      try {
-        const statusRes = await fetch('/api/admin/control');
-        
-        if (statusRes.status === 401) {
-          setIsAuthenticated(false);
-          document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-          return;
-        }
-
-        if (!statusRes.ok) return;
-
-        const statusData = await statusRes.json();
-        setIsActive(statusData.isActive);
-
-        const statsRes = await fetch('/api/admin/stats');
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          setMetrics(prev => ({
-            ...prev,
-            pagesScanned: statsData.pagesScanned,
-            issuesFound: statsData.issuesFound
-          }));
-          setDetectedIssues(statsData.recentIssues);
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        // Ошибка сети или парсинга - не прерываем работу компонента
-        console.debug('Polling background data failed');
+    try {
+      const statusRes = await fetch('/api/admin/control');
+      
+      if (statusRes.status === 401) {
+        setIsAuthenticated(false);
+        document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        return;
       }
-    };
 
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, [isAuthenticated]);
+      if (!statusRes.ok) return;
+
+      const statusData = await statusRes.json();
+      setIsActive(statusData.isActive);
+
+      const statsRes = await fetch('/api/admin/stats');
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setMetrics(prev => ({
+          ...prev,
+          pagesScanned: statsData.pagesScanned,
+          issuesFound: statsData.issuesFound
+        }));
+        setDetectedIssues(statsData.recentIssues);
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.debug('Background sync skipped');
+    }
+  }, []);
+
+  // Управление циклом опроса
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      fetchData();
+      pollingRef.current = setInterval(fetchData, 5000);
+    } else {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    }
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [isAuthenticated, fetchData]);
 
   const handleToggleBot = async (checked: boolean) => {
     try {
@@ -170,8 +186,8 @@ export default function AdminDashboard() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passphrase === "humango-admin-2025") {
-      setIsAuthenticated(true);
       document.cookie = "admin_authenticated=true; path=/; max-age=3600; SameSite=Strict";
+      setIsAuthenticated(true);
       toast({ title: "Доступ разрешен", description: "Добро пожаловать в терминал управления." });
     } else {
       toast({ variant: "destructive", title: "Доступ запрещен", description: "Неверный пароль." });
@@ -181,9 +197,13 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    if (pollingRef.current) clearInterval(pollingRef.current);
   };
 
-  if (!isAuthenticated) {
+  // Пока статус авторизации не определен, ничего не рендерим во избежание мерцания
+  if (isAuthenticated === null) return null;
+
+  if (isAuthenticated === false) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 font-body">
         <Card className="w-full max-w-md bg-white/[0.03] border-white/10 backdrop-blur-xl shadow-2xl p-8 space-y-8">
