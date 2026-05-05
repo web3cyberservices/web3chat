@@ -31,19 +31,18 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    // Более строгая CSP политика для защиты от XSS и инъекций
+    // Оптимизированная CSP политика: разрешаем фреймы для корректной работы превью в IDE
     const cspHeader = `
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval';
-      style-src 'self' 'unsafe-inline';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
+      style-src 'self' 'unsafe-inline' https:;
       img-src 'self' blob: data: https:;
-      font-src 'self' data:;
+      font-src 'self' data: https:;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
-      frame-ancestors 'none';
+      frame-ancestors 'self' *;
       block-all-mixed-content;
-      upgrade-insecure-requests;
     `.replace(/\s{2,}/g, ' ').trim();
 
     return [
@@ -60,7 +59,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'SAMEORIGIN',
           },
           {
             key: 'X-Content-Type-Options',
