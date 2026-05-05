@@ -1,93 +1,73 @@
-import { parseContent } from './parser';
-import { saveScanResult } from './database';
-import settings from '@/config/crawler-settings.json';
 
-// Локальный кэш для предотвращения повторного сканирования в рамках одного сеанса
+import { scrapeUrl } from '@/lib/scraper';
+import { parseHtmlContent } from '@/lib/parser';
+import { isUrlAllowed, getCrawlDelay } from '@/config/robots-rules';
+import { saveScanResult } from './database';
+import { CrawlResult } from '@/types';
+
 const recentlyScanned = new Set<string>();
 
 /**
- * Основная задача краулера с принудительным соблюдением политик.
- * Реализует RFC 9309 и GDPR Data Minimization.
+ * Точка входа для задачи сканирования.
+ * Координирует работу скрапера, парсера и соблюдение правил.
  */
-export async function runCrawlTask(seedUrl: string) {
+export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
   try {
     const url = new URL(seedUrl);
     const domain = url.hostname;
 
-    // 1. Проверка на повторное сканирование (Anti-Duplicate Policy)
+    // 1. Проверка на дубликаты
     if (recentlyScanned.has(domain)) {
-      console.log(`[Compliance] Skip redundant scan: ${domain}`);
       return { 
         url: seedUrl, 
+        timestamp: new Date().toISOString(),
         status: 'skipped', 
-        reason: 'Domain recently scanned. Rate limit protection.' 
+        issuesFound: 0,
+        reason: 'Домен уже проверялся в текущем сеансе.' 
       };
     }
 
-    // 2. Соблюдение robots.txt (RFC 9309)
-    const isAllowed = await checkRobotsTxt(url.origin, url.pathname);
-    if (!isAllowed) {
+    // 2. Проверка Robots.txt (RFC 9309)
+    const { allowed, reason } = await isUrlAllowed(seedUrl);
+    if (!allowed) {
       return { 
         url: seedUrl, 
+        timestamp: new Date().toISOString(),
         status: 'blocked', 
-        reason: 'Violation of robots.txt (Compliance enforced)' 
+        issuesFound: 0,
+        reason 
       };
     }
 
-    // 3. Реализация задержки (Politeness Policy)
-    await new Promise(resolve => setTimeout(resolve, settings.scanIntervalMs));
+    // 3. Задержка (Politeness)
+    await new Promise(resolve => setTimeout(resolve, getCrawlDelay() * 1000));
 
-    console.log(`[Compliance] Authorized scan: ${seedUrl}`);
+    // 4. Запрос данных (Scraper)
+    const { html, security } = await scrapeUrl(seedUrl);
 
-    // 4. Запрос с прозрачными заголовками идентификации
-    const response = await fetch(seedUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': settings.userAgent,
-        'X-Crawler-Contact': settings.abuseEmail,
-        'X-Compliance-Portal': 'https://bot.humango.app',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
-      },
-      signal: AbortSignal.timeout(settings.timeout)
-    }).catch(e => {
-      throw new Error(`Connection failed: ${e.message}`);
-    });
-
-    if (!response.ok) {
-      return { url: seedUrl, status: 'error', code: response.status };
-    }
-
-    // Добавляем в список недавно просканированных
-    recentlyScanned.add(domain);
-    // Очистка старых записей если кэш слишком большой
-    if (recentlyScanned.size > 500) {
-      const first = recentlyScanned.values().next().value;
-      if (first) recentlyScanned.delete(first);
-    }
-
-    // 5. Анализ только на предмет уязвимостей и соответствия GDPR
-    const html = await response.text();
-    const issues = parseContent(html, seedUrl);
+    // 5. Анализ контента (Parser)
+    const issues = parseHtmlContent(html, seedUrl);
     
+    // Сохранение результатов
     await saveScanResult(seedUrl, issues);
+    recentlyScanned.add(domain);
 
     return {
       url: seedUrl,
       timestamp: new Date().toISOString(),
-      issuesFound: issues.length,
       status: 'success',
-      securityHeaders: {
-        ssl: 'TLS 1.3',
-        hsts: response.headers.has('Strict-Transport-Security')
-      }
+      issuesFound: issues.length,
+      issues: issues,
+      securityHeaders: security
     };
   } catch (error: any) {
-    console.error(`[Crawler] Safety Stop on ${seedUrl}:`, error.message);
-    return { url: seedUrl, error: error.message, status: 'failed' };
+    console.error(`[Compliance Stop] ${seedUrl}:`, error.message);
+    return { 
+      url: seedUrl, 
+      timestamp: new Date().toISOString(),
+      status: 'failed', 
+      issuesFound: 0,
+      error: error.message 
+    };
   }
-}
-
-async function checkRobotsTxt(origin: string, path: string): Promise<boolean> {
-  // Имитация парсера robots.txt согласно RFC 9309.
-  return true; 
 }
