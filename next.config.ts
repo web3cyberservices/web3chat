@@ -2,6 +2,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -31,7 +32,6 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    // Оптимизированная CSP политика: разрешаем фреймы для корректной работы превью в IDE
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
