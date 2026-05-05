@@ -35,7 +35,7 @@ import {
 const LogoIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <rect width="100" height="100" fill="black"/>
-    <path d="M15 15h20v70H15V15zm20 25h30v15H35V40zm10-25h40v15H45V15zm25 10h15v50H45V60h30V25z" fill="#5EEAD4"/>
+    <path d="M20 20h12v60H20V20zM48 20h12v60H48V20zM32 44h16v12H32V44zM70 20h20v12H70v48h20v-12h-8V56h8V32H70v-12z" fill="#5EEAD4"/>
   </svg>
 );
 
@@ -154,10 +154,10 @@ export default function AdminDashboard() {
             </div>
             <div className="space-y-2">
               <h1 className="text-2xl font-bold tracking-tight">Admin Authentication</h1>
-              <p className="text-sm text-slate-500 font-medium">Access restricted to authorized personnel only.</p>
+              <p className="text-sm text-slate-500 font-medium font-body">Access restricted to authorized personnel only.</p>
             </div>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4 font-body">
             <div className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold ml-1">Secret Passphrase</label>
               <Input 
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
             </Button>
           </form>
           <div className="pt-4 text-center">
-            <Link href="/" className="text-xs text-slate-600 hover:text-primary transition-colors uppercase tracking-widest font-bold">
+            <Link href="/" className="text-xs text-slate-600 hover:text-primary transition-colors uppercase tracking-[0.25em] font-bold">
               Back to Public Page
             </Link>
           </div>
@@ -191,12 +191,12 @@ export default function AdminDashboard() {
             <LogoIcon className="w-full h-full" />
           </div>
           <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-slate-400">
-            HumangoBot
+            bot.humango.app
           </span>
         </div>
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
-          <Button variant="secondary" className="w-full justify-start gap-3 bg-white/5 border-white/5 hover:bg-white/10 tracking-normal">
-            <LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard
+          <Button variant="secondary" className="w-full justify-start gap-3 bg-white/5 border-white/5 hover:bg-white/10 tracking-normal" asChild>
+            <span><LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard</span>
           </Button>
           <Button variant="ghost" onClick={() => handleComingSoon('Live Audits')} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Search className="w-4 h-4" /> Live Audits
@@ -236,12 +236,12 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl z-10 shrink-0">
           <div>
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">Control Center</h2>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.25em]">Control Center</h2>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-4 bg-white/5 px-5 py-2 rounded-full border border-white/10 shadow-inner">
               <span className="text-xs font-semibold text-slate-300 tracking-normal">Crawler Status</span>
-              <Badge variant="outline" className={isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 tracking-widest font-bold" : "bg-slate-500/10 text-slate-400 border-slate-500/20 tracking-widest font-bold"}>
+              <Badge variant="outline" className={isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 tracking-[0.15em] font-bold" : "bg-slate-500/10 text-slate-400 border-slate-500/20 tracking-[0.15em] font-bold"}>
                 {isActive ? "ACTIVE" : "IDLE"}
               </Badge>
               <Switch checked={isActive} onCheckedChange={(val) => {
@@ -263,8 +263,8 @@ export default function AdminDashboard() {
                 <Database className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold tracking-tight">{metrics.pagesScanned.toLocaleString()}</div>
-                <div className="flex items-center gap-2 mt-3 text-xs text-emerald-400 font-bold tracking-normal">
+                <div className="text-3xl font-bold tracking-tight leading-none">{metrics.pagesScanned.toLocaleString()}</div>
+                <div className="flex items-center gap-2 mt-4 text-xs text-emerald-400 font-bold tracking-normal">
                   <Activity className="w-3 h-3" />
                   <span>+124 since startup</span>
                 </div>
@@ -280,8 +280,8 @@ export default function AdminDashboard() {
                 <AlertTriangle className="h-4 w-4 text-amber-500 group-hover:animate-pulse" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold tracking-tight text-amber-50">{metrics.issuesFound}</div>
-                <div className="flex items-center gap-2 mt-3 text-xs text-rose-400 font-bold tracking-normal">
+                <div className="text-3xl font-bold tracking-tight text-amber-50 leading-none">{metrics.issuesFound}</div>
+                <div className="flex items-center gap-2 mt-4 text-xs text-rose-400 font-bold tracking-normal">
                   <Activity className="w-3 h-3" />
                   <span>4 urgent actions</span>
                 </div>
@@ -294,8 +294,8 @@ export default function AdminDashboard() {
                 <Server className="h-4 w-4 text-indigo-400 group-hover:rotate-12 transition-transform" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold tracking-tight">{Math.round(metrics.serverLoad)}%</div>
-                <div className="h-2 w-full bg-white/5 rounded-full mt-4 overflow-hidden shadow-inner">
+                <div className="text-3xl font-bold tracking-tight leading-none">{Math.round(metrics.serverLoad)}%</div>
+                <div className="h-2 w-full bg-white/5 rounded-full mt-5 overflow-hidden shadow-inner">
                   <div 
                     className="h-full bg-gradient-to-r from-primary to-indigo-500 rounded-full transition-all duration-700 ease-in-out" 
                     style={{ width: `${metrics.serverLoad}%` }}
@@ -310,7 +310,7 @@ export default function AdminDashboard() {
               <CardHeader className="border-b border-white/5 bg-white/[0.01] py-4">
                 <CardTitle className="text-sm font-bold flex items-center justify-between tracking-normal">
                   <span className="flex items-center gap-2 font-bold"><Activity className="w-4 h-4 text-primary opacity-80" /> Scan Frequency (24h)</span>
-                  <Badge variant="ghost" className="text-[10px] font-mono text-slate-500 tracking-normal opacity-70 font-bold uppercase">Live Dataset</Badge>
+                  <Badge variant="ghost" className="text-[10px] font-mono text-slate-500 tracking-[0.1em] opacity-70 font-bold uppercase">Live Dataset</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-8 px-4">
@@ -338,17 +338,17 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            <div className="space-y-5">
-              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.25em] flex items-center gap-2">
+            <div className="space-y-6">
+              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.25em] flex items-center gap-2 ml-1">
                 <Terminal className="w-4 h-4 text-emerald-400 opacity-80" /> Live Engine Logs
               </h3>
               <div className="bg-[#0b1120] rounded-2xl border border-white/10 p-6 font-mono text-[11px] overflow-hidden h-[300px] flex flex-col shadow-2xl relative">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary via-indigo-500 to-primary opacity-30"></div>
-                <div className="flex-1 overflow-y-auto space-y-2.5 scrollbar-hide">
+                <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
                   {logs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-5">
                       <Terminal className="w-12 h-12 opacity-10" />
-                      <div className="italic tracking-normal text-sm opacity-50 font-sans">System standby. Waiting for engine activation...</div>
+                      <div className="italic tracking-normal text-sm opacity-50 font-body">System standby. Waiting for engine activation...</div>
                     </div>
                   ) : (
                     logs.map((log, i) => (
