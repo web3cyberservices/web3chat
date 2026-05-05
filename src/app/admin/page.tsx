@@ -149,6 +149,7 @@ export default function AdminDashboard() {
                 src="/logo.png" 
                 alt="HumangoBot Logo" 
                 fill
+                sizes="64px"
                 className="object-contain"
               />
             </div>
@@ -186,12 +187,13 @@ export default function AdminDashboard() {
     <div className="flex h-screen bg-[#020617] text-slate-50 overflow-hidden font-body selection:bg-primary/30">
       {/* Sidebar */}
       <aside className="w-64 border-r border-white/5 bg-[#0b1120] hidden md:flex flex-col shrink-0">
-        <div className="p-6 border-b border-white/5 flex items-center gap-3 group">
+        <div className="p-6 border-b border-white/5 border-t-white/10 flex items-center gap-3 group">
           <div className="w-8 h-8 overflow-hidden rounded-lg transition-transform duration-300 relative bg-transparent">
             <Image 
               src="/logo.png" 
               alt="HumangoBot Logo" 
               fill
+              sizes="32px"
               className="object-contain"
             />
           </div>
@@ -199,7 +201,7 @@ export default function AdminDashboard() {
             HumangoBot
           </span>
         </div>
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
+        <nav className="flex-1 p-4 space-y-3 overflow-y-auto scrollbar-hide">
           <Button variant="secondary" className="w-full justify-start gap-3 bg-white/5 border-white/5 hover:bg-white/10 tracking-normal" asChild>
             <Link href="/admin">
               <LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard
@@ -214,7 +216,7 @@ export default function AdminDashboard() {
           <Button variant="ghost" onClick={() => handleComingSoon('Knowledge Base')} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Database className="w-4 h-4" /> Knowledge Base
           </Button>
-          <div className="pt-6 pb-2 px-3 text-[10px] uppercase tracking-[0.25em] text-slate-500 font-bold">Settings</div>
+          <div className="pt-8 pb-3 px-3 text-[10px] uppercase tracking-[0.25em] text-slate-500 font-bold">Settings</div>
           <Button variant="ghost" onClick={() => handleComingSoon('System Config')} className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-white/5 tracking-normal">
             <Settings className="w-4 h-4" /> System Config
           </Button>
@@ -244,7 +246,7 @@ export default function AdminDashboard() {
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl z-10 shrink-0">
           <div className="flex items-center gap-3 md:hidden">
             <div className="w-8 h-8 relative bg-transparent">
-               <Image src="/logo.png" alt="Logo" fill className="object-contain" />
+               <Image src="/logo.png" alt="Logo" fill sizes="32px" className="object-contain" />
             </div>
             <span className="font-bold text-sm tracking-tight">HumangoBot</span>
           </div>
@@ -268,16 +270,16 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex-1 overflow-y-auto p-8 space-y-10 scrollbar-hide">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Card className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-primary/50 transition-all duration-300 shadow-lg cursor-pointer group" onClick={() => toast({ title: "Real-time Metrics", description: "All scan clusters reporting optimal performance." })}>
-              <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
+              <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
                 <CardTitle className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Pages Scanned</CardTitle>
                 <Database className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tracking-tight leading-none">{metrics.pagesScanned.toLocaleString()}</div>
-                <div className="flex items-center gap-2 mt-4 text-xs text-emerald-400 font-bold tracking-normal">
+                <div className="flex items-center gap-2 mt-5 text-xs text-emerald-400 font-bold tracking-normal">
                   <Activity className="w-3 h-3" />
                   <span>+124 since startup</span>
                 </div>
@@ -288,13 +290,13 @@ export default function AdminDashboard() {
               className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-amber-500/50 transition-all duration-300 shadow-lg cursor-pointer group"
               onClick={handleIssuesClick}
             >
-              <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
+              <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
                 <CardTitle className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Compliance Issues</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-amber-500 group-hover:animate-pulse" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tracking-tight text-amber-50 leading-none">{metrics.issuesFound}</div>
-                <div className="flex items-center gap-2 mt-4 text-xs text-rose-400 font-bold tracking-normal">
+                <div className="flex items-center gap-2 mt-5 text-xs text-rose-400 font-bold tracking-normal">
                   <Activity className="w-3 h-3" />
                   <span>4 urgent actions</span>
                 </div>
@@ -302,13 +304,13 @@ export default function AdminDashboard() {
             </Card>
 
             <Card className="bg-white/[0.03] border-white/10 backdrop-blur-sm hover:border-indigo-400/50 transition-all duration-300 shadow-lg cursor-pointer group" onClick={() => toast({ title: "System Load", description: "CPU and memory usage are within normal enterprise thresholds." })}>
-              <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
+              <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
                 <CardTitle className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Engine Load</CardTitle>
                 <Server className="h-4 w-4 text-indigo-400 group-hover:rotate-12 transition-transform" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tracking-tight leading-none">{Math.round(metrics.serverLoad)}%</div>
-                <div className="h-2 w-full bg-white/5 rounded-full mt-5 overflow-hidden shadow-inner">
+                <div className="h-2 w-full bg-white/5 rounded-full mt-6 overflow-hidden shadow-inner">
                   <div 
                     className="h-full bg-gradient-to-r from-primary to-indigo-500 rounded-full transition-all duration-700 ease-in-out" 
                     style={{ width: `${metrics.serverLoad}%` }}
@@ -318,15 +320,15 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             <Card className="bg-white/[0.03] border-white/10 backdrop-blur-sm shadow-xl overflow-hidden border-t-white/10">
-              <CardHeader className="border-b border-white/5 bg-white/[0.01] py-4">
+              <CardHeader className="border-b border-white/5 bg-white/[0.01] py-5">
                 <CardTitle className="text-sm font-bold flex items-center justify-between tracking-normal">
-                  <span className="flex items-center gap-2 font-bold"><Activity className="w-4 h-4 text-primary opacity-80" /> Scan Frequency (24h)</span>
+                  <span className="flex items-center gap-2 font-bold leading-relaxed"><Activity className="w-4 h-4 text-primary opacity-80" /> Scan Frequency (24h)</span>
                   <Badge variant="ghost" className="text-[10px] font-mono text-slate-500 tracking-[0.1em] opacity-70 font-bold uppercase">Live Dataset</Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-8 px-4">
+              <CardContent className="pt-10 px-6">
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
@@ -351,17 +353,17 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            <div className="space-y-6">
+            <div className="space-y-8">
               <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.25em] flex items-center gap-2 ml-1">
                 <Terminal className="w-4 h-4 text-emerald-400 opacity-80" /> Live Engine Logs
               </h3>
-              <div className="bg-[#0b1120] rounded-2xl border border-white/10 p-6 font-mono text-[11px] overflow-hidden h-[300px] flex flex-col shadow-2xl relative">
+              <div className="bg-[#0b1120] rounded-2xl border border-white/10 p-7 font-mono text-[11px] overflow-hidden h-[300px] flex flex-col shadow-2xl relative">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary via-indigo-500 to-primary opacity-30"></div>
-                <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
+                <div className="flex-1 overflow-y-auto space-y-4 scrollbar-hide">
                   {logs.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-5">
+                    <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-6">
                       <Terminal className="w-12 h-12 opacity-10" />
-                      <div className="italic tracking-normal text-sm opacity-50 font-body">System standby. Waiting for engine activation...</div>
+                      <div className="italic tracking-normal text-sm opacity-50 font-body leading-relaxed">System standby. Waiting for engine activation...</div>
                     </div>
                   ) : (
                     logs.map((log, i) => (

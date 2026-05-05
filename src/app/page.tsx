@@ -24,6 +24,7 @@ export default function Home() {
                 src="/logo.png" 
                 alt="HumangoBot Logo" 
                 fill
+                sizes="40px"
                 className="object-contain"
                 priority
               />
