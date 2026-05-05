@@ -36,11 +36,7 @@ export default function Home() {
             <Badge variant="outline" className="hidden sm:flex border-slate-500/20 bg-slate-500/5 text-slate-400 text-[10px] font-bold tracking-[0.2em] px-3 py-1 rounded-full uppercase">
               Bot Candidate
             </Badge>
-            <Button size="sm" variant="ghost" className="bg-white/5 hover:bg-white/10 text-white border border-white/10 h-9 rounded-full px-6 text-xs font-semibold tracking-normal transition-all" asChild>
-              <Link href="/admin">
-                <Lock className="w-3 h-3 mr-2" /> Admin Portal
-              </Link>
-            </Button>
+            {/* Публичная кнопка входа в Admin Portal удалена для скрытого доступа */}
           </nav>
         </div>
       </header>
