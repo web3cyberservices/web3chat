@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22 fill=%22none%22><rect width=%22100%22 height=%22100%22 fill=%22black%22/><path d=%22M20 20h12v60H20V20zM48 20h12v60H48V20zM32 44h16v12H32V44zM70 20h20v12H70v48h20v-12h-8V56h8V32H70v-12z%22 fill=%22%235EEAD4%22/></svg>',
+    icon: '/logo.png',
   },
   openGraph: {
     title: 'bot.humango.app | Identity Portal',

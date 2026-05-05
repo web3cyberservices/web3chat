@@ -1,17 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Globe, Terminal, Scale, Clock, ShieldCheck, FileText, Lock } from "lucide-react";
-
-const LogoIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <rect width="100" height="100" fill="black"/>
-    <path d="M20 20h12v60H20V20zM48 20h12v60H48V20zM32 44h16v12H32V44zM70 20h20v12H70v48h20v-12h-8V56h8V32H70v-12z" fill="#5EEAD4"/>
-  </svg>
-);
 
 export default function Home() {
   return (
@@ -24,11 +18,16 @@ export default function Home() {
       <header className="border-b border-white/5 bg-[#020617]/50 backdrop-blur-xl shrink-0 sticky top-0 z-50">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 group cursor-default">
-            <div className="w-10 h-10 overflow-hidden rounded-xl shadow-lg shadow-black/50 transition-transform group-hover:scale-105 duration-300">
-              <LogoIcon className="w-full h-full" />
+            <div className="w-10 h-10 overflow-hidden rounded-xl shadow-lg shadow-black/50 transition-transform group-hover:scale-105 duration-300 relative bg-black">
+              <Image 
+                src="/logo.png" 
+                alt="HumangoBot Logo" 
+                fill
+                className="object-contain p-1"
+              />
             </div>
             <span className="font-bold text-xl tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-              bot.humango.app
+              HumangoBot
             </span>
           </div>
           <nav className="flex items-center gap-6">
