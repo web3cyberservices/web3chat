@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: 'bot.humango.app | Official Web Crawler Identity & Compliance',
   description: 'Verified identity and verification portal for HumangoBot. Auditing global infrastructure for GDPR compliance, SSL/TLS security, and data privacy protocols.',
   keywords: 'HumangoBot, web crawler, security audit, GDPR compliance, SSL scanner, Cloudflare verified bot, RFC 9309',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
   robots: {
     index: true,
     follow: true,
@@ -16,13 +21,6 @@ export const metadata: Metadata = {
       index: true,
       follow: true,
     },
-  },
-  icons: {
-    icon: [
-      { url: '/logo.png', type: 'image/png' },
-    ],
-    shortcut: '/logo.png',
-    apple: '/logo.png',
   },
   openGraph: {
     title: 'bot.humango.app | Identity Portal',
