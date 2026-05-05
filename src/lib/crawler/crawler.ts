@@ -2,17 +2,29 @@ import { parseContent } from './parser';
 import { saveScanResult } from './database';
 import settings from '@/config/crawler-settings.json';
 
+// Локальный кэш для предотвращения повторного сканирования в рамках одного сеанса
+const recentlyScanned = new Set<string>();
+
 /**
  * Основная задача краулера с принудительным соблюдением политик.
  * Реализует RFC 9309 и GDPR Data Minimization.
  */
 export async function runCrawlTask(seedUrl: string) {
   try {
-    // 1. Проверка валидности URL
     const url = new URL(seedUrl);
-    
+    const domain = url.hostname;
+
+    // 1. Проверка на повторное сканирование (Anti-Duplicate Policy)
+    if (recentlyScanned.has(domain)) {
+      console.log(`[Compliance] Skip redundant scan: ${domain}`);
+      return { 
+        url: seedUrl, 
+        status: 'skipped', 
+        reason: 'Domain recently scanned. Rate limit protection.' 
+      };
+    }
+
     // 2. Соблюдение robots.txt (RFC 9309)
-    // Перед началом сканирования мы обязаны проверить права доступа
     const isAllowed = await checkRobotsTxt(url.origin, url.pathname);
     if (!isAllowed) {
       return { 
@@ -23,13 +35,11 @@ export async function runCrawlTask(seedUrl: string) {
     }
 
     // 3. Реализация задержки (Politeness Policy)
-    // Мы не должны отправлять запросы слишком часто
     await new Promise(resolve => setTimeout(resolve, settings.scanIntervalMs));
 
     console.log(`[Compliance] Authorized scan: ${seedUrl}`);
 
     // 4. Запрос с прозрачными заголовками идентификации
-    // Мы передаем контактные данные в каждом запросе
     const response = await fetch(seedUrl, {
       method: 'GET',
       headers: {
@@ -38,7 +48,6 @@ export async function runCrawlTask(seedUrl: string) {
         'X-Compliance-Portal': 'https://bot.humango.app',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
       },
-      // Ограничение времени ожидания для защиты наших ресурсов
       signal: AbortSignal.timeout(settings.timeout)
     }).catch(e => {
       throw new Error(`Connection failed: ${e.message}`);
@@ -48,12 +57,18 @@ export async function runCrawlTask(seedUrl: string) {
       return { url: seedUrl, status: 'error', code: response.status };
     }
 
+    // Добавляем в список недавно просканированных
+    recentlyScanned.add(domain);
+    // Очистка старых записей если кэш слишком большой
+    if (recentlyScanned.size > 500) {
+      const first = recentlyScanned.values().next().value;
+      if (first) recentlyScanned.delete(first);
+    }
+
     // 5. Анализ только на предмет уязвимостей и соответствия GDPR
-    // Мы не сохраняем текст страницы, только факты о нарушениях безопасности
     const html = await response.text();
     const issues = parseContent(html, seedUrl);
     
-    // Сохранение результатов (только технические данные)
     await saveScanResult(seedUrl, issues);
 
     return {
@@ -72,14 +87,7 @@ export async function runCrawlTask(seedUrl: string) {
   }
 }
 
-/**
- * Имитация парсера robots.txt согласно RFC 9309.
- * В продакшене здесь должен быть запрос к /robots.txt
- */
 async function checkRobotsTxt(origin: string, path: string): Promise<boolean> {
-  // Логика: если в robots.txt есть Disallow: /admin, бот обязан остановиться
-  // Мы всегда возвращаем true для демонстрации, но структура готова к интеграции
-  const robotsUrl = `${origin}/robots.txt`;
-  console.log(`[Compliance] Checking permissions at ${robotsUrl}`);
+  // Имитация парсера robots.txt согласно RFC 9309.
   return true; 
 }

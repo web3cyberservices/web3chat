@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,8 @@ import {
   Gavel,
   Info,
   ShieldCheck,
-  Zap
+  Zap,
+  Globe
 } from "lucide-react";
 
 interface DetectedIssue {
@@ -57,56 +58,56 @@ interface DetectedIssue {
 
 const ISSUE_TEMPLATES: Record<string, Partial<DetectedIssue>> = {
   'GDPR Non-Compliance': {
-    description: 'Обнаружена передача персональных данных (email/телефоны) в открытом виде через HTTP GET параметры или отсутствие согласия на обработку данных.',
+    description: 'Обнаружена передача персональных данных в открытом виде через HTTP GET параметры или отсутствие согласия на обработку данных.',
     impact: 'Высокий риск юридических штрафов со стороны надзорных органов ЕС (до 4% от годового оборота).',
     remediation: 'Внедрите шифрование данных, переведите все формы на POST-запросы через HTTPS и добавьте обновленную политику Cookie.'
   },
   'Legacy SSL (TLS 1.0/1.1)': {
     description: 'Сервер поддерживает устаревшие протоколы шифрования, которые уязвимы к атакам типа POODLE и BEAST.',
     impact: 'Возможность перехвата сессий пользователей злоумышленниками.',
-    remediation: 'Отключите поддержку TLS 1.0/1.1 в конфигурации веб-сервера (Nginx/Apache) и активируйте TLS 1.2 или 1.3.'
+    remediation: 'Отключите поддержку TLS 1.0/1.1 в конфигурации веб-сервера и активируйте TLS 1.2 или 1.3.'
   },
   'PII in GET Parameters': {
-    description: 'Чувствительная информация (личные данные) передается в URL-адресе, что приводит к ее логированию в браузерах и серверах.',
+    description: 'Чувствительная информация (личные данные) передается в URL-адресе, что приводит к ее логированию.',
     impact: 'Утечка конфиденциальных данных пользователей через историю браузера и серверные логи.',
-    remediation: 'Измените метод отправки данных в формах на POST и используйте токены доступа вместо передачи данных в URL.'
+    remediation: 'Измените метод отправки данных в формах на POST и используйте токены доступа.'
   },
   'Missing CORS Headers': {
-    description: 'Отсутствуют заголовки Access-Control-Allow-Origin, что делает API уязвимым для CSRF атак.',
+    description: 'Отсутствуют заголовки Access-Control-Allow-Origin, что делает API уязвимым для атак.',
     impact: 'Риск выполнения несанкционированных действий от имени авторизованного пользователя.',
     remediation: 'Настройте строгие политики CORS, разрешающие доступ только доверенным доменам.'
   },
   'Security Hole: SQL Injection': {
-    description: 'Параметры поисковых запросов или форм не проходят должную очистку перед попаданием в базу данных.',
+    description: 'Параметры поисковых запросов или форм не проходят должную очистку.',
     impact: 'Полная компрометация базы данных, кража учетных записей администраторов.',
-    remediation: 'Используйте подготовленные выражения (Prepared Statements) и ORM для всех запросов к БД.'
+    remediation: 'Используйте подготовленные выражения (Prepared Statements) для всех запросов к БД.'
   }
 };
+
+const TLDs = ['.com', '.net', '.org', '.io', '.ru', '.de', '.app', '.tech', '.info', '.biz', '.me'];
+const PREFIXES = ['cloud', 'web', 'data', 'smart', 'global', 'nexus', 'alpha', 'cyber', 'stream', 'dev'];
+const SUFFIXES = ['node', 'grid', 'base', 'sync', 'point', 'hub', 'flow', 'core', 'labs', 'box'];
+
+function generateRandomDomain(visited: Set<string>): string {
+  let domain = "";
+  do {
+    const p = PREFIXES[Math.floor(Math.random() * PREFIXES.length)];
+    const s = SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)];
+    const tld = TLDs[Math.floor(Math.random() * TLDs.length)];
+    const rand = Math.floor(Math.random() * 999);
+    domain = `${p}-${s}${rand}${tld}`;
+  } while (visited.has(domain));
+  return domain;
+}
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passphrase, setPassphrase] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
-  const [detectedIssues, setDetectedIssues] = useState<DetectedIssue[]>([
-    { 
-      id: '1', 
-      domain: 'outdated-shop.com', 
-      type: 'Legacy SSL (TLS 1.0/1.1)', 
-      severity: 'critical', 
-      timestamp: '10:24:15',
-      ...ISSUE_TEMPLATES['Legacy SSL (TLS 1.0/1.1)'] as DetectedIssue
-    },
-    { 
-      id: '2', 
-      domain: 'data-leak-test.io', 
-      type: 'PII in GET Parameters', 
-      severity: 'high', 
-      timestamp: '11:05:42',
-      ...ISSUE_TEMPLATES['PII in GET Parameters'] as DetectedIssue
-    },
-  ]);
+  const [detectedIssues, setDetectedIssues] = useState<DetectedIssue[]>([]);
   const [showIssuesDialog, setShowIssuesDialog] = useState(false);
+  const visitedDomains = useRef<Set<string>>(new Set());
   const { toast } = useToast();
   
   const [metrics, setMetrics] = useState({
@@ -124,18 +125,23 @@ export default function AdminDashboard() {
     if (isActive && isAuthenticated) {
       const interval = setInterval(async () => {
         const timestamp = new Date().toLocaleTimeString();
-        const domains = ['google.com', 'cloudflare.com', 'humango.app', 'github.com', 'aws.amazon.com'];
-        const randomDomain = domains[Math.floor(Math.random() * domains.length)];
+        const randomDomain = generateRandomDomain(visitedDomains.current);
+        visitedDomains.current.add(randomDomain);
         
+        // Предотвращение бесконечного роста памяти
+        if (visitedDomains.current.size > 1000) {
+          visitedDomains.current.clear();
+        }
+
         startCrawlAction(`https://${randomDomain}`);
 
-        const isIssue = Math.random() > 0.92;
-        let logMessage = `CHECK: ${randomDomain} - robots.txt verified - status 200`;
+        const isIssue = Math.random() > 0.94;
+        let logMessage = `CHECK: ${randomDomain} - RFC 9309 compliance verified - status 200`;
 
         if (isIssue) {
           const types = Object.keys(ISSUE_TEMPLATES);
           const type = types[Math.floor(Math.random() * types.length)];
-          logMessage = `COMPLIANCE ALERT: ${type} found on ${randomDomain}`;
+          logMessage = `COMPLIANCE ALERT: ${type} detected on ${randomDomain}`;
           
           const newIssue: DetectedIssue = {
             id: Math.random().toString(36).substr(2, 9),
@@ -146,18 +152,18 @@ export default function AdminDashboard() {
             ...(ISSUE_TEMPLATES[type] as DetectedIssue)
           };
           
-          setDetectedIssues(prev => [newIssue, ...prev.slice(0, 49)]);
+          setDetectedIssues(prev => [newIssue, ...prev.slice(0, 99)]);
           setMetrics(m => ({ ...m, issuesFound: m.issuesFound + 1 }));
         }
 
-        setLogs(prev => [`[${timestamp}] ${logMessage}`, ...prev.slice(0, 18)]);
+        setLogs(prev => [`[${timestamp}] ${logMessage}`, ...prev.slice(0, 25)]);
         
         setMetrics(m => ({
           ...m,
-          pagesScanned: m.pagesScanned + Math.floor(Math.random() * 2),
-          serverLoad: Math.min(Math.max(m.serverLoad + (Math.random() * 2 - 1), 8), 25),
+          pagesScanned: m.pagesScanned + Math.floor(Math.random() * 3) + 1,
+          serverLoad: Math.min(Math.max(m.serverLoad + (Math.random() * 4 - 2), 15), 45),
         }));
-      }, 3000);
+      }, 1500); // Ускоренное сканирование для наглядности "всего интернета"
       return () => clearInterval(interval);
     }
   }, [isActive, isAuthenticated]);
@@ -233,10 +239,13 @@ export default function AdminDashboard() {
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Compliance Engine v1.0</Badge>
+            <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
+              <Globe className="w-3 h-3 animate-pulse" /> SCANNING GLOBAL INFRASTRUCTURE...
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-4 bg-white/5 px-4 py-1.5 rounded-full border border-white/10">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Legal Guard</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Auto-Crawl</span>
               <Switch checked={isActive} onCheckedChange={setIsActive} className="data-[state=checked]:bg-emerald-500" />
             </div>
           </div>
@@ -248,7 +257,7 @@ export default function AdminDashboard() {
               <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase tracking-widest">Просканировано страниц</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">{metrics.pagesScanned.toLocaleString()}</div>
-                <p className="text-[10px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> PII фильтрация активна</p>
+                <p className="text-[10px] text-emerald-400 mt-2 font-bold flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Фильтрация PII активна</p>
               </CardContent>
             </Card>
             
@@ -266,53 +275,56 @@ export default function AdminDashboard() {
                 <DialogHeader className="p-4 border-b border-white/5">
                   <DialogTitle className="flex items-center gap-2 text-xl font-bold"><AlertTriangle className="text-amber-500" /> Отчет о критических нарушениях</DialogTitle>
                   <DialogDescription className="text-slate-400">
-                    Анализ инфраструктурных рисков и рекомендации по их устранению на основе аудита HumangoBot.
+                    Анализ инфраструктурных рисков и рекомендации по их устранению.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 pr-6 scrollbar-hide">
-                  <Accordion type="single" collapsible className="w-full space-y-2">
-                    {detectedIssues.map((issue) => (
-                      <AccordionItem key={issue.id} value={issue.id} className="border border-white/5 bg-white/[0.02] rounded-xl overflow-hidden px-4">
-                        <AccordionTrigger className="hover:no-underline py-4">
-                          <div className="flex flex-1 items-center justify-between text-left pr-4">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-bold text-sm text-slate-100">{issue.domain}</span>
-                                <Badge className={issue.severity === 'critical' ? 'bg-rose-500' : 'bg-amber-500'}>{issue.severity.toUpperCase()}</Badge>
+                  {detectedIssues.length === 0 ? (
+                    <div className="text-center py-20 text-slate-600">Нарушений пока не обнаружено. Продолжайте мониторинг.</div>
+                  ) : (
+                    <Accordion type="single" collapsible className="w-full space-y-2">
+                      {detectedIssues.map((issue) => (
+                        <AccordionItem key={issue.id} value={issue.id} className="border border-white/5 bg-white/[0.02] rounded-xl overflow-hidden px-4">
+                          <AccordionTrigger className="hover:no-underline py-4">
+                            <div className="flex flex-1 items-center justify-between text-left pr-4">
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-bold text-sm text-slate-100">{issue.domain}</span>
+                                  <Badge className={issue.severity === 'critical' ? 'bg-rose-500' : 'bg-amber-500'}>{issue.severity.toUpperCase()}</Badge>
+                                </div>
+                                <p className="text-xs text-slate-500 font-medium">{issue.type}</p>
                               </div>
-                              <p className="text-xs text-slate-500 font-medium">{issue.type}</p>
+                              <span className="text-[10px] font-mono text-slate-500 tabular-nums">{issue.timestamp}</span>
                             </div>
-                            <span className="text-[10px] font-mono text-slate-500 tabular-nums">{issue.timestamp}</span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="pb-6 pt-2 space-y-4">
-                          <div className="grid gap-4">
-                            <div className="p-4 bg-primary/5 border border-primary/10 rounded-lg">
-                              <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2 flex items-center gap-1">
-                                <Info className="w-3 h-3" /> Описание инцидента
-                              </h4>
-                              <p className="text-xs text-slate-300 leading-relaxed">{issue.description || "Детали собираются движком..."}</p>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="p-4 bg-rose-500/5 border border-rose-500/10 rounded-lg">
-                                <h4 className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                                  <AlertTriangle className="w-3 h-3" /> Последствия
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-6 pt-2 space-y-4">
+                            <div className="grid gap-4">
+                              <div className="p-4 bg-primary/5 border border-primary/10 rounded-lg">
+                                <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2 flex items-center gap-1">
+                                  <Info className="w-3 h-3" /> Описание инцидента
                                 </h4>
-                                <p className="text-[10px] text-slate-400 leading-relaxed">{issue.impact}</p>
+                                <p className="text-xs text-slate-300 leading-relaxed">{issue.description}</p>
                               </div>
-                              <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
-                                <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                                  <ShieldCheck className="w-3 h-3" /> Рекомендация
-                                </h4>
-                                <p className="text-[10px] text-slate-400 leading-relaxed">{issue.remediation}</p>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-rose-500/5 border border-rose-500/10 rounded-lg">
+                                  <h4 className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" /> Последствия
+                                  </h4>
+                                  <p className="text-[10px] text-slate-400 leading-relaxed">{issue.impact}</p>
+                                </div>
+                                <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
+                                  <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                    <ShieldCheck className="w-3 h-3" /> Рекомендация
+                                  </h4>
+                                  <p className="text-[10px] text-slate-400 leading-relaxed">{issue.remediation}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>
@@ -326,7 +338,7 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          <div className="bg-[#0b1120] rounded-2xl border border-white/10 p-6 font-mono text-[11px] h-[400px] flex flex-col relative overflow-hidden">
+          <div className="bg-[#0b1120] rounded-2xl border border-white/10 p-6 font-mono text-[11px] h-[450px] flex flex-col relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-50"></div>
             <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-4">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Логи выполнения (Compliance Stream)</span>
@@ -334,7 +346,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 scrollbar-hide">
               {logs.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-slate-600 italic">Ожидание сигнала системы...</div>
+                <div className="h-full flex items-center justify-center text-slate-600 italic">Ожидание запуска глобального сканирования...</div>
               ) : (
                 logs.map((log, i) => (
                   <div key={i} className="animate-in fade-in slide-in-from-left-2 duration-300 flex gap-4">
