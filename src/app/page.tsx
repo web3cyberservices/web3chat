@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -34,8 +33,8 @@ export default function Home() {
             </span>
           </div>
           <nav className="flex items-center gap-6">
-            <Badge variant="outline" className="hidden sm:flex border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-[10px] font-bold tracking-[0.2em] px-3 py-1 rounded-full uppercase">
-              Verified Bot Candidate
+            <Badge variant="outline" className="hidden sm:flex border-slate-500/20 bg-slate-500/5 text-slate-400 text-[10px] font-bold tracking-[0.2em] px-3 py-1 rounded-full uppercase">
+              Bot Candidate
             </Badge>
             <Button size="sm" variant="ghost" className="bg-white/5 hover:bg-white/10 text-white border border-white/10 h-9 rounded-full px-6 text-xs font-semibold tracking-normal transition-all" asChild>
               <Link href="/admin">
@@ -85,7 +84,7 @@ export default function Home() {
             <Card className="bg-white/[0.03] border-white/10 backdrop-blur-md shadow-2xl border-t-white/20">
               <CardHeader className="pb-4 bg-white/[0.02] border-b border-white/5">
                 <CardTitle className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Terminal className="w-4 h-4 text-primary" /> Verified Identity Card
+                  <Terminal className="w-4 h-4 text-primary" /> Identity Specification
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
@@ -97,13 +96,13 @@ export default function Home() {
                 </div>
                 <div className="flex items-center justify-between p-5 bg-white/5 rounded-xl border border-white/5 shadow-inner">
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Verified Origin IP</label>
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Reporting Origin IP</label>
                     <div className="flex items-center gap-2 font-mono text-sm text-slate-200">
                       <Globe className="w-3 h-3 text-primary" />
                       <span>116.203.3.75</span>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[9px] font-bold tracking-widest px-3 py-1">STABLE</Badge>
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] font-bold tracking-widest px-3 py-1">UNVERIFIED</Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-white/5 rounded-xl border border-white/5 shadow-inner">
@@ -111,8 +110,8 @@ export default function Home() {
                     <div className="text-xs font-bold mt-1">TLS 1.3 / HTTP2</div>
                   </div>
                   <div className="p-4 bg-white/5 rounded-xl border border-white/5 shadow-inner">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Verification</label>
-                    <div className="text-xs font-bold mt-1">Cloudflare CF-IP</div>
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Verification Status</label>
+                    <div className="text-xs font-bold mt-1">Pending Review</div>
                   </div>
                 </div>
               </CardContent>
