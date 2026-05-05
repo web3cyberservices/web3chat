@@ -1,11 +1,21 @@
+import { saveScanIssueToDb } from '@/lib/db';
 
 /**
  * Database utility for saving crawler results.
- * In a real app, this would use Firestore.
+ * Now integrated with PostgreSQL.
  */
 export async function saveScanResult(url: string, issues: any[]) {
-  // Logic to save to Firestore would go here
-  // For now, we simulate a successful write
-  console.log(`[Database] Saved ${issues.length} issues for ${url}`);
-  return { success: true, id: Math.random().toString(36).substr(2, 9) };
+  try {
+    const domain = new URL(url).hostname;
+    
+    // Save each issue found to the database
+    const promises = issues.map(issue => saveScanIssueToDb(domain, issue));
+    await Promise.all(promises);
+    
+    console.log(`[Database] Successfully saved ${issues.length} issues for ${domain} in PostgreSQL`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[Database Error] Failed to save issues for ${url}:`, error);
+    return { success: false };
+  }
 }

@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 
-const connectionString = process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+const connectionString = process.env.DATABASE_URL;
 
 const pool = new Pool({
   connectionString,
@@ -24,6 +24,27 @@ export async function saveAuditLog(domain: string, statusCode: number, errorMess
     }
   } catch (error) {
     console.error('[DB Error] Failed to save audit log:', error);
+    return { success: false, error };
+  }
+}
+
+export async function saveScanIssueToDb(domain: string, issue: any) {
+  const query = `
+    INSERT INTO scan_issues (domain, issue_type, severity, description, created_at)
+    VALUES ($1, $2, $3, $4, NOW())
+  `;
+  const values = [domain, issue.type, issue.severity, issue.description];
+
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query(query, values);
+      return { success: true };
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[DB Error] Failed to save scan issue:', error);
     return { success: false, error };
   }
 }
