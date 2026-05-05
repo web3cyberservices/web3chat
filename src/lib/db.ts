@@ -1,4 +1,3 @@
-
 import { Pool } from 'pg';
 import DOMPurify from 'isomorphic-dompurify';
 
@@ -9,9 +8,6 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-/**
- * Очистка строк от потенциально опасного HTML/скриптов перед записью в БД
- */
 function sanitize(text: string | null | undefined): string {
   if (!text) return '';
   return DOMPurify.sanitize(text);
@@ -22,12 +18,7 @@ export async function saveAuditLog(domain: string, statusCode: number, errorMess
     INSERT INTO audit_logs (domain, status_code, error_message, created_at)
     VALUES ($1, $2, $3, NOW())
   `;
-  const values = [
-    sanitize(domain), 
-    statusCode, 
-    sanitize(errorMessage)
-  ];
-
+  const values = [sanitize(domain), statusCode, sanitize(errorMessage)];
   try {
     const client = await pool.connect();
     try {
@@ -47,15 +38,12 @@ export async function saveScanIssueToDb(domain: string, issue: any) {
     INSERT INTO scan_issues (domain, issue_type, severity, description, created_at)
     VALUES ($1, $2, $3, $4, NOW())
   `;
-  
-  // Принудительная очистка всех текстовых полей перед сохранением
   const values = [
     sanitize(domain),
     sanitize(issue.type),
     sanitize(issue.severity),
     sanitize(issue.description)
   ];
-
   try {
     const client = await pool.connect();
     try {
@@ -100,6 +88,26 @@ export async function setBotStatus(isActive: boolean) {
   }
 }
 
+export async function getViolations() {
+  try {
+    const client = await pool.connect();
+    try {
+      const res = await client.query('SELECT * FROM scan_issues ORDER BY created_at DESC');
+      return res.rows.map(issue => ({
+        ...issue,
+        domain: sanitize(issue.domain),
+        issue_type: sanitize(issue.issue_type),
+        description: sanitize(issue.description)
+      }));
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[DB Error] Failed to fetch violations:', error);
+    return [];
+  }
+}
+
 export async function getStats() {
   try {
     const client = await pool.connect();
@@ -108,7 +116,6 @@ export async function getStats() {
       const issuesRes = await client.query('SELECT COUNT(*) as count FROM scan_issues');
       const recentIssues = await client.query('SELECT * FROM scan_issues ORDER BY created_at DESC LIMIT 50');
       
-      // Санитизация данных при выходе (Defense in Depth)
       const sanitizedRecentIssues = recentIssues.rows.map(issue => ({
         ...issue,
         domain: sanitize(issue.domain),
