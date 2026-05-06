@@ -21,6 +21,10 @@ function sanitize(text: string | null | undefined): string {
   return DOMPurify.sanitize(text);
 }
 
+/**
+ * Сохранение результатов аудита. 
+ * Используем транзакцию для пакетной вставки всех нарушений одной страницы.
+ */
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (violations.length === 0) return { success: true };
 
