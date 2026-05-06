@@ -4,15 +4,16 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 async function migrate() {
   const client = await pool.connect();
   try {
-    console.log('[Migration] Starting...');
+    console.log('[Migration] Starting database schema initialization...');
     
-    // Таблица логов аудита
+    // 1. Таблица логов аудита (технические результаты запросов)
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id SERIAL PRIMARY KEY,
@@ -23,7 +24,7 @@ async function migrate() {
       );
     `);
     
-    // Таблица найденных нарушений
+    // 2. Таблица найденных нарушений (результаты парсинга)
     await client.query(`
       CREATE TABLE IF NOT EXISTS scan_issues (
         id SERIAL PRIMARY KEY,
@@ -35,7 +36,7 @@ async function migrate() {
       );
     `);
 
-    // Таблица системных событий
+    // 3. Таблица системных событий (логи работы движка)
     await client.query(`
       CREATE TABLE IF NOT EXISTS bot_events (
         id SERIAL PRIMARY KEY,
@@ -45,7 +46,7 @@ async function migrate() {
       );
     `);
 
-    // Таблица настроек бота
+    // 4. Таблица настроек бота (контроль состояния)
     await client.query(`
       CREATE TABLE IF NOT EXISTS bot_settings (
         id INTEGER PRIMARY KEY DEFAULT 1,
@@ -55,7 +56,7 @@ async function migrate() {
       );
     `);
 
-    // Таблица очереди сканирования
+    // 5. Таблица очереди сканирования
     await client.query(`
       CREATE TABLE IF NOT EXISTS scan_queue (
         id SERIAL PRIMARY KEY,
@@ -64,26 +65,28 @@ async function migrate() {
       );
     `);
 
-    // Инициализация настроек
+    // Инициализация настроек (если еще не созданы)
     await client.query(`
       INSERT INTO bot_settings (id, is_active)
       VALUES (1, true)
       ON CONFLICT (id) DO NOTHING;
     `);
 
-    // Начальный посев очереди для демонстрации
+    // Начальный посев очереди для запуска процесса
     await client.query(`
       INSERT INTO scan_queue (url)
       VALUES 
         ('https://google.com'),
         ('https://github.com'),
-        ('https://microsoft.com')
+        ('https://microsoft.com'),
+        ('https://wikipedia.org')
       ON CONFLICT (url) DO NOTHING;
     `);
     
     console.log('[Migration] All tables and initial data created successfully.');
   } catch (err) {
-    console.error('[Migration] Error:', err);
+    console.error('[Migration] Critical Error during migration:', err);
+    process.exit(1);
   } finally {
     client.release();
     await pool.end();
