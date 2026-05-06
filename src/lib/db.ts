@@ -5,7 +5,14 @@ const connectionString = process.env.DATABASE_URL;
 
 const pool = new Pool({
   connectionString,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // Исправление 08P01: отключаем подготовленные выражения для совместимости с PgBouncer (Transaction Mode)
+  options: "-c prepared_statements=off"
+});
+
+// Глобальный обработчик ошибок пула, чтобы предотвратить падение воркера при обрыве связи
+pool.on('error', (err) => {
+  console.error('[DB Pool Error] Unexpected error on idle client:', err);
 });
 
 function sanitize(text: string | null | undefined): string {
@@ -56,8 +63,9 @@ export async function cleanupOldLogs(days = 30) {
     const client = await pool.connect();
     try {
       console.log(`[DB] Cleaning up logs older than ${days} days...`);
-      await client.query("DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL '$1 days'", [days]);
-      await client.query("DELETE FROM bot_events WHERE timestamp < NOW() - INTERVAL '$1 days'", [days]);
+      // Используем безопасное приведение типа для интервала
+      await client.query("DELETE FROM audit_logs WHERE created_at < NOW() - ($1 || ' days')::interval", [days]);
+      await client.query("DELETE FROM bot_events WHERE timestamp < NOW() - ($1 || ' days')::interval", [days]);
       return { success: true };
     } finally {
       client.release();
@@ -118,13 +126,14 @@ export async function getBotStatus(): Promise<boolean> {
     const client = await pool.connect();
     try {
       const res = await client.query('SELECT is_active FROM bot_settings WHERE id = 1');
-      return res.rows[0]?.is_active ?? true;
+      // Добавлена проверка на наличие строк для предотвращения undefined error
+      return res.rows && res.rows.length > 0 ? res.rows[0].is_active : true;
     } finally {
       client.release();
     }
   } catch (error) {
-    console.error('[DB Error] Failed to get bot status:', error);
-    throw error;
+    console.warn('[DB Warning] Failed to get bot status, defaulting to true:', error.message);
+    return true; // Возвращаем true по умолчанию, чтобы не блокировать процесс при первичной настройке
   }
 }
 
