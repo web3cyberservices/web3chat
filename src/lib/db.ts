@@ -126,6 +126,47 @@ export async function setBotStatus(isActive: boolean) {
   }
 }
 
+export async function getNextQueueItem() {
+  try {
+    const client = await pool.connect();
+    try {
+      const res = await client.query('SELECT id, url FROM scan_queue ORDER BY created_at ASC LIMIT 1');
+      return res.rows[0] || null;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[DB Error] Failed to get queue item:', error);
+    return null;
+  }
+}
+
+export async function removeFromQueue(id: number) {
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('DELETE FROM scan_queue WHERE id = $1', [id]);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[DB Error] Failed to remove from queue:', error);
+  }
+}
+
+export async function addToQueue(url: string) {
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('INSERT INTO scan_queue (url) VALUES ($1) ON CONFLICT (url) DO NOTHING', [url]);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[DB Error] Failed to add to queue:', error);
+  }
+}
+
 export async function getViolations() {
   try {
     const client = await pool.connect();

@@ -39,13 +39,13 @@ async function migrate() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS bot_events (
         id SERIAL PRIMARY KEY,
-        type VARCHAR(20) NOT NULL, -- START, STOP, ERROR, SUCCESS
+        type VARCHAR(20) NOT NULL,
         message TEXT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    // Таблица настроек бота (статус активности)
+    // Таблица настроек бота
     await client.query(`
       CREATE TABLE IF NOT EXISTS bot_settings (
         id INTEGER PRIMARY KEY DEFAULT 1,
@@ -55,14 +55,33 @@ async function migrate() {
       );
     `);
 
-    // Инициализация настроек если их нет
+    // Таблица очереди сканирования
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS scan_queue (
+        id SERIAL PRIMARY KEY,
+        url TEXT NOT NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Инициализация настроек
     await client.query(`
       INSERT INTO bot_settings (id, is_active)
       VALUES (1, true)
       ON CONFLICT (id) DO NOTHING;
     `);
+
+    // Начальный посев очереди для демонстрации
+    await client.query(`
+      INSERT INTO scan_queue (url)
+      VALUES 
+        ('https://google.com'),
+        ('https://github.com'),
+        ('https://microsoft.com')
+      ON CONFLICT (url) DO NOTHING;
+    `);
     
-    console.log('[Migration] All tables and initial settings created successfully.');
+    console.log('[Migration] All tables and initial data created successfully.');
   } catch (err) {
     console.error('[Migration] Error:', err);
   } finally {
