@@ -1,53 +1,87 @@
+
 import settings from '@/config/crawler-settings.json';
+import { shouldRunDeepScan } from './parser';
+import puppeteer from 'puppeteer';
+import { ScanType } from '@/types';
 
 const MAX_REDIRECTS = 5;
 const REQUEST_TIMEOUT = 10000;
 
-/**
- * Основной движок запросов HumangoBot. 
- */
-export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any, rawHeaders: any}> {
-  if (redirectCount > MAX_REDIRECTS) {
-    throw new Error('REDIRECT_LOOP');
-  }
+async function deepScrapeUrl(url: string) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process'
+    ]
+  });
 
+  try {
+    const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
+    const html = await page.content();
+    const cookies = await page.cookies();
+    
+    return { html, cookies };
+  } finally {
+    await browser.close();
+  }
+}
+
+export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any, rawHeaders: any, scanType: ScanType, dynamicCookies?: any[]}> {
+  if (redirectCount > MAX_REDIRECTS) throw new Error('REDIRECT_LOOP');
+
+  // 1. Basic Fetch
   const response = await fetch(url, {
     method: 'GET',
     headers: {
-      'User-Agent': "Mozilla/5.0 (compatible; HumangoBot/1.0; +http://bot.humango.app)",
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.5',
-      'Accept-Encoding': 'gzip, deflate, br',
+      'User-Agent': settings.userAgent,
       'X-Crawler-Contact': settings.abuseEmail,
-      'X-Compliance-Portal': 'https://bot.humango.app',
-      'X-Purpose': 'Security Audit and GDPR Compliance Monitoring',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
+      'X-Compliance-Portal': 'https://bot.humango.app'
     },
-    redirect: 'follow',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT)
   });
 
-  if (!response.ok) {
-    throw new Error(`HTTP Error: ${response.status}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  let html = await response.text();
+  const headers: Record<string, string> = {};
+  response.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
+
+  const security = {
+    ssl: url.startsWith('https') ? 'TLS 1.3' : 'None',
+    hsts: !!headers['strict-transport-security'],
+    csp: !!headers['content-security-policy'] || html.includes('Content-Security-Policy')
+  };
+
+  // 2. Hybrid Logic: Deep Scan check
+  let scanType: ScanType = 'basic';
+  let dynamicCookies: any[] = [];
+
+  if (shouldRunDeepScan(html)) {
+    try {
+      const deepResult = await deepScrapeUrl(url);
+      html = deepResult.html;
+      dynamicCookies = deepResult.cookies;
+      scanType = 'deep';
+    } catch (e) {
+      console.error(`[Scraper] Deep Scan failed for ${url}, falling back to basic.`);
+    }
   }
 
-  const html = await response.text();
-  const headers = response.headers;
-  
-  // Преобразуем заголовки в простой объект для парсера
-  const rawHeaders: Record<string, string> = {};
-  headers.forEach((val, key) => {
-    rawHeaders[key.toLowerCase()] = val;
-  });
-
-  return {
-    html,
-    rawHeaders,
-    security: {
-      ssl: url.startsWith('https') ? 'TLS 1.3' : 'None',
-      hsts: headers.has('Strict-Transport-Security'),
-      csp: headers.has('Content-Security-Policy') || html.includes('Content-Security-Policy')
-    }
-  };
+  return { html, rawHeaders: headers, security, scanType, dynamicCookies };
 }

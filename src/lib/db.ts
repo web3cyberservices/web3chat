@@ -1,6 +1,7 @@
+
 import { Pool } from 'pg';
 import DOMPurify from 'isomorphic-dompurify';
-import { Violation } from '@/types';
+import { Violation, ScanType } from '@/types';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -20,11 +21,7 @@ function sanitize(text: string | null | undefined): string {
   return DOMPurify.sanitize(text);
 }
 
-/**
- * Сохранение доказательной базы нарушений в таблицу audit_results.
- * Использует транзакцию для пакетной вставки.
- */
-export async function saveAuditResults(domain: string, url: string, violations: Violation[]) {
+export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (violations.length === 0) return { success: true };
 
   const client = await pool.connect();
@@ -32,8 +29,8 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     await client.query('BEGIN');
     
     const query = `
-      INSERT INTO audit_results (domain, url, category, issue_type, severity, evidence_html, description, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      INSERT INTO audit_results (domain, url, category, issue_type, severity, evidence_html, description, scan_type, metadata, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
     `;
 
     for (const v of violations) {
@@ -44,7 +41,9 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html),
-        sanitize(v.description)
+        sanitize(v.description),
+        scanType,
+        JSON.stringify(v.metadata || {})
       ]);
     }
 
@@ -52,7 +51,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     return { success: true };
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('[DB Error] Failed to save audit results transaction:', error);
+    console.error('[DB Error] Failed to save audit results:', error);
     return { success: false, error };
   } finally {
     client.release();
@@ -65,7 +64,6 @@ export async function saveBotEvent(type: 'START' | 'STOP' | 'ERROR' | 'SUCCESS',
     await pool.query(query, [type, sanitize(message)]);
     return { success: true };
   } catch (error) {
-    console.error('[DB Error] Failed to save bot event:', error);
     return { success: false };
   }
 }
@@ -161,5 +159,14 @@ export async function getStats() {
     };
   } catch (error) {
     return { pagesScanned: 0, issuesFound: 0, recentIssues: [] };
+  }
+}
+
+export async function getViolations() {
+  try {
+    const res = await pool.query('SELECT * FROM audit_results ORDER BY created_at DESC');
+    return res.rows;
+  } catch (error) {
+    return [];
   }
 }

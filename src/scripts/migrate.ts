@@ -1,3 +1,4 @@
+
 import { Pool } from 'pg';
 import * as dotenv from 'dotenv';
 
@@ -13,7 +14,6 @@ async function migrate() {
   try {
     console.log('[Migration] Starting database schema initialization...');
     
-    // 1. Таблица логов аудита (метаданные запроса)
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id SERIAL PRIMARY KEY,
@@ -24,7 +24,6 @@ async function migrate() {
       );
     `);
     
-    // 2. Таблица подробных результатов аудита (доказательная база)
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_results (
         id SERIAL PRIMARY KEY,
@@ -35,11 +34,12 @@ async function migrate() {
         severity VARCHAR(20) NOT NULL,
         evidence_html TEXT,
         description TEXT,
+        scan_type VARCHAR(20) DEFAULT 'basic',
+        metadata JSONB DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    // 3. Таблица системных событий
     await client.query(`
       CREATE TABLE IF NOT EXISTS bot_events (
         id SERIAL PRIMARY KEY,
@@ -49,7 +49,6 @@ async function migrate() {
       );
     `);
 
-    // 4. Таблица настроек бота
     await client.query(`
       CREATE TABLE IF NOT EXISTS bot_settings (
         id INTEGER PRIMARY KEY DEFAULT 1,
@@ -59,7 +58,6 @@ async function migrate() {
       );
     `);
 
-    // 5. Таблица очереди сканирования
     await client.query(`
       CREATE TABLE IF NOT EXISTS scan_queue (
         id SERIAL PRIMARY KEY,
@@ -69,14 +67,12 @@ async function migrate() {
       );
     `);
 
-    // Инициализация настроек
     await client.query(`
       INSERT INTO bot_settings (id, is_active)
       VALUES (1, true)
       ON CONFLICT (id) DO NOTHING;
     `);
 
-    // Начальный посев
     await client.query(`
       INSERT INTO scan_queue (url, status)
       VALUES 
@@ -87,7 +83,7 @@ async function migrate() {
     
     console.log('[Migration] All tables and initial data created successfully.');
   } catch (err) {
-    console.error('[Migration] Critical Error during migration:', err);
+    console.error('[Migration] Critical Error:', err);
     process.exit(1);
   } finally {
     client.release();
