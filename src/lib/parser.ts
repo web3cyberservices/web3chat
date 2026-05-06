@@ -1,26 +1,16 @@
 import * as cheerio from 'cheerio';
-import { ScanIssue } from '@/types';
+import { Violation, Category, Severity } from '@/types';
 
 /**
- * Глобальные константы типов нарушений для обеспечения согласованности данных.
+ * Расширенный парсер для сбора доказательной базы нарушений.
+ * Реализует проверки ADA, GDPR, Privacy и Security.
  */
-export const VIOLATION_TYPES = {
-  UNSECURE_DATA_TRANSMISSION: 'UNSECURE_DATA_TRANSMISSION',
-  MISSING_CSP: 'MISSING_CSP',
-  OUTDATED_LIBRARY: 'OUTDATED_LIBRARY',
-  REDIRECT_LOOP: 'REDIRECT_LOOP'
-} as const;
-
-/**
- * Логика обработки HTML. 
- * Сфокусирована на поиске технических уязвимостей без сбора PII.
- */
-export function parseHtmlContent(html: string, url: string): { issues: ScanIssue[], discoveredLinks: string[] } {
+export function parseHtmlContent(html: string, url: string, headers: any = {}): { violations: Violation[], discoveredLinks: string[] } {
   const $ = cheerio.load(html);
-  const issues: ScanIssue[] = [];
+  const violations: Violation[] = [];
   const discoveredLinks: string[] = [];
 
-  // 1. Извлечение ссылок для Discovery (только http/https)
+  // 1. Сбор ссылок для Discovery
   $('a[href]').each((_, el) => {
     const href = $(el).attr('href');
     if (href) {
@@ -33,51 +23,136 @@ export function parseHtmlContent(html: string, url: string): { issues: ScanIssue
     }
   });
 
-  // 2. Проверка на формы без SSL (GDPR Critical)
-  $('form').each((_, el) => {
-    const action = $(el).attr('action') || '';
-    if (!action.startsWith('https') && !url.startsWith('https:')) {
-      issues.push({
-        type: VIOLATION_TYPES.UNSECURE_DATA_TRANSMISSION,
-        category: 'GDPR',
-        severity: 'critical',
-        description: 'Форма передачи данных обнаружена на незащищенном HTTP соединении.',
-        impact: 'Высокий риск перехвата данных (MITM) и штрафов GDPR.',
-        remediation: 'Переведите сайт на HTTPS и используйте защищенные экшены для форм.'
+  // --- ADA Compliance Checks ---
+  
+  // img без alt
+  $('img:not([alt])').each((_, el) => {
+    violations.push({
+      category: 'ADA',
+      issue_type: 'MISSING_ALT_TEXT',
+      severity: 'medium',
+      evidence_html: $.html(el),
+      description: 'Изображение не имеет атрибута alt, что делает его недоступным для программ чтения экрана.'
+    });
+  });
+
+  // a/button без текста или label
+  $('a, button').each((_, el) => {
+    const text = $(el).text().trim();
+    const ariaLabel = $(el).attr('aria-label');
+    if (!text && !ariaLabel) {
+      violations.push({
+        category: 'ADA',
+        issue_type: 'EMPTY_INTERACTIVE_ELEMENT',
+        severity: 'high',
+        evidence_html: $.html(el),
+        description: 'Интерактивный элемент не имеет текстового описания или aria-label.'
       });
     }
   });
 
-  // 3. Проверка Content Security Policy
-  const hasCSP = $('meta[http-equiv="Content-Security-Policy"]').length > 0;
-  if (!hasCSP) {
-    issues.push({
-      type: VIOLATION_TYPES.MISSING_CSP,
-      category: 'Security',
-      severity: 'medium',
-      description: 'Отсутствует Content Security Policy (CSP) в мета-тегах.',
-      impact: 'Уязвимость для XSS атак и инъекций вредоносного кода.',
-      remediation: 'Настройте заголовок Content-Security-Policy на стороне сервера или через мета-теги.'
+  // html без lang
+  if (!$('html').attr('lang')) {
+    violations.push({
+      category: 'ADA',
+      issue_type: 'MISSING_HTML_LANG',
+      severity: 'low',
+      evidence_html: '<html>',
+      description: 'Корневой тег <html> не содержит атрибут lang, необходимый для синтезаторов речи.'
     });
   }
 
-  // 4. Поиск потенциально опасных устаревших скриптов
-  $('script').each((_, el) => {
-    const src = $(el).attr('src') || '';
-    if (src.includes('jquery/1.') || src.includes('vulnerable')) {
-      issues.push({
-        type: VIOLATION_TYPES.OUTDATED_LIBRARY,
-        category: 'Security',
-        severity: 'high',
-        description: 'Обнаружена потенциально уязвимая версия библиотеки (jQuery v1.x).',
-        impact: 'Злоумышленники могут использовать известные эксплойты для компрометации сайта.',
-        remediation: 'Обновите библиотеки до последних стабильных версий.'
+  // --- GDPR Compliance Checks ---
+
+  // Внешние Google Fonts
+  $('link[href*="fonts.googleapis.com"]').each((_, el) => {
+    violations.push({
+      category: 'GDPR',
+      issue_type: 'EXTERNAL_GOOGLE_FONTS',
+      severity: 'medium',
+      evidence_html: $.html(el),
+      description: 'Использование внешних Google Fonts передает IP-адрес пользователя в Google без согласия.'
+    });
+  });
+
+  // Формы на HTTP
+  $('form').each((_, el) => {
+    const action = $(el).attr('action') || '';
+    if (action.startsWith('http://') || (!action.startsWith('https://') && url.startsWith('http://'))) {
+      violations.push({
+        category: 'GDPR',
+        issue_type: 'UNSECURE_FORM_SUBMISSION',
+        severity: 'critical',
+        evidence_html: $.html(el),
+        description: 'Форма отправляет данные через незащищенное HTTP соединение.'
       });
     }
   });
 
+  // Пиксели (FB, TikTok, GA) без Cookie Consent
+  const trackingScript = $('script').filter((_, el) => {
+    const src = $(el).attr('src') || '';
+    const content = $(el).html() || '';
+    return /facebook\.net|tiktok\.com|googletagmanager\.com|analytics\.js/.test(src + content);
+  });
+
+  const hasConsent = $('.cookie-consent, #cookie-banner, [class*="cookie"], [id*="cookie"]').length > 0;
+  
+  if (trackingScript.length > 0 && !hasConsent) {
+    violations.push({
+      category: 'GDPR',
+      issue_type: 'TRACKING_WITHOUT_CONSENT',
+      severity: 'high',
+      evidence_html: $.html(trackingScript.get(0)),
+      description: 'Обнаружены трекеры при отсутствии видимых элементов согласия с Cookie Policy.'
+    });
+  }
+
+  // --- Privacy Checks ---
+
+  // Ссылка на Privacy Policy
+  const privacyKeywords = /Privacy Policy|Политика конфиденциальности/i;
+  const hasPrivacyLink = $('a').filter((_, el) => privacyKeywords.test($(el).text())).length > 0;
+  
+  if (!hasPrivacyLink) {
+    violations.push({
+      category: 'Privacy',
+      issue_type: 'MISSING_PRIVACY_POLICY',
+      severity: 'high',
+      evidence_html: '<footer>',
+      description: 'В футере или меню не найдена ссылка на Политику конфиденциальности.'
+    });
+  }
+
+  // --- Security Checks ---
+
+  // Отсутствие CSP в мета-тегах
+  const hasCSPMeta = $('meta[http-equiv="Content-Security-Policy"]').length > 0;
+  const hasCSPHeader = headers['content-security-policy'];
+
+  if (!hasCSPMeta && !hasCSPHeader) {
+    violations.push({
+      category: 'Security',
+      issue_type: 'MISSING_CSP',
+      severity: 'medium',
+      evidence_html: '<head>',
+      description: 'На сайте не настроена Content Security Policy (ни в мета-тегах, ни в заголовках).'
+    });
+  }
+
+  // Отсутствие HSTS или X-Frame-Options (проверка по заголовкам)
+  if (!headers['strict-transport-security']) {
+    violations.push({
+      category: 'Security',
+      issue_type: 'MISSING_HSTS',
+      severity: 'medium',
+      evidence_html: 'HTTP Headers',
+      description: 'Заголовок Strict-Transport-Security (HSTS) не обнаружен.'
+    });
+  }
+
   return { 
-    issues, 
+    violations, 
     discoveredLinks: Array.from(new Set(discoveredLinks)).slice(0, 10) 
   };
 }

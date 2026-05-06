@@ -13,7 +13,7 @@ async function migrate() {
   try {
     console.log('[Migration] Starting database schema initialization...');
     
-    // 1. Таблица логов аудита
+    // 1. Таблица логов аудита (метаданные запроса)
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id SERIAL PRIMARY KEY,
@@ -24,13 +24,16 @@ async function migrate() {
       );
     `);
     
-    // 2. Таблица найденных нарушений
+    // 2. Таблица подробных результатов аудита (доказательная база)
     await client.query(`
-      CREATE TABLE IF NOT EXISTS scan_issues (
+      CREATE TABLE IF NOT EXISTS audit_results (
         id SERIAL PRIMARY KEY,
         domain VARCHAR(255) NOT NULL,
+        url TEXT NOT NULL,
+        category VARCHAR(50) NOT NULL,
         issue_type VARCHAR(100) NOT NULL,
         severity VARCHAR(20) NOT NULL,
+        evidence_html TEXT,
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -56,7 +59,7 @@ async function migrate() {
       );
     `);
 
-    // 5. Таблица очереди сканирования (добавлен столбец status)
+    // 5. Таблица очереди сканирования
     await client.query(`
       CREATE TABLE IF NOT EXISTS scan_queue (
         id SERIAL PRIMARY KEY,
@@ -73,14 +76,12 @@ async function migrate() {
       ON CONFLICT (id) DO NOTHING;
     `);
 
-    // Начальный посев очереди
+    // Начальный посев
     await client.query(`
       INSERT INTO scan_queue (url, status)
       VALUES 
         ('https://google.com', 'pending'),
-        ('https://github.com', 'pending'),
-        ('https://microsoft.com', 'pending'),
-        ('https://wikipedia.org', 'pending')
+        ('https://github.com', 'pending')
       ON CONFLICT (url) DO NOTHING;
     `);
     

@@ -1,17 +1,17 @@
-
 /**
  * @fileOverview Централизованные интерфейсы для системы комплаенса.
  */
 
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
+export type Category = 'ADA' | 'GDPR' | 'Privacy' | 'Security';
 
-export interface ScanIssue {
-  type: string;
+export interface Violation {
+  category: Category;
+  issue_type: string;
   severity: Severity;
+  evidence_html: string;
+  line_number?: number;
   description: string;
-  category: 'GDPR' | 'Security' | 'Privacy';
-  impact?: string;
-  remediation?: string;
 }
 
 export interface CrawlResult {
@@ -19,7 +19,7 @@ export interface CrawlResult {
   timestamp: string;
   status: 'success' | 'failed' | 'blocked' | 'skipped';
   issuesFound: number;
-  issues?: ScanIssue[];
+  violations?: Violation[];
   securityHeaders?: {
     ssl: string;
     hsts: boolean;
@@ -27,11 +27,5 @@ export interface CrawlResult {
   };
   error?: string;
   reason?: string;
-}
-
-export interface RobotsRule {
-  userAgent: string;
-  allow: string[];
-  disallow: string[];
-  crawlDelay?: number;
+  discoveredLinks?: string[];
 }

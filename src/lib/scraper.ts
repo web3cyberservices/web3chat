@@ -1,12 +1,12 @@
 import settings from '@/config/crawler-settings.json';
 
 const MAX_REDIRECTS = 5;
-const REQUEST_TIMEOUT = 10000; // Жесткий лимит 10 секунд
+const REQUEST_TIMEOUT = 10000;
 
 /**
  * Основной движок запросов HumangoBot. 
  */
-export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any}> {
+export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any, rawHeaders: any}> {
   if (redirectCount > MAX_REDIRECTS) {
     throw new Error('REDIRECT_LOOP');
   }
@@ -34,9 +34,16 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
 
   const html = await response.text();
   const headers = response.headers;
+  
+  // Преобразуем заголовки в простой объект для парсера
+  const rawHeaders: Record<string, string> = {};
+  headers.forEach((val, key) => {
+    rawHeaders[key.toLowerCase()] = val;
+  });
 
   return {
     html,
+    rawHeaders,
     security: {
       ssl: url.startsWith('https') ? 'TLS 1.3' : 'None',
       hsts: headers.has('Strict-Transport-Security'),
