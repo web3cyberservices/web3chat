@@ -1,33 +1,44 @@
 /**
  * @fileOverview Основной координатор краулера.
- * Управляет циклом работы, проверкой статуса и обработкой очереди.
+ * Управляет циклом работы, обработкой ошибок БД и очередью.
  */
 
 import { runCrawlTask } from './crawler';
-import { getBotStatus, getNextQueueItem, removeFromQueue, saveBotEvent, addToQueue } from '@/lib/db';
+import { 
+  getBotStatus, 
+  getNextQueueItem, 
+  removeFromQueue, 
+  saveBotEvent, 
+  addToQueue, 
+  getQueueSize 
+} from '@/lib/db';
 
-const SLEEP_INTERVAL = 1500; // ms (RFC 9309 compliance)
-const IDLE_WAIT = 5000;    // ms (Wait if queue is empty or bot is paused)
+const SLEEP_INTERVAL = 1500; 
+const IDLE_WAIT = 5000;    
+const MAX_QUEUE_LIMIT = 5000; // Лимит на размер очереди для стабильности
+
+let errorBackoffMs = 1000; // Стартовое время ожидания при ошибке БД
 
 export async function startEngine() {
   await saveBotEvent('START', 'Движок HumangoBot инициализирован и перешел в режим мониторинга очереди.');
 
-  // Бесконечный цикл работы
   while (true) {
     try {
-      // 1. Проверка глобального статуса (Пауза/Активен)
+      // 1. Проверка статуса (может выбросить ошибку если БД недоступна)
       const isActive = await getBotStatus();
+      
+      // Сброс backoff если запрос прошел успешно
+      errorBackoffMs = 1000;
+
       if (!isActive) {
         console.log('[Engine] Bot is paused. Sleeping...');
         await sleep(IDLE_WAIT);
         continue;
       }
 
-      // 2. Получение следующей цели из очереди
-      const task = await getNextQueueItem();
-      
-      if (!task) {
-        // Если очередь пуста, генерируем случайную цель для поддержания активности (имитация обнаружения)
+      // 2. Управление очередью и Discovery
+      const queueSize = await getQueueSize();
+      if (queueSize === 0) {
         const placeholderTarget = generateDiscoveryTarget();
         console.log(`[Engine] Queue empty. Discovering new target: ${placeholderTarget}`);
         await addToQueue(placeholderTarget);
@@ -35,26 +46,42 @@ export async function startEngine() {
         continue;
       }
 
-      // 3. Выполнение сканирования (включает robots.txt check, scraping, parsing, logging)
+      // 3. Получение задачи
+      const task = await getNextQueueItem();
+      if (!task) {
+        await sleep(IDLE_WAIT);
+        continue;
+      }
+
+      // 4. Выполнение (внутри crawler.ts есть AbortSignal.timeout для защиты от зависаний)
       console.log(`[Engine] Processing: ${task.url}`);
       const result = await runCrawlTask(task.url);
 
-      // 4. Удаление из очереди после попытки обработки
+      // 5. Удаление из очереди (всегда удаляем, чтобы не виснуть на failed URL)
       await removeFromQueue(task.id);
 
-      // 5. Логирование завершения такта
-      if (result.status === 'success') {
-        console.log(`[Engine] Done: ${task.url} (${result.issuesFound} issues found)`);
-      } else {
-        console.log(`[Engine] Task ended with status: ${result.status} - ${result.reason || ''}`);
+      // 6. Discovery новых ссылок (только если очередь не переполнена)
+      if (queueSize < MAX_QUEUE_LIMIT && result.status === 'success') {
+         // В реальной системе здесь был бы поиск новых ссылок на странице
+         // Для демонстрации добавим еще один случайный узел
+         await addToQueue(generateDiscoveryTarget());
       }
 
-      // 6. Пауза между запросами (Politeness Policy)
       await sleep(SLEEP_INTERVAL);
 
     } catch (error: any) {
-      await saveBotEvent('ERROR', `Критический сбой в основном цикле движка: ${error.message}`);
-      await sleep(IDLE_WAIT);
+      console.error(`[Engine Critical] ${error.message}`);
+      
+      // Логируем ошибку, если это возможно (БД может быть недоступна)
+      try {
+        await saveBotEvent('ERROR', `Критический сбой цикла: ${error.message}. Повтор через ${errorBackoffMs/1000}с.`);
+      } catch (e) {
+        // Игнорируем ошибку логирования при падении БД
+      }
+
+      // Экспоненциальная пауза при ошибках (backoff)
+      await sleep(errorBackoffMs);
+      errorBackoffMs = Math.min(errorBackoffMs * 2, 60000); // Максимум 1 минута
     }
   }
 }
@@ -63,14 +90,11 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Имитация процесса обнаружения новой инфраструктуры (Discovery)
- */
 function generateDiscoveryTarget(): string {
-  const domains = ['cloud', 'app', 'dev', 'sec', 'data', 'web', 'node', 'sync'];
-  const tlds = ['.io', '.com', '.net', '.app'];
-  const rand = Math.floor(Math.random() * 10000);
-  const d = domains[Math.floor(Math.random() * domains.length)];
-  const t = tlds[Math.floor(Math.random() * tlds.length)];
-  return `https://${d}-infra-${rand}${t}`;
+  const clusters = ['alpha', 'beta', 'gamma', 'delta', 'omega'];
+  const tlds = ['.com', '.net', '.org', '.io', '.app'];
+  const id = Math.floor(Math.random() * 1000);
+  const cluster = clusters[Math.floor(Math.random() * clusters.length)];
+  const tld = tlds[Math.floor(Math.random() * tlds.length)];
+  return `https://${cluster}-node-${id}${tld}`;
 }

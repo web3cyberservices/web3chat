@@ -107,7 +107,7 @@ export async function getBotStatus(): Promise<boolean> {
     }
   } catch (error) {
     console.error('[DB Error] Failed to get bot status:', error);
-    return true; 
+    throw error; // Let the engine handle the connection error
   }
 }
 
@@ -137,7 +137,22 @@ export async function getNextQueueItem() {
     }
   } catch (error) {
     console.error('[DB Error] Failed to get queue item:', error);
-    return null;
+    throw error;
+  }
+}
+
+export async function getQueueSize(): Promise<number> {
+  try {
+    const client = await pool.connect();
+    try {
+      const res = await client.query('SELECT COUNT(*) FROM scan_queue');
+      return parseInt(res.rows[0].count);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[DB Error] Failed to get queue size:', error);
+    return 0;
   }
 }
 
