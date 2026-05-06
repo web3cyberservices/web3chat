@@ -1,4 +1,3 @@
-
 import type {Metadata} from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -8,9 +7,13 @@ import { FirebaseProvider } from "@/components/providers/firebase-provider";
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'bot.humango.app | Official Web Crawler Identity & Compliance',
-  description: 'Verified identity and verification portal for HumangoBot. Auditing global infrastructure for GDPR compliance, SSL/TLS security, and data privacy protocols.',
-  keywords: 'HumangoBot, web crawler, security audit, GDPR compliance, SSL scanner, Cloudflare verified bot, RFC 9309',
+  title: 'HumangoBot | Automated Compliance & Security Auditing',
+  description: 'HumangoBot is a specialized security crawler designed to identify technical vulnerabilities and monitor GDPR compliance across global web infrastructure.',
+  keywords: 'security crawler, web auditing, GDPR compliance, vulnerability scanner, bot transparency',
+  metadataBase: new URL('https://humango.app'),
+  alternates: {
+    canonical: 'https://humango.app',
+  },
   icons: {
     icon: [
       { url: '/logo.png?v=4', type: 'image/png' },
@@ -24,14 +27,22 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
     },
   },
   openGraph: {
-    title: 'bot.humango.app | Identity Portal',
-    description: 'Official crawler specifications, GDPR compliance standards and verified origin data.',
-    url: 'https://bot.humango.app',
-    siteName: 'HumangoBot Compliance',
+    title: 'HumangoBot | Automated Compliance & Security Auditing',
+    description: 'HumangoBot is a specialized security crawler designed to identify technical vulnerabilities and monitor GDPR compliance across global web infrastructure.',
+    url: 'https://humango.app',
+    siteName: 'HumangoBot',
+    locale: 'en_US',
     type: 'website',
+  },
+  verification: {
+    google: '',
+    yandex: '',
   },
 };
 
