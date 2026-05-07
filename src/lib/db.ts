@@ -10,7 +10,7 @@ if (!process.env.DATABASE_URL) {
 
 const connectionString = process.env.DATABASE_URL;
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 20,
@@ -40,7 +40,7 @@ export async function testConnection() {
 
 /**
  * Сохранение результатов аудита.
- * Мы обновляем запрос, чтобы включить explanation и potential_penalty.
+ * Синхронизировано с колонками: url, page_url, snippet, fine_amount, explanation.
  */
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (!violations || violations.length === 0) {
@@ -53,31 +53,33 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     
     const query = `
       INSERT INTO site_violations (
-        domain, url, category, issue_type, severity, evidence_html, 
-        explanation, potential_penalty, recommendation, created_at
+        domain, url, page_url, category, issue_type, severity, 
+        evidence_html, snippet, fine_amount, explanation, recommendation, created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
     `;
 
     for (const v of violations) {
       await client.query(query, [
         sanitize(domain),
-        sanitize(url),
+        sanitize(url),       // url column
+        sanitize(url),       // page_url column (same as url as per request)
         v.category,
         v.issue_type,
         v.severity,
-        sanitize(v.evidence_html),
-        sanitize(v.explanation),
-        sanitize(v.potential_penalty),
+        sanitize(v.evidence_html), // evidence_html
+        sanitize(v.evidence_html), // snippet (same as evidence_html as per request)
+        v.fine_amount,
+        v.explanation,
         sanitize(v.recommendation)
       ]);
     }
     await client.query('COMMIT');
-    console.log(`[DB] Saved ${violations.length} violations with legal context for ${domain}`);
+    console.log(`[DB] Saved ${violations.length} violations for ${domain}`);
     return { success: true };
   } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[DB SAVE ERROR] Failed to save violations:', error.message);
+    console.error('[DB SAVE ERROR]', error.stack || error.message);
     return { success: false, error };
   } finally {
     client.release();
@@ -217,8 +219,8 @@ export async function getViolations() {
         severity as level, 
         created_at as date, 
         explanation as description,
-        potential_penalty,
-        url
+        fine_amount,
+        page_url as url
       FROM site_violations 
       ORDER BY created_at DESC
       LIMIT 100

@@ -8,16 +8,13 @@ import { Violation, Category, Severity } from '@/types';
 function calculatePenalty(category: Category, issueType: string): string {
   switch (category) {
     case 'ADA':
-      return "$4,000 - $25,000 (Statutory damages per NY/CA civil code)";
+      return "$4,000+ (Statutory damages per incident)";
     case 'GDPR':
-      return "До 4% годового оборота или €20 млн (ст. 83 GDPR)";
+      return "Up to €20M or 4% of global turnover";
     case 'Privacy':
-      if (issueType.includes('CCPA')) {
-        return "До $7,500 за каждое умышленное нарушение (CCPA)";
-      }
-      return "До $2,500 - $7,500 за инцидент";
+      return "Up to $7,500 per violation (CCPA/CPRA)";
     default:
-      return "Зависит от юрисдикции и масштаба утечки";
+      return "Variable based on jurisdiction";
   }
 }
 
@@ -56,7 +53,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
     }
   });
 
-  // --- ADA Compliance (Accessibility) ---
+  // --- ADA Compliance ---
   $('img:not([alt])').each((_, el) => {
     const snippet = $.html(el);
     violations.push({
@@ -64,54 +61,50 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
       issue_type: 'MISSING_ALT_TEXT',
       severity: 'medium',
       evidence_html: snippet,
-      description: 'Изображение без описания (alt-text).',
-      explanation: 'Изображение недоступно для программ-экранного доступа (Screen Readers), что нарушает WCAG 2.1 и раздел 508 закона ADA. В штатах NY и CA это является основанием для гражданских исков.',
-      potential_penalty: calculatePenalty('ADA', 'MISSING_ALT_TEXT'),
-      recommendation: 'Добавьте атрибут alt="..." с кратким описанием смысла изображения.'
+      description: 'Image missing descriptive alt text.',
+      explanation: 'The image is inaccessible to screen readers, violating WCAG 2.1 and ADA Section 508. This is a common trigger for civil litigation in NY and CA.',
+      fine_amount: calculatePenalty('ADA', 'MISSING_ALT_TEXT'),
+      recommendation: 'Add a descriptive alt="..." attribute to the <img> tag.'
     });
   });
 
   // --- GDPR & Privacy ---
-  
-  // 3. Предзаполненные чекбоксы (Soft opt-in запрещен)
   $('input[type="checkbox"][checked]').each((_, el) => {
     violations.push({
       category: 'GDPR',
       issue_type: 'PREFILLED_CONSENT',
       severity: 'high',
       evidence_html: $.html(el),
-      description: 'Обнаружен предзаполненный чекбокс согласия.',
-      explanation: 'Согласно ст. 4(11) GDPR, согласие должно быть дано четким утвердительным действием. Предзаполненные поля не считаются добровольным согласием.',
-      potential_penalty: calculatePenalty('GDPR', 'PREFILLED_CONSENT'),
-      recommendation: 'Удалите атрибут "checked". Пользователь должен сам нажать на чекбокс.'
+      description: 'Detected pre-filled consent checkbox.',
+      explanation: 'Under GDPR Art. 4(11), consent must be a clear affirmative action. Pre-checked boxes do not constitute valid voluntary consent.',
+      fine_amount: calculatePenalty('GDPR', 'PREFILLED_CONSENT'),
+      recommendation: 'Remove the "checked" attribute. Consent must be opt-in, not opt-out.'
     });
   });
 
-  // 6. Сбор через HTTP
   if (url.startsWith('http://')) {
     violations.push({
       category: 'GDPR',
       issue_type: 'UNSECURE_DATA_TRANSMISSION',
       severity: 'critical',
-      evidence_html: 'Current Protocol: HTTP',
-      description: 'Передача данных по незащищенному протоколу.',
-      explanation: 'Отсутствие TLS-шифрования нарушает требование ст. 32 GDPR о безопасности обработки данных (Integrity and Confidentiality).',
-      potential_penalty: calculatePenalty('GDPR', 'UNSECURE_DATA_TRANSMISSION'),
-      recommendation: 'Установите SSL-сертификат и настройте редирект на HTTPS.'
+      evidence_html: 'Protocol: HTTP',
+      description: 'Data transmission over unencrypted HTTP.',
+      explanation: 'Failure to use TLS encryption violates GDPR Art. 32 requirements for data processing security.',
+      fine_amount: calculatePenalty('GDPR', 'UNSECURE_DATA_TRANSMISSION'),
+      recommendation: 'Install an SSL certificate and enforce HTTPS redirects.'
     });
   }
 
-  // Google Fonts IP Leak
   if (lowerHtml.includes('fonts.googleapis.com')) {
     violations.push({
       category: 'GDPR',
       issue_type: 'EXTERNAL_IP_LEAK_FONTS',
       severity: 'medium',
-      evidence_html: 'Link to fonts.googleapis.com detected',
-      description: 'Передача IP-адресов в Google через шрифты.',
-      explanation: 'Загрузка шрифтов напрямую с серверов Google передает IP-адрес пользователя (персональные данные) третьей стороне без правового основания, что подтверждено решениями судов ЕС (например, LG München, 20.01.2022).',
-      potential_penalty: calculatePenalty('GDPR', 'EXTERNAL_IP_LEAK_FONTS'),
-      recommendation: 'Хостите шрифты локально на своем сервере.'
+      evidence_html: 'Google Fonts external link detected',
+      description: 'Potential PII leak via Google Fonts.',
+      explanation: 'Loading fonts directly from Google servers transmits the user\'s IP address (PII) to a third party without a legal basis, as established by EU court rulings.',
+      fine_amount: calculatePenalty('GDPR', 'EXTERNAL_IP_LEAK_FONTS'),
+      recommendation: 'Self-host fonts on your own infrastructure.'
     });
   }
 

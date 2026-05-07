@@ -48,6 +48,8 @@ interface DetectedIssue {
   level: string;
   date: string;
   description: string;
+  fine_amount?: string;
+  url?: string;
 }
 
 interface SystemLog {
@@ -84,11 +86,9 @@ export default function AdminDashboard() {
     }
 
     try {
-      // 1. Bot status
       const statusRes = await fetch('/api/admin/control');
       if (statusRes.status === 401) {
         setIsAuthenticated(false);
-        document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         return;
       }
       if (statusRes.ok) {
@@ -96,7 +96,6 @@ export default function AdminDashboard() {
         setIsActive(statusData.isActive);
       }
 
-      // 2. Dashboard Stats
       const statsRes = await fetch('/api/admin/stats');
       if (statsRes.ok) {
         const statsData = await statsRes.json();
@@ -107,7 +106,6 @@ export default function AdminDashboard() {
         setDetectedIssues(statsData.recentIssues || []);
       }
 
-      // 3. System Logs
       const logsRes = await fetch('/api/admin/system-logs');
       if (logsRes.ok) {
         const logsData = await logsRes.json();
@@ -120,14 +118,11 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Первоначальная загрузка и установка интервала
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
-      // Опрос каждые 5 секунд для эффекта Live Update
       pollingRef.current = setInterval(fetchData, 5000);
     }
-
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
@@ -143,10 +138,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (data.success) {
         setIsActive(checked);
-        toast({ 
-          title: checked ? "Сканирование запущено" : "Сканирование приостановлено", 
-          description: "Статус обновлен в базе данных." 
-        });
+        toast({ title: checked ? "Сканирование запущено" : "Сканирование приостановлено" });
         fetchData();
       }
     } catch (error) {
@@ -156,32 +148,20 @@ export default function AdminDashboard() {
 
   const handleDownloadCSV = async () => {
     try {
-      const res = await fetch('/api/admin/violations');
-      const data = await res.json();
-      if (!data.success) throw new Error('Failed');
+      const res = await fetch('/api/admin/export');
+      if (!res.ok) throw new Error('Failed to download');
 
-      const headers = ['ID', 'Domain', 'Issue Type', 'Severity', 'Created At', 'Description'];
-      const rows = data.violations.map((v: DetectedIssue) => [
-        v.id,
-        v.domain,
-        v.type,
-        v.level,
-        new Date(v.date).toLocaleString(),
-        `"${v.description.replace(/"/g, '""')}"`
-      ]);
-
-      const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.setAttribute("href", url);
+      link.href = url;
       link.setAttribute("download", `audit_report_${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast({ title: "Успешно", description: "CSV файл скачан." });
+      toast({ title: "Успешно", description: "CSV отчет скачан." });
     } catch (error) {
-      toast({ variant: "destructive", title: "Ошибка", description: "Не удалось создать CSV." });
+      toast({ variant: "destructive", title: "Ошибка", description: "Не удалось скачать CSV." });
     }
   };
 
@@ -199,7 +179,6 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    if (pollingRef.current) clearInterval(pollingRef.current);
   };
 
   if (isAuthenticated === null) return null;
@@ -258,7 +237,7 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Compliance v1.6</Badge>
+            <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Compliance v1.8</Badge>
             <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
               <Zap className={`w-3 h-3 ${isActive ? 'animate-pulse text-emerald-500' : ''}`} /> {isActive ? 'SCANNING' : 'IDLE'}
             </div>
@@ -394,12 +373,22 @@ export default function AdminDashboard() {
                           </div>
                           <p className="text-[10px] text-slate-500">{issue.type}</p>
                         </div>
-                        <span className="text-[10px] text-slate-500">{new Date(issue.date).toLocaleString()}</span>
+                        <div className="text-right">
+                           <span className="text-[10px] text-slate-500 block">{new Date(issue.date).toLocaleString()}</span>
+                           <span className="text-[10px] text-rose-400 font-bold">{issue.fine_amount}</span>
+                        </div>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="pb-4">
-                      <div className="p-3 bg-primary/5 rounded border border-primary/10 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
-                        {issue.description}
+                      <div className="space-y-4">
+                        <div className="p-3 bg-primary/5 rounded border border-primary/10 text-xs text-slate-300 leading-relaxed">
+                          <p className="font-bold text-primary mb-1 uppercase tracking-tighter">Legal Explanation:</p>
+                          {issue.description}
+                        </div>
+                        <div className="p-3 bg-black/40 rounded border border-white/5 text-[10px] font-mono text-emerald-400 overflow-x-auto">
+                           <p className="text-slate-500 mb-1 uppercase tracking-tighter">Source URL:</p>
+                           {issue.url}
+                        </div>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
