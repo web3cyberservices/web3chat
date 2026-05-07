@@ -1,11 +1,13 @@
+import 'dotenv/config';
 /**
  * @fileOverview Автономная точка входа для фонового воркера.
  */
 
-import * as dotenv from 'dotenv';
 import { startEngine } from '../lib/crawler/engine';
 
-dotenv.config();
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is missing in environment variables!');
+}
 
 async function bootstrap() {
   console.log('--------------------------------------------------');

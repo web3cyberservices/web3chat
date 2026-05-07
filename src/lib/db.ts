@@ -1,7 +1,11 @@
-
+import 'dotenv/config';
 import { Pool } from 'pg';
 import DOMPurify from 'isomorphic-dompurify';
 import { Violation, ScanType } from '@/types';
+
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is missing in environment variables!');
+}
 
 const connectionString = process.env.DATABASE_URL;
 
