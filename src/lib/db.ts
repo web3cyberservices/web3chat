@@ -10,15 +10,12 @@ if (!process.env.DATABASE_URL) {
 
 const connectionString = process.env.DATABASE_URL;
 
-console.log('[DB] Initializing Pool for:', connectionString.replace(/:[^:]+@/, ':****@'));
-
 const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 10,
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
-  statement_timeout: 15000,
 });
 
 pool.on('error', (err) => {
@@ -31,16 +28,13 @@ function sanitize(text: string | null | undefined): string {
 }
 
 export async function testConnection() {
-  const client = await pool.connect();
   try {
-    const res = await client.query('SELECT NOW()');
+    const res = await pool.query('SELECT NOW()');
     console.log('[DB] Connection test successful:', res.rows[0].now);
     return true;
   } catch (err: any) {
     console.error('[DB] Connection test FAILED:', err.message);
     throw err;
-  } finally {
-    client.release();
   }
 }
 
@@ -50,7 +44,6 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
     const query = `
       INSERT INTO site_violations (
         domain, url, category, issue_type, severity, evidence_html, 
@@ -73,7 +66,6 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         JSON.stringify(v.metadata || {})
       ]);
     }
-
     await client.query('COMMIT');
     return { success: true };
   } catch (error) {
@@ -98,10 +90,7 @@ export async function saveBotEvent(type: 'START' | 'STOP' | 'ERROR' | 'SUCCESS',
 export async function getBotEvents(limit = 50) {
   try {
     const res = await pool.query('SELECT id, type, message, timestamp FROM bot_events ORDER BY timestamp DESC LIMIT $1', [limit]);
-    return res.rows.map(event => ({ 
-      ...event, 
-      message: sanitize(event.message) 
-    }));
+    return res.rows;
   } catch (error) {
     console.error('[DB Error] Failed to fetch bot events:', error);
     return [];
@@ -131,30 +120,27 @@ export async function getNextQueueItem() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
-    const query = "SELECT id, url FROM scan_queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
+    const query = "SELECT id, url FROM public.scan_queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
     const result = await client.query(query);
     const task = result.rows[0];
 
     if (task) {
-      await client.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
-      console.log(`[DB] Task claimed: ${task.url} (ID: ${task.id})`);
+      await client.query("UPDATE public.scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
     }
-
     await client.query('COMMIT');
     return task || null;
   } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[DB Error] Transaction failed in getNextQueueItem:', error.message);
+    console.error('[DB Error] getNextQueueItem failed:', error.message);
     return null;
   } finally {
     client.release();
   }
 }
 
-export async function updateQueueStatus(id: number, status: 'pending' | 'processing' | 'completed' | 'failed') {
+export async function updateQueueStatus(id: number, status: 'completed' | 'failed') {
   try {
-    await pool.query('UPDATE scan_queue SET status = $1 WHERE id = $2', [status, id]);
+    await pool.query('UPDATE public.scan_queue SET status = $1 WHERE id = $2', [status, id]);
   } catch (error) {
     console.error('[DB Error] Failed to update queue status:', error);
   }
@@ -162,7 +148,7 @@ export async function updateQueueStatus(id: number, status: 'pending' | 'process
 
 export async function getQueueSize(): Promise<number> {
   try {
-    const res = await pool.query("SELECT COUNT(*) as count FROM scan_queue WHERE status = 'pending'");
+    const res = await pool.query("SELECT COUNT(*) as count FROM public.scan_queue WHERE status = 'pending'");
     return parseInt(res.rows[0]?.count || '0', 10);
   } catch (error) {
     return 0;
@@ -171,7 +157,7 @@ export async function getQueueSize(): Promise<number> {
 
 export async function addToQueue(url: string) {
   try {
-    await pool.query("INSERT INTO scan_queue (url, status) VALUES ($1, 'pending') ON CONFLICT (url) DO NOTHING", [url]);
+    await pool.query("INSERT INTO public.scan_queue (url, status) VALUES ($1, 'pending') ON CONFLICT (url) DO NOTHING", [url]);
   } catch (error) {
     // Ignore duplicates
   }
@@ -180,6 +166,7 @@ export async function addToQueue(url: string) {
 export async function saveAuditLog(domain: string, statusCode: number, errorMessage: string | null) {
   try {
     await pool.query('INSERT INTO audit_logs (domain, status_code, error_message, created_at) VALUES ($1, $2, $3, NOW())', [sanitize(domain), statusCode, sanitize(errorMessage)]);
+    console.log(`[DB] Audit log saved for ${domain} with status ${statusCode}`);
   } catch (error) {
     console.error('[DB Error] Failed to save audit log:', error);
   }

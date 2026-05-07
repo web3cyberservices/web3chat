@@ -15,7 +15,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { 
   Accordion,
@@ -85,28 +84,30 @@ export default function AdminDashboard() {
     }
 
     try {
+      // 1. Bot status
       const statusRes = await fetch('/api/admin/control');
       if (statusRes.status === 401) {
         setIsAuthenticated(false);
         document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         return;
       }
-      
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setIsActive(statusData.isActive);
       }
 
+      // 2. Dashboard Stats & Recent Issues
       const statsRes = await fetch('/api/admin/stats');
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setMetrics({
-          pagesScanned: statsData.pagesScanned || 0,
-          issuesFound: statsData.issuesFound || 0
+          pagesScanned: Number(statsData.pagesScanned) || 0,
+          issuesFound: Number(statsData.issuesFound) || 0
         });
         setDetectedIssues(statsData.recentIssues || []);
       }
 
+      // 3. System Logs
       const logsRes = await fetch('/api/admin/system-logs');
       if (logsRes.ok) {
         const logsData = await logsRes.json();
@@ -123,8 +124,6 @@ export default function AdminDashboard() {
     if (isAuthenticated === true) {
       fetchData();
       pollingRef.current = setInterval(fetchData, 5000);
-    } else {
-      if (pollingRef.current) clearInterval(pollingRef.current);
     }
 
     return () => {
