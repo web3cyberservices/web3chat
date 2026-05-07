@@ -38,9 +38,12 @@ export async function testConnection() {
   }
 }
 
+/**
+ * Сохранение результатов аудита.
+ * Мы обновляем запрос, чтобы включить explanation и potential_penalty.
+ */
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (!violations || violations.length === 0) {
-    console.log(`[DB] No violations to save for ${domain}`);
     return { success: true };
   }
 
@@ -48,18 +51,15 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // Используем только колонки, подтвержденные пользователем
-    // Объединяем description и recommendation в поле recommendation, чтобы не терять данные
     const query = `
       INSERT INTO site_violations (
-        domain, url, category, issue_type, severity, evidence_html, recommendation, created_at
+        domain, url, category, issue_type, severity, evidence_html, 
+        explanation, potential_penalty, recommendation, created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
     `;
 
     for (const v of violations) {
-      const combinedDetails = `${v.description}${v.recommendation ? ` | REC: ${v.recommendation}` : ''}`;
-      
       await client.query(query, [
         sanitize(domain),
         sanitize(url),
@@ -67,17 +67,17 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html),
-        sanitize(combinedDetails)
+        sanitize(v.explanation),
+        sanitize(v.potential_penalty),
+        sanitize(v.recommendation)
       ]);
     }
     await client.query('COMMIT');
-    console.log(`[DB] Successfully saved ${violations.length} violations for ${domain}`);
+    console.log(`[DB] Saved ${violations.length} violations with legal context for ${domain}`);
     return { success: true };
   } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[DB SAVE ERROR] CRITICAL: Failed to save violations to site_violations table!');
-    console.error('[DB SAVE ERROR] Details:', error.message);
-    if (error.stack) console.error(error.stack);
+    console.error('[DB SAVE ERROR] Failed to save violations:', error.message);
     return { success: false, error };
   } finally {
     client.release();
@@ -132,7 +132,7 @@ export async function getNextQueueItem() {
     const task = result.rows[0];
 
     if (task) {
-      await client.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
+      await client.query("UPDATE public.scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
     }
     await client.query('COMMIT');
     return task || null;
@@ -173,7 +173,6 @@ export async function addToQueue(url: string) {
 export async function saveAuditLog(domain: string, statusCode: number, errorMessage: string | null) {
   try {
     await pool.query('INSERT INTO audit_logs (domain, status_code, error_message, created_at) VALUES ($1, $2, $3, NOW())', [sanitize(domain), statusCode, sanitize(errorMessage)]);
-    console.log(`[DB] Audit log saved for ${domain} (${statusCode})`);
   } catch (error) {
     console.error('[DB Error] Failed to save audit log:', error);
   }
@@ -184,7 +183,6 @@ export async function getStats() {
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
     
-    // Выбираем recommendation как description для совместимости с фронтендом
     const recentIssues = await pool.query(`
       SELECT 
         id, 
@@ -192,7 +190,7 @@ export async function getStats() {
         issue_type as type, 
         severity as level, 
         created_at as date, 
-        recommendation as description 
+        explanation as description 
       FROM site_violations 
       ORDER BY created_at DESC 
       LIMIT 10
@@ -218,7 +216,9 @@ export async function getViolations() {
         issue_type as type, 
         severity as level, 
         created_at as date, 
-        recommendation as description 
+        explanation as description,
+        potential_penalty,
+        url
       FROM site_violations 
       ORDER BY created_at DESC
       LIMIT 100

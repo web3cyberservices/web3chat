@@ -7,8 +7,10 @@ export interface Violation {
   category: Category;
   issue_type: string;
   severity: Severity;
-  evidence_html: string;
+  evidence_html: string; // Snippet of the offending code
   description: string;
+  explanation: string; // Legal/technical reasoning
+  potential_penalty: string; // Estimated fine
   recommendation?: string;
   scan_type?: ScanType;
   metadata?: any;

@@ -33,7 +33,8 @@ async function migrate() {
         issue_type VARCHAR(100) NOT NULL,
         severity VARCHAR(20) NOT NULL,
         evidence_html TEXT,
-        description TEXT,
+        explanation TEXT,
+        potential_penalty TEXT,
         recommendation TEXT,
         scan_type VARCHAR(20) DEFAULT 'basic',
         metadata JSONB DEFAULT '{}',
@@ -73,16 +74,8 @@ async function migrate() {
       VALUES (1, true)
       ON CONFLICT (id) DO NOTHING;
     `);
-
-    await client.query(`
-      INSERT INTO scan_queue (url, status)
-      VALUES 
-        ('https://google.com', 'pending'),
-        ('https://github.com', 'pending')
-      ON CONFLICT (url) DO NOTHING;
-    `);
     
-    console.log('[Migration] All tables and initial data created successfully.');
+    console.log('[Migration] All tables and initial data updated successfully.');
   } catch (err) {
     console.error('[Migration] Critical Error:', err);
     process.exit(1);

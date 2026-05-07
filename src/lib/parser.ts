@@ -3,8 +3,26 @@ import * as cheerio from 'cheerio';
 import { Violation, Category, Severity } from '@/types';
 
 /**
+ * Расчет потенциального штрафа на основе категории и контекста нарушения.
+ */
+function calculatePenalty(category: Category, issueType: string): string {
+  switch (category) {
+    case 'ADA':
+      return "$4,000 - $25,000 (Statutory damages per NY/CA civil code)";
+    case 'GDPR':
+      return "До 4% годового оборота или €20 млн (ст. 83 GDPR)";
+    case 'Privacy':
+      if (issueType.includes('CCPA')) {
+        return "До $7,500 за каждое умышленное нарушение (CCPA)";
+      }
+      return "До $2,500 - $7,500 за инцидент";
+    default:
+      return "Зависит от юрисдикции и масштаба утечки";
+  }
+}
+
+/**
  * Эвристическая проверка: нужен ли запуск браузера (Deep Scan).
- * Ищем признаки динамических систем, ИИ-ботов и трекеров.
  */
 export function shouldRunDeepScan(html: string): boolean {
   const indicators = [
@@ -17,7 +35,7 @@ export function shouldRunDeepScan(html: string): boolean {
 }
 
 /**
- * Основной экспертный парсер для глубокого аудита по реестру из 40 пунктов.
+ * Основной экспертный парсер для глубокого аудита.
  */
 export function parseHtmlContent(html: string, url: string, headers: any = {}): { violations: Violation[], discoveredLinks: string[] } {
   const $ = cheerio.load(html);
@@ -38,7 +56,22 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
     }
   });
 
-  // --- А. Сбор данных и согласия (Consent) ---
+  // --- ADA Compliance (Accessibility) ---
+  $('img:not([alt])').each((_, el) => {
+    const snippet = $.html(el);
+    violations.push({
+      category: 'ADA',
+      issue_type: 'MISSING_ALT_TEXT',
+      severity: 'medium',
+      evidence_html: snippet,
+      description: 'Изображение без описания (alt-text).',
+      explanation: 'Изображение недоступно для программ-экранного доступа (Screen Readers), что нарушает WCAG 2.1 и раздел 508 закона ADA. В штатах NY и CA это является основанием для гражданских исков.',
+      potential_penalty: calculatePenalty('ADA', 'MISSING_ALT_TEXT'),
+      recommendation: 'Добавьте атрибут alt="..." с кратким описанием смысла изображения.'
+    });
+  });
+
+  // --- GDPR & Privacy ---
   
   // 3. Предзаполненные чекбоксы (Soft opt-in запрещен)
   $('input[type="checkbox"][checked]').each((_, el) => {
@@ -48,23 +81,10 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
       severity: 'high',
       evidence_html: $.html(el),
       description: 'Обнаружен предзаполненный чекбокс согласия.',
-      recommendation: 'Удалите атрибут "checked". Пользователь должен дать согласие активным действием.'
+      explanation: 'Согласно ст. 4(11) GDPR, согласие должно быть дано четким утвердительным действием. Предзаполненные поля не считаются добровольным согласием.',
+      potential_penalty: calculatePenalty('GDPR', 'PREFILLED_CONSENT'),
+      recommendation: 'Удалите атрибут "checked". Пользователь должен сам нажать на чекбокс.'
     });
-  });
-
-  // 5. Отсутствие ссылки на Privacy Policy рядом с кнопками форм
-  $('form').each((_, el) => {
-    const formHtml = $(el).html()?.toLowerCase() || '';
-    if (!formHtml.includes('privacy') && !formHtml.includes('policy') && !formHtml.includes('политика')) {
-      violations.push({
-        category: 'GDPR',
-        issue_type: 'FORM_WITHOUT_PRIVACY_LINK',
-        severity: 'medium',
-        evidence_html: $.html(el).substring(0, 300),
-        description: 'Форма сбора данных не содержит прямой ссылки на Политику конфиденциальности.',
-        recommendation: 'Разместите текст "Я согласен с Политикой конфиденциальности" со ссылкой непосредственно над кнопкой отправки.'
-      });
-    }
   });
 
   // 6. Сбор через HTTP
@@ -73,104 +93,27 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
       category: 'GDPR',
       issue_type: 'UNSECURE_DATA_TRANSMISSION',
       severity: 'critical',
-      evidence_html: 'Current URL: ' + url,
-      description: 'Сайт работает по незащищенному протоколу HTTP.',
-      recommendation: 'Немедленно установите SSL-сертификат. Сбор данных без шифрования — грубое нарушение GDPR.'
+      evidence_html: 'Current Protocol: HTTP',
+      description: 'Передача данных по незащищенному протоколу.',
+      explanation: 'Отсутствие TLS-шифрования нарушает требование ст. 32 GDPR о безопасности обработки данных (Integrity and Confidentiality).',
+      potential_penalty: calculatePenalty('GDPR', 'UNSECURE_DATA_TRANSMISSION'),
+      recommendation: 'Установите SSL-сертификат и настройте редирект на HTTPS.'
     });
   }
 
-  // --- Б. Прозрачность и документы (Transparency) ---
-
-  const hasPrivacy = lowerHtml.includes('privacy policy') || lowerHtml.includes('политика конфиденциальности');
-  if (!hasPrivacy) {
+  // Google Fonts IP Leak
+  if (lowerHtml.includes('fonts.googleapis.com')) {
     violations.push({
-      category: 'Privacy',
-      issue_type: 'MISSING_PRIVACY_POLICY',
-      severity: 'high',
-      evidence_html: 'Full Page Audit',
-      description: 'Страница или ссылка на Privacy Policy не найдена.',
-      recommendation: 'Создайте страницу Политики конфиденциальности и разместите ссылку в футере.'
-    });
-  }
-
-  const hasCookiePolicy = lowerHtml.includes('cookie policy') || lowerHtml.includes('политика использования куки');
-  if (lowerHtml.includes('cookie') && !hasCookiePolicy) {
-     violations.push({
-      category: 'Privacy',
-      issue_type: 'MISSING_COOKIE_POLICY',
+      category: 'GDPR',
+      issue_type: 'EXTERNAL_IP_LEAK_FONTS',
       severity: 'medium',
-      evidence_html: 'Cookie Keyword Detection',
-      description: 'Используются куки, но отдельная политика или раздел Cookie Policy не найден.',
-      recommendation: 'Выделите правила использования файлов cookie в отдельный документ или четкий раздел в основной политике.'
+      evidence_html: 'Link to fonts.googleapis.com detected',
+      description: 'Передача IP-адресов в Google через шрифты.',
+      explanation: 'Загрузка шрифтов напрямую с серверов Google передает IP-адрес пользователя (персональные данные) третьей стороне без правового основания, что подтверждено решениями судов ЕС (например, LG München, 20.01.2022).',
+      potential_penalty: calculatePenalty('GDPR', 'EXTERNAL_IP_LEAK_FONTS'),
+      recommendation: 'Хостите шрифты локально на своем сервере.'
     });
   }
-
-  // --- В. Инструменты ИИ и автоматизация (AI & Profiling) ---
-
-  const aiIndicators = ['intercom', 'crisp', 'drift', 'chatbot', 'chat-bot', 'чат-бот'];
-  if (aiIndicators.some(ind => lowerHtml.includes(ind))) {
-    violations.push({
-      category: 'AI',
-      issue_type: 'AI_CHAT_TRANSPARENCY',
-      severity: 'medium',
-      evidence_html: 'Chatbot Script Detection',
-      description: 'Обнаружен чат-бот, но уведомление о сборе истории переписки не выявлено.',
-      recommendation: 'Добавьте в окно чата уведомление: "Используя чат, вы соглашаетесь на обработку переписки согласно Политике".'
-    });
-  }
-
-  // --- Г. Интернет-магазины и транзакции ---
-
-  if (url.includes('checkout') || url.includes('cart') || url.includes('корзина')) {
-    if (lowerHtml.includes('register') || lowerHtml.includes('регистрация')) {
-      violations.push({
-        category: 'Transactional',
-        issue_type: 'FORCED_REGISTRATION',
-        severity: 'low',
-        evidence_html: 'Checkout Context',
-        description: 'Принудительная регистрация при покупке может нарушать принцип минимизации данных.',
-        recommendation: 'Разрешите "Покупку в 1 клик" или "Гостевой заказ" без создания аккаунта.'
-      });
-    }
-  }
-
-  // --- Д. Технические ошибки ---
-
-  // 35. Google Fonts / Gravatar
-  if (lowerHtml.includes('fonts.googleapis.com') || lowerHtml.includes('gravatar.com')) {
-    violations.push({
-      category: 'Security',
-      issue_type: 'EXTERNAL_IP_LEAK',
-      severity: 'medium',
-      evidence_html: 'External Asset Detection',
-      description: 'Использование внешних шрифтов или аватаров передает IP пользователя в Google/Automattic без согласия.',
-      recommendation: 'Хостите шрифты локально. Это предотвратит несанкционированную передачу метаданных третьим лицам.'
-    });
-  }
-
-  // --- Е. Специфические риски (HR и Образование) ---
-  if (lowerHtml.includes('hr') || lowerHtml.includes('vacancy') || lowerHtml.includes('вакансия') || lowerHtml.includes('resume')) {
-    violations.push({
-      category: 'HR_Edu',
-      issue_type: 'RECRUITMENT_DATA_RISK',
-      severity: 'medium',
-      evidence_html: 'Recruitment Context',
-      description: 'Обнаружен раздел рекрутинга. Необходимы четкие сроки удаления резюме.',
-      recommendation: 'Укажите в Политике, что резюме отклоненных кандидатов хранятся не более 6 месяцев.'
-    });
-  }
-
-  // --- ADA Compliance ---
-  $('img:not([alt])').each((_, el) => {
-    violations.push({
-      category: 'ADA',
-      issue_type: 'MISSING_ALT_TEXT',
-      severity: 'medium',
-      evidence_html: $.html(el),
-      description: 'Изображение без описания (alt).',
-      recommendation: 'Добавьте атрибут alt для поддержки программ экранного доступа.'
-    });
-  });
 
   return { 
     violations, 
