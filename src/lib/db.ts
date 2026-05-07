@@ -125,13 +125,12 @@ export async function getNextQueueItem() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // Приоритизируем задачи по колонке priority
     const query = "SELECT id, url, depth FROM scan_queue WHERE status = 'pending' ORDER BY priority DESC, id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
     const result = await client.query(query);
     const task = result.rows[0];
 
     if (task) {
-      await client.query("UPDATE public.scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
+      await client.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
     }
     await client.query('COMMIT');
     return task || null;
@@ -168,7 +167,7 @@ export async function addToQueue(url: string, depth: number = 0, priority: numbe
       [url, depth, priority]
     );
   } catch (error) {
-    // Дубликаты игнорируем
+    // Дубликаты игнорируются
   }
 }
 
@@ -185,23 +184,10 @@ export async function getStats() {
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
     
-    const recentIssues = await pool.query(`
-      SELECT 
-        id, 
-        domain, 
-        issue_type as type, 
-        severity as level, 
-        created_at as date, 
-        explanation as description 
-      FROM site_violations 
-      ORDER BY created_at DESC 
-      LIMIT 10
-    `);
-    
     return {
       pagesScanned: parseInt(pagesRes.rows[0]?.count || '0', 10),
       issuesFound: parseInt(issuesRes.rows[0]?.total || '0', 10),
-      recentIssues: recentIssues.rows || []
+      recentIssues: []
     };
   } catch (error) {
     console.error('[DB Stats Error]', error);

@@ -1,6 +1,6 @@
 
 import * as cheerio from 'cheerio';
-import { Violation, Category, Severity } from '@/types';
+import { Violation, Category } from '@/types';
 
 /**
  * Расчет потенциального штрафа на основе категории и контекста нарушения.
@@ -31,29 +31,51 @@ export function shouldRunDeepScan(html: string): boolean {
   return indicators.some(indicator => lowerHtml.includes(indicator.toLowerCase()));
 }
 
+// Константы для Auto-Discovery
+const EU_TLDS = ['.de', '.fr', '.it', '.es', '.pl', '.nl', '.be', '.at', '.dk', '.fi', '.se', '.ie', '.pt', '.cz', '.gr', '.hu', '.ro', '.sk', '.bg', '.ee', '.lv', '.lt', '.hr', '.si', '.mt', '.cy'];
+const SOCIAL_NETWORKS = ['facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com', 'youtube.com', 'tiktok.com', 'pinterest.com'];
+const TECH_GIANTS = ['google.', 'wikipedia.org', 'amazon.', 'microsoft.', 'apple.', 'yahoo.', 'bing.', 'baidu.'];
+
 /**
- * Основной экспертный парсер для глубокого аудита.
+ * Основной экспертный парсер для глубокого аудита и Auto-Discovery.
  */
 export function parseHtmlContent(html: string, url: string, headers: any = {}): { violations: Violation[], discoveredLinks: string[] } {
   const $ = cheerio.load(html);
   const violations: Violation[] = [];
   const discoveredLinks: string[] = [];
-  const lowerHtml = html.toLowerCase();
+  
+  const currentUrl = new URL(url);
+  const currentHostname = currentUrl.hostname.toLowerCase();
 
-  // Извлечение ссылок для обхода
+  // --- Auto-Discovery Logic ---
   $('a[href]').each((_, el) => {
     const href = $(el).attr('href');
-    if (href) {
-      try {
-        const absoluteUrl = new URL(href, url).href;
-        if (absoluteUrl.startsWith('http')) {
-           discoveredLinks.push(absoluteUrl);
-        }
-      } catch (e) {}
-    }
+    if (!href) return;
+
+    try {
+      const absoluteUrl = new URL(href, url);
+      const hostname = absoluteUrl.hostname.toLowerCase();
+      
+      // Только HTTP/HTTPS
+      if (!absoluteUrl.protocol.startsWith('http')) return;
+
+      // Проверка на гигантов
+      if (TECH_GIANTS.some(giant => hostname.includes(giant))) return;
+
+      // Проверка на соцсети
+      if (SOCIAL_NETWORKS.some(social => hostname.includes(social))) return;
+
+      // Фокус только на EU TLDs
+      const isEu = EU_TLDS.some(tld => hostname.endsWith(tld));
+      
+      // Добавляем только если это внешний домен из ЕС
+      if (isEu && hostname !== currentHostname) {
+        discoveredLinks.push(absoluteUrl.href);
+      }
+    } catch (e) {}
   });
 
-  // --- ADA Compliance ---
+  // --- ADA Compliance Audit ---
   $('img:not([alt])').each((_, el) => {
     const snippet = $.html(el);
     violations.push({
@@ -62,13 +84,13 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
       severity: 'medium',
       evidence_html: snippet,
       description: 'Image missing descriptive alt text.',
-      explanation: 'The image is inaccessible to screen readers, violating WCAG 2.1 and ADA Section 508. This is a common trigger for civil litigation in NY and CA.',
+      explanation: 'Изображение недоступно для программ-чтецов экрана, что нарушает раздел 508 закона ADA. Это распространенная причина гражданских исков.',
       fine_amount: calculatePenalty('ADA', 'MISSING_ALT_TEXT'),
       recommendation: 'Add a descriptive alt="..." attribute to the <img> tag.'
     });
   });
 
-  // --- GDPR & Privacy ---
+  // --- GDPR & Privacy Audit ---
   $('input[type="checkbox"][checked]').each((_, el) => {
     violations.push({
       category: 'GDPR',
@@ -95,21 +117,8 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
     });
   }
 
-  if (lowerHtml.includes('fonts.googleapis.com')) {
-    violations.push({
-      category: 'GDPR',
-      issue_type: 'EXTERNAL_IP_LEAK_FONTS',
-      severity: 'medium',
-      evidence_html: 'Google Fonts external link detected',
-      description: 'Potential PII leak via Google Fonts.',
-      explanation: 'Loading fonts directly from Google servers transmits the user\'s IP address (PII) to a third party without a legal basis, as established by EU court rulings.',
-      fine_amount: calculatePenalty('GDPR', 'EXTERNAL_IP_LEAK_FONTS'),
-      recommendation: 'Self-host fonts on your own infrastructure.'
-    });
-  }
-
   return { 
     violations, 
-    discoveredLinks: Array.from(new Set(discoveredLinks)).slice(0, 10) 
+    discoveredLinks: Array.from(new Set(discoveredLinks)).slice(0, 50) // Лимит ссылок с одной страницы
   };
 }
