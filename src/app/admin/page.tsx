@@ -93,6 +93,7 @@ export default function AdminDashboard() {
     setIsRefreshing(true);
     try {
       const timestamp = Date.now();
+      // Добавляем cache: 'no-store' для игнорирования кэша браузера и Next.js
       const [statusRes, statsRes, logsRes] = await Promise.all([
         fetch(`/api/admin/control?t=${timestamp}`, { cache: 'no-store' }),
         fetch(`/api/admin/stats?t=${timestamp}`, { cache: 'no-store' }),
@@ -134,14 +135,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
-      pollingRef.current = setInterval(fetchData, 4000);
+      // Опрос каждые 5 секунд для "реального времени"
+      pollingRef.current = setInterval(fetchData, 5000);
     }
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [isAuthenticated, fetchData]);
 
-  // Умный скролл: только если появились новые логи и это не первый вход
   useEffect(() => {
     if (systemLogs.length > prevLogLength.current && !isFirstLoad.current) {
       logEndRef.current?.scrollIntoView({ behavior: 'smooth' });

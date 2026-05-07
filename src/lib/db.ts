@@ -43,6 +43,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
+    // В вашей таблице: domain, url, category, issue_type, severity, evidence_html, recommendation, snippet, fine_amount, explanation, law_name
     const query = `
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
@@ -52,11 +53,10 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of violations) {
-      // Записываем url в обе колонки для совместимости
       await client.query(query, [
         sanitize(domain),
         sanitize(url), // url
-        sanitize(url), // page_url
+        sanitize(url), // page_url (полный путь)
         v.category,
         v.issue_type,
         v.severity,
@@ -101,7 +101,8 @@ export async function getBotEvents(limit = 50) {
 }
 
 export async function getBotStatus(): Promise<boolean> {
-  return true; // Принудительно активен
+  // В идеале берем из таблицы настроек, но для прототипа считаем активным
+  return true;
 }
 
 export async function setBotStatus(isActive: boolean) {
@@ -168,6 +169,7 @@ export async function saveAuditLog(domain: string, statusCode: number, errorMess
 
 export async function getStats() {
   try {
+    // Принудительно запрашиваем свежие данные из таблиц
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
     
@@ -177,12 +179,14 @@ export async function getStats() {
       recentIssues: await getViolations(10)
     };
   } catch (error) {
+    console.error('[DB Stats Error]', error);
     return { pagesScanned: 0, issuesFound: 0, recentIssues: [] };
   }
 }
 
 export async function getViolations(limit = 100) {
   try {
+    // Гарантируем сортировку по убыванию времени создания
     const res = await pool.query(`
       SELECT 
         id, 
@@ -200,6 +204,7 @@ export async function getViolations(limit = 100) {
     `, [limit]);
     return res.rows || [];
   } catch (error) {
+    console.error('[DB Violations Error]', error);
     return [];
   }
 }
