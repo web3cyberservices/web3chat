@@ -92,7 +92,7 @@ export async function cleanupOldLogs(days = 30) {
   try {
     await pool.query("DELETE FROM audit_logs WHERE created_at < NOW() - ($1 || ' days')::interval", [days]);
     await pool.query("DELETE FROM audit_results WHERE created_at < NOW() - ($1 || ' days')::interval", [days]);
-    await pool.query("DELETE BY timestamp < NOW() - ($1 || ' days')::interval", [days]);
+    await pool.query("DELETE FROM bot_events WHERE timestamp < NOW() - ($1 || ' days')::interval", [days]);
     return { success: true };
   } catch (error) {
     return { success: false };
@@ -127,12 +127,37 @@ export async function setBotStatus(isActive: boolean) {
   }
 }
 
+/**
+ * Атомарное получение и резервирование задачи из очереди.
+ * Использует FOR UPDATE SKIP LOCKED для поддержки многопоточности.
+ */
 export async function getNextQueueItem() {
-  const res = await pool.query("SELECT id, url FROM scan_queue WHERE status = 'pending' ORDER BY created_at ASC LIMIT 1");
-  return res.rows[0] || null;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Запрос по требованию: поиск задачи с блокировкой строки
+    const query = "SELECT id, url FROM scan_queue WHERE status = 'pending' LIMIT 1 FOR UPDATE SKIP LOCKED";
+    const res = await client.query(query);
+    const task = res.rows[0];
+
+    if (task) {
+      // Переводим статус в 'processing' сразу при получении
+      await client.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
+    }
+
+    await client.query('COMMIT');
+    return task || null;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[DB Error] Failed to fetch/claim next queue item:', error);
+    return null;
+  } finally {
+    client.release();
+  }
 }
 
-export async function updateQueueStatus(id: number, status: 'pending' | 'completed' | 'failed') {
+export async function updateQueueStatus(id: number, status: 'pending' | 'processing' | 'completed' | 'failed') {
   try {
     await pool.query('UPDATE scan_queue SET status = $1 WHERE id = $2', [status, id]);
   } catch (error) {

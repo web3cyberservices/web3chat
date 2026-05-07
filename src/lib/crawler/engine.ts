@@ -12,7 +12,7 @@ import {
 
 const SLEEP_INTERVAL = 1500; 
 const IDLE_WAIT = 5000;    
-const EMPTY_QUEUE_WAIT = 60000; // Ждем 60 секунд при пустой очереди
+const EMPTY_QUEUE_WAIT = 30000; // Ждем 30 секунд при пустой очереди
 const MAX_QUEUE_LIMIT = 5000;
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -40,19 +40,17 @@ export async function startEngine() {
 
       errorBackoffMs = 1000;
 
-      const queueSize = await getQueueSize();
-      if (queueSize === 0) {
-        console.log(`[Engine] Queue empty. Waiting ${EMPTY_QUEUE_WAIT / 1000}s...`);
+      // Поиск задач в БД
+      console.log('[Engine] Searching for pending tasks in scan_queue...');
+      const task = await getNextQueueItem();
+
+      if (!task) {
+        console.log('[Engine] No tasks. Waiting 30s...');
         await sleep(EMPTY_QUEUE_WAIT);
         continue;
       }
 
-      const task = await getNextQueueItem();
-      if (!task) {
-        await sleep(IDLE_WAIT);
-        continue;
-      }
-
+      // При успешном получении задачи она уже помечена как 'processing' внутри getNextQueueItem
       console.log(`[Engine] Processing: ${task.url}`);
       let taskStatus: 'completed' | 'failed' = 'completed';
 
@@ -63,6 +61,7 @@ export async function startEngine() {
           taskStatus = 'failed';
         }
 
+        const queueSize = await getQueueSize();
         if (queueSize < MAX_QUEUE_LIMIT && result.status === 'success' && result.discoveredLinks) {
            for (const link of result.discoveredLinks) {
              await addToQueue(link);
@@ -72,6 +71,7 @@ export async function startEngine() {
         console.error(`[Engine] Task error for ${task.url}:`, taskError.message);
         taskStatus = 'failed';
       } finally {
+        // Обновляем статус на финальный (completed или failed)
         await updateQueueStatus(task.id, taskStatus);
         console.log(`[DB] Status updated for ID: ${task.id} to ${taskStatus}`);
       }
