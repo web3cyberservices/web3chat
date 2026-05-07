@@ -13,7 +13,12 @@ const REQUEST_TIMEOUT = 10000;
 async function deepScrapeUrl(url: string) {
   const browser = await puppeteer.launch({
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    args: [
+      '--no-sandbox', 
+      '--disable-setuid-sandbox', 
+      '--disable-dev-shm-usage', 
+      '--disable-gpu'
+    ]
   });
 
   try {
@@ -50,6 +55,7 @@ async function deepScrapeUrl(url: string) {
     console.error(`[Puppeteer Error] Failed to scrape ${url}:`, error);
     throw error;
   } finally {
+    // Гарантированное закрытие браузера
     await browser.close();
   }
 }
@@ -85,6 +91,7 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
   let scanType: ScanType = 'basic';
   let dynamicCookies: any[] = [];
 
+  // Эвристическая проверка: нужен ли Deep Scan (браузер)
   if (shouldRunDeepScan(html)) {
     try {
       console.log(`[Scraper] Potential GDPR/Dynamic risk detected on ${url}. Starting Deep Scan...`);
