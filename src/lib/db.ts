@@ -39,20 +39,27 @@ export async function testConnection() {
 }
 
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
-  if (violations.length === 0) return { success: true };
+  if (!violations || violations.length === 0) {
+    console.log(`[DB] No violations to save for ${domain}`);
+    return { success: true };
+  }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    
+    // Используем только колонки, подтвержденные пользователем
+    // Объединяем description и recommendation в поле recommendation, чтобы не терять данные
     const query = `
       INSERT INTO site_violations (
-        domain, url, category, issue_type, severity, evidence_html, 
-        description, recommendation, scan_type, metadata, created_at
+        domain, url, category, issue_type, severity, evidence_html, recommendation, created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
     `;
 
     for (const v of violations) {
+      const combinedDetails = `${v.description}${v.recommendation ? ` | REC: ${v.recommendation}` : ''}`;
+      
       await client.query(query, [
         sanitize(domain),
         sanitize(url),
@@ -60,17 +67,17 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html),
-        sanitize(v.description),
-        sanitize(v.recommendation),
-        scanType,
-        JSON.stringify(v.metadata || {})
+        sanitize(combinedDetails)
       ]);
     }
     await client.query('COMMIT');
+    console.log(`[DB] Successfully saved ${violations.length} violations for ${domain}`);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[DB Error] Failed to save audit results:', error);
+    console.error('[DB SAVE ERROR] CRITICAL: Failed to save violations to site_violations table!');
+    console.error('[DB SAVE ERROR] Details:', error.message);
+    if (error.stack) console.error(error.stack);
     return { success: false, error };
   } finally {
     client.release();
@@ -120,12 +127,12 @@ export async function getNextQueueItem() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const query = "SELECT id, url FROM public.scan_queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
+    const query = "SELECT id, url FROM scan_queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
     const result = await client.query(query);
     const task = result.rows[0];
 
     if (task) {
-      await client.query("UPDATE public.scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
+      await client.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
     }
     await client.query('COMMIT');
     return task || null;
@@ -140,7 +147,7 @@ export async function getNextQueueItem() {
 
 export async function updateQueueStatus(id: number, status: 'completed' | 'failed') {
   try {
-    await pool.query('UPDATE public.scan_queue SET status = $1 WHERE id = $2', [status, id]);
+    await pool.query('UPDATE scan_queue SET status = $1 WHERE id = $2', [status, id]);
   } catch (error) {
     console.error('[DB Error] Failed to update queue status:', error);
   }
@@ -148,7 +155,7 @@ export async function updateQueueStatus(id: number, status: 'completed' | 'faile
 
 export async function getQueueSize(): Promise<number> {
   try {
-    const res = await pool.query("SELECT COUNT(*) as count FROM public.scan_queue WHERE status = 'pending'");
+    const res = await pool.query("SELECT COUNT(*) as count FROM scan_queue WHERE status = 'pending'");
     return parseInt(res.rows[0]?.count || '0', 10);
   } catch (error) {
     return 0;
@@ -157,7 +164,7 @@ export async function getQueueSize(): Promise<number> {
 
 export async function addToQueue(url: string) {
   try {
-    await pool.query("INSERT INTO public.scan_queue (url, status) VALUES ($1, 'pending') ON CONFLICT (url) DO NOTHING", [url]);
+    await pool.query("INSERT INTO scan_queue (url, status) VALUES ($1, 'pending') ON CONFLICT (url) DO NOTHING", [url]);
   } catch (error) {
     // Ignore duplicates
   }
@@ -166,7 +173,7 @@ export async function addToQueue(url: string) {
 export async function saveAuditLog(domain: string, statusCode: number, errorMessage: string | null) {
   try {
     await pool.query('INSERT INTO audit_logs (domain, status_code, error_message, created_at) VALUES ($1, $2, $3, NOW())', [sanitize(domain), statusCode, sanitize(errorMessage)]);
-    console.log(`[DB] Audit log saved for ${domain} with status ${statusCode}`);
+    console.log(`[DB] Audit log saved for ${domain} (${statusCode})`);
   } catch (error) {
     console.error('[DB Error] Failed to save audit log:', error);
   }
@@ -174,11 +181,10 @@ export async function saveAuditLog(domain: string, statusCode: number, errorMess
 
 export async function getStats() {
   try {
-    // Просканировано берем из логов (успешные попытки)
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
-    // Всего найдено нарушений
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
-    // Последние 10 для превью на дашборде
+    
+    // Выбираем recommendation как description для совместимости с фронтендом
     const recentIssues = await pool.query(`
       SELECT 
         id, 
@@ -186,7 +192,7 @@ export async function getStats() {
         issue_type as type, 
         severity as level, 
         created_at as date, 
-        description 
+        recommendation as description 
       FROM site_violations 
       ORDER BY created_at DESC 
       LIMIT 10
@@ -205,7 +211,6 @@ export async function getStats() {
 
 export async function getViolations() {
   try {
-    // Получаем последние 100 нарушений для подробного списка
     const res = await pool.query(`
       SELECT 
         id, 
@@ -213,7 +218,7 @@ export async function getViolations() {
         issue_type as type, 
         severity as level, 
         created_at as date, 
-        description 
+        recommendation as description 
       FROM site_violations 
       ORDER BY created_at DESC
       LIMIT 100

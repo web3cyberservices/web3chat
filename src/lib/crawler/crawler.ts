@@ -1,6 +1,6 @@
 
 import { scrapeUrl } from '@/lib/scraper';
-import { parseHtmlContent } from '@/lib/parser'; // Consistently use src/lib/parser.ts
+import { parseHtmlContent } from '@/lib/parser';
 import { isUrlAllowed, getCrawlDelay } from '@/config/robots-rules';
 import { getBotStatus, saveAuditLog, saveBotEvent, saveAuditResults } from '@/lib/db';
 import { CrawlResult, Violation } from '@/types';
@@ -42,7 +42,7 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
     const { html, security, rawHeaders, scanType, dynamicCookies } = await scrapeUrl(seedUrl);
     const { violations, discoveredLinks } = parseHtmlContent(html, seedUrl, rawHeaders);
     
-    // Add dynamic violations if deep scan was performed
+    // Добавляем динамические нарушения, если был Deep Scan
     if (scanType === 'deep' && dynamicCookies && dynamicCookies.length > 0) {
       const trackerKeywords = ['fb', 'google', 'ads', 'analytics', 'pixel', 'intercom', 'tiktok'];
       const suspiciousCookies = dynamicCookies.filter((c: any) => 
@@ -56,15 +56,23 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
           severity: 'high',
           evidence_html: 'Browser Runtime Cookies',
           description: `Detected ${suspiciousCookies.length} potential tracking cookies during dynamic browser rendering.`,
-          metadata: { cookies: suspiciousCookies }
+          recommendation: 'Implement a cookie consent banner that blocks these scripts until user consent is given.'
         });
       }
     }
 
     await saveAuditLog(domain, 200, null);
+    
     if (violations.length > 0) {
-      await saveAuditResults(domain, seedUrl, violations, scanType);
-      await saveBotEvent('SUCCESS', `Audit of ${domain} (${scanType}) finished. Violations: ${violations.length}`);
+      console.log(`[Crawler] Found ${violations.length} violations for ${domain}. Attempting to save...`);
+      const dbResult = await saveAuditResults(domain, seedUrl, violations, scanType);
+      if (dbResult.success) {
+        await saveBotEvent('SUCCESS', `Audit of ${domain} (${scanType}) finished. Saved ${violations.length} violations.`);
+      } else {
+        console.error(`[Crawler] Failed to save results for ${domain} to DB.`);
+      }
+    } else {
+      console.log(`[Crawler] No violations found for ${domain}.`);
     }
 
     return {
@@ -81,6 +89,7 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
     let domain = 'unknown';
     try { domain = new URL(seedUrl).hostname; } catch(e) {}
     await saveAuditLog(domain, 500, error.message);
+    console.error(`[Crawler Error] Task failed for ${seedUrl}:`, error.message);
     return { url: seedUrl, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', error: error.message };
   }
 }
