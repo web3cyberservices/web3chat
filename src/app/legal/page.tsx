@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShieldCheck, Scale, FileText, Mail, ArrowLeft } from "lucide-react";
