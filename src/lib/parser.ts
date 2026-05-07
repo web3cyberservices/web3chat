@@ -3,35 +3,62 @@ import * as cheerio from 'cheerio';
 import { Violation } from '@/types';
 
 /**
- * Определяет правовую информацию на основе доменной зоны.
+ * Определяет правовую информацию на основе доменной зоны и региона.
  */
 function getLawContext(domain: string) {
   const d = domain.toLowerCase();
+  
+  // Германия
   if (d.endsWith('.de')) {
     return {
-      law: 'BDSG (Германия) & GDPR',
-      fine: 'до €20 млн или 4% годового оборота',
-      region: 'DE'
+      law: 'BITV 2.0 / GDPR',
+      fine: 'до €50,000 (BGG) или до 4% оборота (GDPR)',
+      region: 'DE',
+      accessibilityLaw: 'BITV 2.0 (§ 12 BGG)',
+      legalExplanation: 'Нарушение требований доступности согласно § 12 BGG и стандарту BITV 2.0.'
     };
   }
+  
+  // Франция
   if (d.endsWith('.fr')) {
     return {
-      law: 'LIL (Франция) & GDPR',
-      fine: 'до €20 млн',
-      region: 'FR'
+      law: 'RGAA / GDPR',
+      fine: 'до €25,000 (адм. штраф) или до 4% оборота (GDPR)',
+      region: 'FR',
+      accessibilityLaw: 'RGAA (статья 47 закона № 2005-102)',
+      legalExplanation: 'Нарушение требований цифровой доступности согласно статье 47 закона № 2005-102.'
     };
   }
+
+  // Италия
   if (d.endsWith('.it')) {
     return {
-      law: 'Codice della Privacy (Италия)',
-      fine: 'до €20 млн',
-      region: 'IT'
+      law: 'Stanca Act / GDPR',
+      fine: 'до 5% оборота или до €20 млн',
+      region: 'IT',
+      accessibilityLaw: 'Stanca Act (Закон 4/2004)',
+      legalExplanation: 'Нарушение итальянского закона о доступности (Legge Stanca).'
     };
   }
+
+  // США
+  if (d.endsWith('.us') || d.endsWith('.gov')) {
+    return {
+      law: 'ADA / Section 508',
+      fine: '$4,000 - $75,000+',
+      region: 'US',
+      accessibilityLaw: 'ADA Title III',
+      legalExplanation: 'Violation of Americans with Disabilities Act (ADA) requirements.'
+    };
+  }
+
+  // Общий EU GDPR
   return {
-    law: 'EU GDPR',
+    law: 'EU GDPR / EN 301 549',
     fine: 'до €20 млн или 4% годового оборота',
-    region: 'EU'
+    region: 'EU',
+    accessibilityLaw: 'Web Accessibility Directive',
+    legalExplanation: 'Нарушение требований доступности согласно директивам ЕС и регламенту GDPR.'
   };
 }
 
@@ -74,7 +101,26 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
     } catch (e) {}
   });
 
-  // 1. Google Fonts Check (IP Leakage)
+  // 1. Accessibility Check: Missing ALT attributes
+  $('img:not([alt])').each((_, el) => {
+    const snippet = $.html(el);
+    violations.push({
+      category: 'ADA', // Категория сохраняется как ADA для совместимости, но закон меняется
+      issue_type: 'Отсутствие альтернативного текста (Accessibility)',
+      severity: 'medium',
+      evidence_html: snippet,
+      snippet: snippet,
+      description: 'Image lacks alt attribute.',
+      law_name: lawContext.law,
+      potential_fine: lawContext.fine,
+      explanation: domain.endsWith('.de') 
+        ? `Нарушение BITV 2.0 и требований доступности согласно § 12 BGG. Изображение не имеет альтернативного текста.`
+        : `${lawContext.legalExplanation} Изображение не имеет альтернативного текста.`,
+      recommendation: 'Добавьте атрибут alt к тегу <img> для поддержки скринридеров.'
+    });
+  });
+
+  // 2. Google Fonts Check (IP Leakage)
   if (html.includes('fonts.googleapis.com') || html.includes('fonts.gstatic.com')) {
     violations.push({
       category: 'Privacy',
@@ -85,12 +131,12 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
       description: 'Dynamic loading of Google Fonts from remote servers.',
       law_name: lawContext.law,
       potential_fine: lawContext.fine,
-      explanation: 'Использование Google Fonts без локального хостинга приводит к автоматической передаче IP-адреса пользователя на серверы Google (США) без предварительного явного согласия. Это признано нарушением GDPR судом Мюнхена (Case: 3 O 17493/20).',
+      explanation: 'Использование Google Fonts без локального хостинга приводит к автоматической передаче IP-адреса пользователя на серверы Google (США) без предварительного явного согласия. Это признано нарушением GDPR судом Мюнхена.',
       recommendation: 'Хостите шрифты локально на своем сервере.'
     });
   }
 
-  // 2. Cookie Banner Check (ePrivacy)
+  // 3. Cookie Banner Check (ePrivacy)
   const cookieIndicators = ['cookie-banner', 'cookie-consent', 'onetrust', 'didomi', 'cookie-law', 'cookie-overlay', 'cc-window'];
   const hasBanner = cookieIndicators.some(ind => html.toLowerCase().includes(ind));
   if (!hasBanner) {
@@ -103,12 +149,12 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
       description: 'Missing Cookie Consent Management Platform.',
       law_name: lawContext.law,
       potential_fine: lawContext.fine,
-      explanation: 'Отсутствие баннера согласия нарушает ePrivacy Directive и требования GDPR о получении явного согласия перед установкой любых не строго необходимых файлов cookie.',
-      recommendation: 'Установите платформу управления согласием (CMP), например Cookiebot или OneTrust.'
+      explanation: 'Отсутствие баннера согласия нарушает ePrivacy Directive и требования GDPR о получении явного согласия перед установкой куки.',
+      recommendation: 'Установите платформу управления согласием (CMP).'
     });
   }
 
-  // 3. Impressum Check (Only for .de)
+  // 4. Impressum Check (Only for .de)
   if (domain.endsWith('.de')) {
     const hasImpressum = $('a').toArray().some(a => {
       const text = $(a).text().toLowerCase();
@@ -124,14 +170,14 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
         snippet: 'A-tags search: no impressum-related labels or paths found.',
         description: 'Missing mandatory legal disclosure (Impressum).',
         law_name: 'Telemediengesetz (TMG) & BDSG',
-        potential_fine: 'до €50 000',
-        explanation: 'Немецкие сайты обязаны иметь легкодоступную юридическую информацию (Impressum) согласно § 5 TMG. Отсутствие ссылки в футере — основание для судебного иска (Abmahnung).',
+        potential_fine: 'до €50,000',
+        explanation: 'Немецкие сайты обязаны иметь легкодоступную юридическую информацию (Impressum) согласно § 5 TMG.',
         recommendation: 'Добавьте ссылку "Impressum" в главное меню или футер сайта.'
       });
     }
   }
 
-  // 4. Unsecure Protocol Check
+  // 5. Unsecure Protocol Check
   if (url.startsWith('http://')) {
     violations.push({
       category: 'Security',
@@ -142,7 +188,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}): 
       description: 'Lack of TLS encryption.',
       law_name: lawContext.law,
       potential_fine: lawContext.fine,
-      explanation: 'Использование протокола HTTP вместо HTTPS нарушает ст. 32 GDPR (Security of processing), так как данные пользователей передаются в открытом виде.',
+      explanation: 'Использование протокола HTTP вместо HTTPS нарушает ст. 32 GDPR (Security of processing).',
       recommendation: 'Настройте SSL-сертификат и принудительный редирект на HTTPS.'
     });
   }
