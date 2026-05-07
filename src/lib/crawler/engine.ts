@@ -1,3 +1,4 @@
+
 import { runCrawlTask } from './crawler';
 import { 
   getBotStatus, 
@@ -11,7 +12,7 @@ import {
 
 const SLEEP_INTERVAL = 1500; 
 const IDLE_WAIT = 5000;    
-const EMPTY_QUEUE_WAIT = 30000; 
+const EMPTY_QUEUE_WAIT = 60000; // Ждем 60 секунд при пустой очереди
 const MAX_QUEUE_LIMIT = 5000;
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -71,7 +72,6 @@ export async function startEngine() {
         console.error(`[Engine] Task error for ${task.url}:`, taskError.message);
         taskStatus = 'failed';
       } finally {
-        // Гарантированное обновление статуса
         await updateQueueStatus(task.id, taskStatus);
         console.log(`[DB] Status updated for ID: ${task.id} to ${taskStatus}`);
       }

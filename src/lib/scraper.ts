@@ -9,20 +9,12 @@ const REQUEST_TIMEOUT = 10000;
 
 /**
  * Глубокое сканирование с использованием Puppeteer для динамического контента и Cookies.
- * Оптимизировано для экономии памяти и трафика.
+ * Оптимизировано для стабильной работы в Docker/Root и экономии ресурсов.
  */
 async function deepScrapeUrl(url: string) {
   const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process'
-    ]
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
   });
 
   try {
@@ -32,7 +24,7 @@ async function deepScrapeUrl(url: string) {
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const resourceType = req.resourceType();
-      if (['image', 'media', 'font', 'stylesheet'].includes(resourceType)) {
+      if (['image', 'media', 'font'].includes(resourceType)) {
         req.abort();
       } else {
         req.continue();
@@ -53,7 +45,6 @@ async function deepScrapeUrl(url: string) {
     console.error(`[Puppeteer Error] Failed to scrape ${url}:`, error);
     throw error;
   } finally {
-    // Гарантированное закрытие браузера
     await browser.close();
   }
 }

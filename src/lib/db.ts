@@ -5,6 +5,12 @@ import { Violation, ScanType } from '@/types';
 
 const connectionString = process.env.DATABASE_URL;
 
+if (connectionString) {
+  console.log('[DB] Attempting to connect to:', connectionString.replace(/:[^:]+@/, ':****@'));
+} else {
+  console.error('[DB] Error: DATABASE_URL environment variable is not set.');
+}
+
 const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -23,7 +29,6 @@ function sanitize(text: string | null | undefined): string {
 
 /**
  * Сохранение результатов аудита. 
- * Теперь включает колонку recommendation и использует транзакции.
  */
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (violations.length === 0) return { success: true };
