@@ -25,7 +25,7 @@ async function migrate() {
     `);
     
     await client.query(`
-      CREATE TABLE IF NOT EXISTS audit_results (
+      CREATE TABLE IF NOT EXISTS site_violations (
         id SERIAL PRIMARY KEY,
         domain VARCHAR(255) NOT NULL,
         url TEXT NOT NULL,

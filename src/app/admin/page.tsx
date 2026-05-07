@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -260,7 +261,7 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Compliance v1.4</Badge>
+            <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Compliance v1.6</Badge>
             <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
               <Zap className={`w-3 h-3 ${isActive ? 'animate-pulse text-emerald-500' : ''}`} /> {isActive ? 'SCANNING' : 'IDLE'}
             </div>
@@ -289,7 +290,7 @@ export default function AdminDashboard() {
               <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase font-bold">Нарушения</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-amber-500">{metrics.issuesFound}</div>
-                <p className="text-[10px] text-slate-400 mt-1 font-bold flex items-center gap-1"><Bug className="w-3 h-3" /> Активные инциденты</p>
+                <p className="text-[10px] text-slate-400 mt-1 font-bold flex items-center gap-1"><Bug className="w-3 h-3" /> Всего найдено нарушений</p>
               </CardContent>
             </Card>
 
@@ -308,7 +309,7 @@ export default function AdminDashboard() {
             <Card className="bg-white/[0.03] border-white/10 overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-4">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" /> Нарушения
+                  <AlertTriangle className="w-4 h-4 text-amber-500" /> Последние инциденты (site_violations)
                 </CardTitle>
                 <Button size="sm" variant="ghost" className="h-8 text-[10px] font-bold uppercase" onClick={() => setShowIssuesDialog(true)}>Все</Button>
               </CardHeader>

@@ -25,10 +25,6 @@ pool.on('error', (err) => {
   console.error('[DB Pool ERROR]', err.message);
 });
 
-pool.on('connect', () => {
-  // Silent heartbeat check
-});
-
 function sanitize(text: string | null | undefined): string {
   if (!text) return '';
   return DOMPurify.sanitize(text);
@@ -56,7 +52,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     await client.query('BEGIN');
     
     const query = `
-      INSERT INTO public.audit_results (
+      INSERT INTO public.site_violations (
         domain, url, category, issue_type, severity, evidence_html, 
         description, recommendation, scan_type, metadata, created_at
       )
@@ -130,15 +126,17 @@ export async function getNextQueueItem() {
   try {
     await client.query('BEGIN');
     
-    // Explicitly target pending tasks with row-level locking
     const query = "SELECT id, url FROM public.scan_queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
     const result = await client.query(query);
+    console.log('[DB] SQL Query executed. Result:', result.rows);
     
     const task = result.rows[0];
 
     if (task) {
       await client.query("UPDATE public.scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
       console.log(`[DB] Task claimed: ${task.url} (ID: ${task.id})`);
+    } else {
+      console.log('[DB] No tasks found with status pending!');
     }
 
     await client.query('COMMIT');
@@ -148,7 +146,7 @@ export async function getNextQueueItem() {
     console.error('[DB Error] Transaction failed in getNextQueueItem:', error.message);
     return null;
   } finally {
-    client.release(); // Essential: release back to pool
+    client.release();
   }
 }
 
@@ -186,8 +184,8 @@ export async function saveAuditLog(domain: string, statusCode: number, errorMess
 export async function getStats() {
   try {
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM public.audit_logs');
-    const issuesRes = await pool.query('SELECT COUNT(*) as count FROM public.audit_results');
-    const recentIssues = await pool.query('SELECT * FROM public.audit_results ORDER BY created_at DESC LIMIT 50');
+    const issuesRes = await pool.query('SELECT COUNT(*) as count FROM public.site_violations');
+    const recentIssues = await pool.query('SELECT * FROM public.site_violations ORDER BY created_at DESC LIMIT 50');
     
     return {
       pagesScanned: parseInt(pagesRes.rows[0].count),
@@ -201,7 +199,7 @@ export async function getStats() {
 
 export async function getViolations() {
   try {
-    const res = await pool.query('SELECT * FROM public.audit_results ORDER BY created_at DESC');
+    const res = await pool.query('SELECT * FROM public.site_violations ORDER BY created_at DESC');
     return res.rows;
   } catch (error) {
     return [];
