@@ -1,3 +1,4 @@
+
 import 'dotenv/config';
 /**
  * @fileOverview Автономная точка входа для фонового воркера.
@@ -17,10 +18,10 @@ async function bootstrap() {
   console.log('--------------------------------------------------');
   
   try {
-    // Запуск основного движка
+    console.log('[DEBUG] Initializing engine...');
     await startEngine();
   } catch (error: any) {
-    console.error('[Worker] Fatal Error during bootstrap:', error.message);
+    console.error('[CRITICAL BOOTSTRAP ERROR]', error.stack || error);
     process.exit(1);
   }
 }

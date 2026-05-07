@@ -1,3 +1,4 @@
+
 import 'dotenv/config';
 import { Pool } from 'pg';
 import DOMPurify from 'isomorphic-dompurify';
@@ -9,15 +10,15 @@ if (!process.env.DATABASE_URL) {
 
 const connectionString = process.env.DATABASE_URL;
 
-if (connectionString) {
-  console.log('[DB] Attempting to connect to:', connectionString.replace(/:[^:]+@/, ':****@'));
-}
+console.log('[DB] Attempting to connect to:', connectionString.replace(/:[^:]+@/, ':****@'));
 
 const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 10,
   idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000, // Таймаут подключения 5 секунд
+  statement_timeout: 10000,      // Таймаут выполнения запроса 10 секунд
 });
 
 pool.on('error', (err) => {
@@ -139,19 +140,12 @@ export async function getNextQueueItem() {
   try {
     await client.query('BEGIN');
     
-    // Строгий SQL запрос с указанием схемы и сортировкой
     const query = "SELECT id, url FROM public.scan_queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
     const result = await client.query(query);
-    
-    console.log('[DB] SQL Query executed. Result:', result.rows);
-    if (result.rows.length === 0) {
-      console.log('[DB] No tasks found with status pending!');
-    }
     
     const task = result.rows[0];
 
     if (task) {
-      // Сразу обновляем статус на processing
       await client.query("UPDATE public.scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
     }
 

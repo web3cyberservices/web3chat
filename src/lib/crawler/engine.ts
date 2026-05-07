@@ -40,12 +40,13 @@ export async function startEngine() {
       errorBackoffMs = 1000;
 
       // Поиск задач в БД
-      console.log('[Engine] Searching for pending tasks in scan_queue...');
+      console.log('[DEBUG] Calling getNextQueueItem...');
       const task = await getNextQueueItem();
+      console.log('[DEBUG] Task received:', task);
 
       if (!task) {
         console.log('[Engine] No tasks. Waiting 30s...');
-        await sleep(30000); // Ожидание 30 секунд при пустой очереди
+        await sleep(30000); 
         continue;
       }
 
@@ -70,7 +71,6 @@ export async function startEngine() {
         console.error(`[Engine] Task error for ${task.url}:`, taskError.message);
         taskStatus = 'failed';
       } finally {
-        // Обновляем статус на финальный в блоке finally
         await updateQueueStatus(task.id, taskStatus);
         console.log(`[DB] Status updated for ID: ${task.id} to ${taskStatus}`);
       }
@@ -78,7 +78,7 @@ export async function startEngine() {
       await sleep(SLEEP_INTERVAL);
 
     } catch (error: any) {
-      console.error(`[Engine Critical] ${error.message}`);
+      console.error('[CRITICAL ENGINE ERROR]', error.stack || error);
       await sleep(errorBackoffMs);
       errorBackoffMs = Math.min(errorBackoffMs * 2, 60000); 
     }
