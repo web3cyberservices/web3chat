@@ -174,8 +174,11 @@ export async function saveAuditLog(domain: string, statusCode: number, errorMess
 
 export async function getStats() {
   try {
+    // Просканировано берем из логов (успешные попытки)
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
+    // Всего найдено нарушений
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
+    // Последние 10 для превью на дашборде
     const recentIssues = await pool.query(`
       SELECT 
         id, 
@@ -202,6 +205,7 @@ export async function getStats() {
 
 export async function getViolations() {
   try {
+    // Получаем последние 100 нарушений для подробного списка
     const res = await pool.query(`
       SELECT 
         id, 
@@ -212,6 +216,7 @@ export async function getViolations() {
         description 
       FROM site_violations 
       ORDER BY created_at DESC
+      LIMIT 100
     `);
     return res.rows || [];
   } catch (error) {

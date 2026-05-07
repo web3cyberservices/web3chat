@@ -96,7 +96,7 @@ export default function AdminDashboard() {
         setIsActive(statusData.isActive);
       }
 
-      // 2. Dashboard Stats & Recent Issues
+      // 2. Dashboard Stats
       const statsRes = await fetch('/api/admin/stats');
       if (statsRes.ok) {
         const statsData = await statsRes.json();
@@ -120,9 +120,11 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  // Первоначальная загрузка и установка интервала
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
+      // Опрос каждые 5 секунд для эффекта Live Update
       pollingRef.current = setInterval(fetchData, 5000);
     }
 
@@ -377,7 +379,7 @@ export default function AdminDashboard() {
       <Dialog open={showIssuesDialog} onOpenChange={setShowIssuesDialog}>
         <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="p-6 border-b border-white/5">
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold"><AlertTriangle className="text-amber-500" /> История нарушений комплаенса</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold"><AlertTriangle className="text-amber-500" /> История нарушений комплаенса (Last 100)</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
              <Accordion type="single" collapsible className="w-full space-y-2">
