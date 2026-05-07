@@ -73,6 +73,7 @@ export default function AdminDashboard() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
+  const prevLogLength = useRef(0);
   
   const [metrics, setMetrics] = useState({
     pagesScanned: 0,
@@ -91,7 +92,6 @@ export default function AdminDashboard() {
 
     setIsRefreshing(true);
     try {
-      // Добавляем timestamp для обхода агрессивного кэширования
       const timestamp = Date.now();
       const [statusRes, statsRes, logsRes] = await Promise.all([
         fetch(`/api/admin/control?t=${timestamp}`, { cache: 'no-store' }),
@@ -134,20 +134,24 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
-      pollingRef.current = setInterval(fetchData, 3000);
+      pollingRef.current = setInterval(fetchData, 4000);
     }
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [isAuthenticated, fetchData]);
 
+  // Умный скролл: только если появились новые логи и это не первый вход
   useEffect(() => {
-    if (logEndRef.current && !isFirstLoad.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (systemLogs.length > prevLogLength.current && !isFirstLoad.current) {
+      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-    if (systemLogs.length > 0) {
+    
+    if (systemLogs.length > 0 && isFirstLoad.current) {
       isFirstLoad.current = false;
     }
+    
+    prevLogLength.current = systemLogs.length;
   }, [systemLogs]);
 
   const handleToggleBot = async (checked: boolean) => {
