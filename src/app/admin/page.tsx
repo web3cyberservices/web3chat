@@ -72,6 +72,8 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
+  
+  // Флаги для предотвращения прыжков скролла
   const isFirstLoad = useRef(true);
   const prevLogLength = useRef(0);
   
@@ -92,8 +94,8 @@ export default function AdminDashboard() {
 
     setIsRefreshing(true);
     try {
+      // Добавляем timestamp для обхода любого кэша (Cache Busting)
       const timestamp = Date.now();
-      // Added cache: 'no-store' to bypass all caching layers
       const [statusRes, statsRes, logsRes] = await Promise.all([
         fetch(`/api/admin/control?t=${timestamp}`, { cache: 'no-store' }),
         fetch(`/api/admin/stats?t=${timestamp}`, { cache: 'no-store' }),
@@ -135,7 +137,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
-      // Polling strictly every 5 seconds as requested
+      // Интервал обновления 5 секунд для реального времени
       pollingRef.current = setInterval(fetchData, 5000);
     }
     return () => {
@@ -144,11 +146,12 @@ export default function AdminDashboard() {
   }, [isAuthenticated, fetchData]);
 
   useEffect(() => {
-    // Only scroll if logs grew after the initial load to prevent initial jump
+    // Скроллим только если появились НОВЫЕ логи и это НЕ первая загрузка
     if (systemLogs.length > prevLogLength.current && !isFirstLoad.current) {
       logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
     
+    // После первой отрисовки логов снимаем флаг первой загрузки
     if (systemLogs.length > 0 && isFirstLoad.current) {
       isFirstLoad.current = false;
     }
