@@ -11,18 +11,26 @@ const REQUEST_TIMEOUT = 10000;
  * Глубокое сканирование для обнаружения динамических нарушений (Cookie Wall, JS-трекеры).
  */
 async function deepScrapeUrl(url: string) {
-  console.log(`[Puppeteer] Launching browser for: ${url}`);
+  console.log(`[Scraper] Starting deep scan for: ${url}`);
+  console.log('[Scraper] Launching browser...');
   
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: [
-      '--no-sandbox', 
-      '--disable-setuid-sandbox', 
-      '--disable-dev-shm-usage', 
-      '--disable-gpu',
-      '--single-process'
-    ]
-  });
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage', 
+        '--disable-gpu',
+        '--single-process'
+      ]
+    });
+    console.log('[Scraper] Browser launched successfully');
+  } catch (error) {
+    console.error('[Scraper FATAL] Failed to launch browser:', error);
+    throw error;
+  }
 
   try {
     const page = await browser.newPage();
@@ -45,6 +53,7 @@ async function deepScrapeUrl(url: string) {
       if (setCookie) initialCookies.push(setCookie);
     });
 
+    console.log(`[Scraper] Navigating to ${url}...`);
     await page.goto(url, { 
       waitUntil: 'networkidle2', 
       timeout: 20000 
@@ -55,12 +64,13 @@ async function deepScrapeUrl(url: string) {
     
     return { html, cookies, initialCookies };
   } catch (error: any) {
-    console.error(`[Puppeteer Error] Failed to scrape ${url}:`, error.message);
+    console.error(`[Scraper Error] Deep scan failed for ${url}:`, error.message);
     throw error;
   } finally {
-    // Гарантированное закрытие браузера
-    await browser.close();
-    console.log(`[Puppeteer] Browser closed for: ${url}`);
+    if (browser) {
+      await browser.close();
+      console.log(`[Scraper] Browser closed for: ${url}`);
+    }
   }
 }
 
@@ -70,7 +80,7 @@ async function deepScrapeUrl(url: string) {
 export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any, rawHeaders: any, scanType: ScanType, dynamicCookies?: any[]}> {
   if (redirectCount > MAX_REDIRECTS) throw new Error('REDIRECT_LOOP');
 
-  console.log(`[Scraper] Fetching: ${url}`);
+  console.log(`[Scraper] Basic fetch: ${url}`);
   const response = await fetch(url, {
     method: 'GET',
     headers: {
@@ -99,13 +109,13 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
   // Эвристическая проверка: нужен ли Deep Scan (браузер)
   if (shouldRunDeepScan(html)) {
     try {
-      console.log(`[Scraper] Potential GDPR/Dynamic risk detected on ${url}. Starting Deep Scan...`);
+      console.log(`[Scraper] Potential risks detected. Initiating Deep Scan...`);
       const deepResult = await deepScrapeUrl(url);
       html = deepResult.html;
       dynamicCookies = deepResult.cookies;
       scanType = 'deep';
     } catch (e: any) {
-      console.error(`[Scraper] Deep Scan failed for ${url}: ${e.message}. Fallback to basic.`);
+      console.error(`[Scraper] Deep Scan fallback to basic: ${e.message}`);
     }
   }
 
