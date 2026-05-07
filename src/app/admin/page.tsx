@@ -15,7 +15,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { 
@@ -36,14 +35,10 @@ import {
   LayoutDashboard, 
   LogOut, 
   Terminal as TerminalIcon, 
-  Search,
   AlertTriangle,
-  Info,
   ShieldCheck,
   Zap,
-  Globe,
   Download,
-  ExternalLink,
   Bug
 } from "lucide-react";
 
@@ -96,6 +91,7 @@ export default function AdminDashboard() {
         document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         return;
       }
+      
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setIsActive(statusData.isActive);
@@ -105,16 +101,16 @@ export default function AdminDashboard() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setMetrics({
-          pagesScanned: statsData.pagesScanned,
-          issuesFound: statsData.issuesFound
+          pagesScanned: statsData.pagesScanned || 0,
+          issuesFound: statsData.issuesFound || 0
         });
-        setDetectedIssues(statsData.recentIssues);
+        setDetectedIssues(statsData.recentIssues || []);
       }
 
       const logsRes = await fetch('/api/admin/system-logs');
       if (logsRes.ok) {
         const logsData = await logsRes.json();
-        setSystemLogs(logsData.logs);
+        setSystemLogs(logsData.logs || []);
       }
       
       setIsLoading(false);
@@ -210,7 +206,7 @@ export default function AdminDashboard() {
   if (isAuthenticated === false) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 font-body">
-        <Card className="w-full max-w-md bg-white/[0.03] border-white/10 backdrop-blur-xl shadow-2xl p-8 space-y-8">
+        <Card className="w-full max-w-md bg-white/[0.03] border-white/10 backdrop-blur-xl shadow-2xl p-8 space-y-8 text-slate-50">
           <div className="flex flex-col items-center text-center space-y-4">
             <Image src="/logo.png" alt="Logo" width={64} height={64} priority />
             <h1 className="text-2xl font-bold tracking-tight text-white">Вход в Терминал</h1>
@@ -226,7 +222,7 @@ export default function AdminDashboard() {
             <Button type="submit" className="w-full h-12 bg-primary font-bold">Разблокировать</Button>
           </form>
           <div className="text-center">
-            <Link href="/" className="text-xs text-slate-500 hover:text-white transition-colors">Вернуться на портал</Link>
+            <Link href="/" className="text-xs text-slate-500 hover:text-white transition-colors uppercase font-bold tracking-widest">Вернуться на портал</Link>
           </div>
         </Card>
       </div>
@@ -309,7 +305,7 @@ export default function AdminDashboard() {
             <Card className="bg-white/[0.03] border-white/10 overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-4">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" /> Последние инциденты (site_violations)
+                  <AlertTriangle className="w-4 h-4 text-amber-500" /> Последние инциденты
                 </CardTitle>
                 <Button size="sm" variant="ghost" className="h-8 text-[10px] font-bold uppercase" onClick={() => setShowIssuesDialog(true)}>Все</Button>
               </CardHeader>
@@ -324,20 +320,24 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {detectedIssues.map((issue) => (
-                      <TableRow key={issue.id} className="border-white/5 hover:bg-white/[0.01]">
-                        <TableCell className="text-xs font-medium">{issue.domain}</TableCell>
-                        <TableCell className="text-xs text-slate-400">{issue.type}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={`text-[8px] font-bold ${issue.level === 'critical' ? 'border-rose-500/50 text-rose-500' : 'border-amber-500/50 text-amber-500'}`}>
-                            {issue.level}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right text-[9px] font-mono text-slate-500">
-                          {new Date(issue.date).toLocaleTimeString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {detectedIssues.length === 0 ? (
+                      <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500 text-xs italic">Нарушений не обнаружено</TableCell></TableRow>
+                    ) : (
+                      detectedIssues.map((issue) => (
+                        <TableRow key={issue.id} className="border-white/5 hover:bg-white/[0.01]">
+                          <TableCell className="text-xs font-medium">{issue.domain}</TableCell>
+                          <TableCell className="text-xs text-slate-400">{issue.type}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-[8px] font-bold uppercase ${issue.level === 'critical' ? 'border-rose-500/50 text-rose-500' : 'border-amber-500/50 text-amber-500'}`}>
+                              {issue.level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-[9px] font-mono text-slate-500">
+                            {new Date(issue.date).toLocaleTimeString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -397,7 +397,7 @@ export default function AdminDashboard() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="pb-4">
-                      <div className="p-3 bg-primary/5 rounded border border-primary/10 text-xs text-slate-300 leading-relaxed">
+                      <div className="p-3 bg-primary/5 rounded border border-primary/10 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
                         {issue.description}
                       </div>
                     </AccordionContent>

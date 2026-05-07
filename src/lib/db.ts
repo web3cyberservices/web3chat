@@ -18,7 +18,7 @@ const pool = new Pool({
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
-  statement_timeout: 10000,
+  statement_timeout: 15000,
 });
 
 pool.on('error', (err) => {
@@ -97,8 +97,11 @@ export async function saveBotEvent(type: 'START' | 'STOP' | 'ERROR' | 'SUCCESS',
 
 export async function getBotEvents(limit = 50) {
   try {
-    const res = await pool.query('SELECT * FROM bot_events ORDER BY timestamp DESC LIMIT $1', [limit]);
-    return res.rows.map(event => ({ ...event, message: sanitize(event.message) }));
+    const res = await pool.query('SELECT id, type, message, timestamp FROM bot_events ORDER BY timestamp DESC LIMIT $1', [limit]);
+    return res.rows.map(event => ({ 
+      ...event, 
+      message: sanitize(event.message) 
+    }));
   } catch (error) {
     console.error('[DB Error] Failed to fetch bot events:', error);
     return [];
@@ -131,15 +134,11 @@ export async function getNextQueueItem() {
     
     const query = "SELECT id, url FROM scan_queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
     const result = await client.query(query);
-    console.log('[DB] SQL Query executed. Result:', result.rows);
-    
     const task = result.rows[0];
 
     if (task) {
       await client.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
       console.log(`[DB] Task claimed: ${task.url} (ID: ${task.id})`);
-    } else {
-      console.log('[DB] No tasks found with status pending!');
     }
 
     await client.query('COMMIT');
@@ -163,8 +162,8 @@ export async function updateQueueStatus(id: number, status: 'pending' | 'process
 
 export async function getQueueSize(): Promise<number> {
   try {
-    const res = await pool.query("SELECT COUNT(*) FROM scan_queue WHERE status = 'pending'");
-    return parseInt(res.rows[0].count);
+    const res = await pool.query("SELECT COUNT(*) as count FROM scan_queue WHERE status = 'pending'");
+    return parseInt(res.rows[0]?.count || '0', 10);
   } catch (error) {
     return 0;
   }
@@ -190,12 +189,23 @@ export async function getStats() {
   try {
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
-    const recentIssues = await pool.query('SELECT id, domain, issue_type as type, severity as level, created_at as date, description FROM site_violations ORDER BY created_at DESC LIMIT 10');
+    const recentIssues = await pool.query(`
+      SELECT 
+        id, 
+        domain, 
+        issue_type as type, 
+        severity as level, 
+        created_at as date, 
+        description 
+      FROM site_violations 
+      ORDER BY created_at DESC 
+      LIMIT 10
+    `);
     
     return {
-      pagesScanned: parseInt(pagesRes.rows[0]?.count || '0'),
-      issuesFound: parseInt(issuesRes.rows[0]?.total || '0'),
-      recentIssues: recentIssues.rows
+      pagesScanned: parseInt(pagesRes.rows[0]?.count || '0', 10),
+      issuesFound: parseInt(issuesRes.rows[0]?.total || '0', 10),
+      recentIssues: recentIssues.rows || []
     };
   } catch (error) {
     console.error('[DB Stats Error]', error);
@@ -205,8 +215,18 @@ export async function getStats() {
 
 export async function getViolations() {
   try {
-    const res = await pool.query('SELECT id, domain, issue_type as type, severity as level, created_at as date, description FROM site_violations ORDER BY created_at DESC');
-    return res.rows;
+    const res = await pool.query(`
+      SELECT 
+        id, 
+        domain, 
+        issue_type as type, 
+        severity as level, 
+        created_at as date, 
+        description 
+      FROM site_violations 
+      ORDER BY created_at DESC
+    `);
+    return res.rows || [];
   } catch (error) {
     console.error('[DB Violations Error]', error);
     return [];
