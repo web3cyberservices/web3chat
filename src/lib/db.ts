@@ -7,8 +7,6 @@ const connectionString = process.env.DATABASE_URL;
 
 if (connectionString) {
   console.log('[DB] Attempting to connect to:', connectionString.replace(/:[^:]+@/, ':****@'));
-} else {
-  console.error('[DB] Error: DATABASE_URL environment variable is not set.');
 }
 
 const pool = new Pool({
@@ -19,7 +17,7 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('[DB Pool Error] Unexpected error on idle client:', err);
+  console.error('[DB Pool Error] Unexpected error:', err);
 });
 
 function sanitize(text: string | null | undefined): string {
@@ -28,7 +26,7 @@ function sanitize(text: string | null | undefined): string {
 }
 
 /**
- * Сохранение результатов аудита. 
+ * Сохранение расширенных результатов аудита.
  */
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (violations.length === 0) return { success: true };
@@ -94,7 +92,7 @@ export async function cleanupOldLogs(days = 30) {
   try {
     await pool.query("DELETE FROM audit_logs WHERE created_at < NOW() - ($1 || ' days')::interval", [days]);
     await pool.query("DELETE FROM audit_results WHERE created_at < NOW() - ($1 || ' days')::interval", [days]);
-    await pool.query("DELETE FROM bot_events WHERE timestamp < NOW() - ($1 || ' days')::interval", [days]);
+    await pool.query("DELETE BY timestamp < NOW() - ($1 || ' days')::interval", [days]);
     return { success: true };
   } catch (error) {
     return { success: false };
@@ -138,7 +136,7 @@ export async function updateQueueStatus(id: number, status: 'pending' | 'complet
   try {
     await pool.query('UPDATE scan_queue SET status = $1 WHERE id = $2', [status, id]);
   } catch (error) {
-    console.error('[DB Error] Failed to update queue status:', error);
+    console.error('[DB Error] Failed to update status:', error);
   }
 }
 

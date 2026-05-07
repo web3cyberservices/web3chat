@@ -1,6 +1,6 @@
 
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
-export type Category = 'ADA' | 'GDPR' | 'Privacy' | 'Security';
+export type Category = 'ADA' | 'GDPR' | 'Privacy' | 'Security' | 'AI' | 'Transactional' | 'HR_Edu';
 export type ScanType = 'basic' | 'deep';
 
 export interface Violation {

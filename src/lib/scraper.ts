@@ -8,8 +8,7 @@ const MAX_REDIRECTS = 5;
 const REQUEST_TIMEOUT = 10000;
 
 /**
- * Глубокое сканирование с использованием Puppeteer для динамического контента и Cookies.
- * Оптимизировано для стабильной работы в Docker/Root и экономии ресурсов.
+ * Глубокое сканирование для обнаружения динамических нарушений (Cookie Wall, JS-трекеры).
  */
 async function deepScrapeUrl(url: string) {
   const browser = await puppeteer.launch({
@@ -20,7 +19,7 @@ async function deepScrapeUrl(url: string) {
   try {
     const page = await browser.newPage();
     
-    // Оптимизация: перехват и блокировка тяжелых ресурсов
+    // Блокировка тяжелых ресурсов для экономии RAM
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const resourceType = req.resourceType();
@@ -31,7 +30,13 @@ async function deepScrapeUrl(url: string) {
       }
     });
 
-    // Устанавливаем таймаут и ждем сетевой тишины
+    // Отслеживаем установку куки ДО взаимодействия
+    const initialCookies: any[] = [];
+    page.on('response', async (response) => {
+      const setCookie = response.headers()['set-cookie'];
+      if (setCookie) initialCookies.push(setCookie);
+    });
+
     await page.goto(url, { 
       waitUntil: 'networkidle2', 
       timeout: 20000 
@@ -40,7 +45,7 @@ async function deepScrapeUrl(url: string) {
     const html = await page.content();
     const cookies = await page.cookies();
     
-    return { html, cookies };
+    return { html, cookies, initialCookies };
   } catch (error) {
     console.error(`[Puppeteer Error] Failed to scrape ${url}:`, error);
     throw error;
@@ -50,12 +55,11 @@ async function deepScrapeUrl(url: string) {
 }
 
 /**
- * Основная функция скрейпинга: сначала Fetch, затем Puppeteer при необходимости.
+ * Гибридный скрейпинг: Fetch -> Heuristic Analysis -> Puppeteer.
  */
 export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any, rawHeaders: any, scanType: ScanType, dynamicCookies?: any[]}> {
   if (redirectCount > MAX_REDIRECTS) throw new Error('REDIRECT_LOOP');
 
-  // 1. Быстрый статический запрос через Fetch
   const response = await fetch(url, {
     method: 'GET',
     headers: {
@@ -78,19 +82,18 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
     csp: !!headers['content-security-policy'] || html.includes('Content-Security-Policy')
   };
 
-  // 2. Решение о запуске Deep Scan (Puppeteer)
   let scanType: ScanType = 'basic';
   let dynamicCookies: any[] = [];
 
   if (shouldRunDeepScan(html)) {
     try {
-      console.log(`[Scraper] Dynamic content detected on ${url}. Starting Deep Scan...`);
+      console.log(`[Scraper] Potential GDPR/Dynamic risk detected on ${url}. Starting Deep Scan...`);
       const deepResult = await deepScrapeUrl(url);
       html = deepResult.html;
       dynamicCookies = deepResult.cookies;
       scanType = 'deep';
     } catch (e) {
-      console.error(`[Scraper] Deep Scan failed for ${url}, falling back to basic content.`);
+      console.error(`[Scraper] Deep Scan failed for ${url}, fallback to basic.`);
     }
   }
 
