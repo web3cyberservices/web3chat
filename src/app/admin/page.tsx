@@ -93,7 +93,7 @@ export default function AdminDashboard() {
     setIsRefreshing(true);
     try {
       const timestamp = Date.now();
-      // Добавляем cache: 'no-store' для игнорирования кэша браузера и Next.js
+      // Added cache: 'no-store' to bypass all caching layers
       const [statusRes, statsRes, logsRes] = await Promise.all([
         fetch(`/api/admin/control?t=${timestamp}`, { cache: 'no-store' }),
         fetch(`/api/admin/stats?t=${timestamp}`, { cache: 'no-store' }),
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
-      // Опрос каждые 5 секунд для "реального времени"
+      // Polling strictly every 5 seconds as requested
       pollingRef.current = setInterval(fetchData, 5000);
     }
     return () => {
@@ -144,6 +144,7 @@ export default function AdminDashboard() {
   }, [isAuthenticated, fetchData]);
 
   useEffect(() => {
+    // Only scroll if logs grew after the initial load to prevent initial jump
     if (systemLogs.length > prevLogLength.current && !isFirstLoad.current) {
       logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -175,7 +176,7 @@ export default function AdminDashboard() {
 
   const handleDownloadCSV = async () => {
     try {
-      const res = await fetch('/api/admin/export');
+      const res = await fetch('/api/admin/export', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to download');
 
       const blob = await res.blob();

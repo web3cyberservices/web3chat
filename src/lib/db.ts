@@ -43,7 +43,6 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // В вашей таблице: domain, url, category, issue_type, severity, evidence_html, recommendation, snippet, fine_amount, explanation, law_name
     const query = `
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
@@ -55,14 +54,14 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     for (const v of violations) {
       await client.query(query, [
         sanitize(domain),
-        sanitize(url), // url
-        sanitize(url), // page_url (полный путь)
+        sanitize(url),
+        sanitize(url),
         v.category,
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html),
-        sanitize(v.snippet || v.evidence_html), // snippet
-        v.potential_fine, // fine_amount
+        sanitize(v.snippet || v.evidence_html),
+        v.potential_fine,
         v.explanation,
         v.law_name,
         sanitize(v.recommendation),
@@ -101,8 +100,12 @@ export async function getBotEvents(limit = 50) {
 }
 
 export async function getBotStatus(): Promise<boolean> {
-  // В идеале берем из таблицы настроек, но для прототипа считаем активным
-  return true;
+  try {
+    const res = await pool.query('SELECT is_active FROM bot_settings WHERE id = 1');
+    return res.rows[0]?.is_active ?? true;
+  } catch (error) {
+    return true;
+  }
 }
 
 export async function setBotStatus(isActive: boolean) {
@@ -169,7 +172,7 @@ export async function saveAuditLog(domain: string, statusCode: number, errorMess
 
 export async function getStats() {
   try {
-    // Принудительно запрашиваем свежие данные из таблиц
+    // Directly count from tables without any intermediate cache tables
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
     
@@ -186,7 +189,6 @@ export async function getStats() {
 
 export async function getViolations(limit = 100) {
   try {
-    // Гарантируем сортировку по убыванию времени создания
     const res = await pool.query(`
       SELECT 
         id, 
