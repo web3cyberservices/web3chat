@@ -4,6 +4,7 @@ import { parseHtmlContent } from '@/lib/parser';
 import { isUrlAllowed, getCrawlDelay } from '@/config/robots-rules';
 import { getBotStatus, saveAuditLog, saveBotEvent, saveAuditResults } from '@/lib/db';
 import { CrawlResult, Violation } from '@/types';
+import * as cheerio from 'cheerio';
 import { z } from 'zod';
 
 const urlSchema = z.string().url().refine((url) => {
@@ -14,6 +15,15 @@ const urlSchema = z.string().url().refine((url) => {
   return !blockedHostnames.includes(hostname) && !isPrivateIp;
 }, { message: "Internal/private addresses restricted (SSRF Protection)" });
 
+// Черный список гигантов
+const BLACKLIST_KEYWORDS = ['google.', 'facebook.', 'amazon.', 'wikipedia.', 'linkedin.', 'microsoft.', 'apple.', 'twitter.', 'youtube.'];
+
+// EU TLDs для приоритезации
+const EU_TLDS = ['.de', '.fr', '.it', '.es', '.pl', '.nl', '.be', '.at', '.dk', '.fi', '.se', '.ie', '.pt', '.cz', '.gr', '.hu', '.ro', '.sk', '.bg', '.ee', '.lv', '.lt', '.hr', '.si', '.mt', '.cy'];
+
+// EU языки для фильтрации .com/.net
+const EU_LANGS = ['de', 'fr', 'it', 'es', 'pl', 'nl', 'be', 'da', 'fi', 'sv', 'pt', 'cs', 'hu', 'sk', 'sl', 'et', 'lv', 'lt', 'bg', 'ro', 'el'];
+
 export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
   const timestamp = new Date().toISOString();
   try {
@@ -22,13 +32,18 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       return { url: seedUrl, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason: validation.error.errors[0].message };
     }
 
+    const url = new URL(seedUrl);
+    const domain = url.hostname.toLowerCase();
+
+    // 1. Проверка черного списка
+    if (BLACKLIST_KEYWORDS.some(kw => domain.includes(kw))) {
+      return { url: seedUrl, timestamp, status: 'skipped', issuesFound: 0, scanType: 'basic', reason: 'Global giant domain blacklist.' };
+    }
+
     const isActive = await getBotStatus();
     if (!isActive) {
       return { url: seedUrl, timestamp, status: 'skipped', issuesFound: 0, scanType: 'basic', reason: 'Engine paused.' };
     }
-
-    const url = new URL(seedUrl);
-    const domain = url.hostname;
 
     const { allowed, reason } = await isUrlAllowed(seedUrl);
     if (!allowed) {
@@ -40,9 +55,19 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
     await new Promise(resolve => setTimeout(resolve, delay));
 
     const { html, security, rawHeaders, scanType, dynamicCookies } = await scrapeUrl(seedUrl);
+    
+    // 2. Региональный фильтр для .com/.net (проверка lang)
+    const isEuTld = EU_TLDS.some(tld => domain.endsWith(tld));
+    if (!isEuTld && (domain.endsWith('.com') || domain.endsWith('.net') || domain.endsWith('.org'))) {
+      const $ = cheerio.load(html);
+      const lang = $('html').attr('lang')?.toLowerCase()?.split('-')[0] || '';
+      if (lang && !EU_LANGS.includes(lang)) {
+         return { url: seedUrl, timestamp, status: 'skipped', issuesFound: 0, scanType: 'basic', reason: `Non-EU language detected: ${lang}` };
+      }
+    }
+
     const { violations, discoveredLinks } = parseHtmlContent(html, seedUrl, rawHeaders);
     
-    // Добавляем динамические нарушения, если был Deep Scan
     if (scanType === 'deep' && dynamicCookies && dynamicCookies.length > 0) {
       const trackerKeywords = ['fb', 'google', 'ads', 'analytics', 'pixel', 'intercom', 'tiktok'];
       const suspiciousCookies = dynamicCookies.filter((c: any) => 
@@ -56,6 +81,8 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
           severity: 'high',
           evidence_html: 'Browser Runtime Cookies',
           description: `Detected ${suspiciousCookies.length} potential tracking cookies during dynamic browser rendering.`,
+          explanation: 'Dynamic tracking cookies detected without prior explicit consent. This violates GDPR Art. 5(3) (ePrivacy Directive).',
+          fine_amount: "Up to €20M or 4% of global turnover",
           recommendation: 'Implement a cookie consent banner that blocks these scripts until user consent is given.'
         });
       }
@@ -64,15 +91,8 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
     await saveAuditLog(domain, 200, null);
     
     if (violations.length > 0) {
-      console.log(`[Crawler] Found ${violations.length} violations for ${domain}. Attempting to save...`);
-      const dbResult = await saveAuditResults(domain, seedUrl, violations, scanType);
-      if (dbResult.success) {
-        await saveBotEvent('SUCCESS', `Audit of ${domain} (${scanType}) finished. Saved ${violations.length} violations.`);
-      } else {
-        console.error(`[Crawler] Failed to save results for ${domain} to DB.`);
-      }
-    } else {
-      console.log(`[Crawler] No violations found for ${domain}.`);
+      await saveAuditResults(domain, seedUrl, violations, scanType);
+      await saveBotEvent('SUCCESS', `Audit of ${domain} (${scanType}) finished. Saved ${violations.length} violations.`);
     }
 
     return {

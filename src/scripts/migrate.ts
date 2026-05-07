@@ -29,12 +29,14 @@ async function migrate() {
         id SERIAL PRIMARY KEY,
         domain VARCHAR(255) NOT NULL,
         url TEXT NOT NULL,
+        page_url TEXT,
         category VARCHAR(50) NOT NULL,
         issue_type VARCHAR(100) NOT NULL,
         severity VARCHAR(20) NOT NULL,
         evidence_html TEXT,
+        snippet TEXT,
         explanation TEXT,
-        potential_penalty TEXT,
+        fine_amount TEXT,
         recommendation TEXT,
         scan_type VARCHAR(20) DEFAULT 'basic',
         metadata JSONB DEFAULT '{}',
@@ -65,6 +67,8 @@ async function migrate() {
         id SERIAL PRIMARY KEY,
         url TEXT NOT NULL UNIQUE,
         status VARCHAR(20) DEFAULT 'pending',
+        depth INTEGER DEFAULT 0,
+        priority INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);

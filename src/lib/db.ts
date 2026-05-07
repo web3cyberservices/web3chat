@@ -38,10 +38,6 @@ export async function testConnection() {
   }
 }
 
-/**
- * Сохранение результатов аудита.
- * Синхронизировано с колонками: url, page_url, snippet, fine_amount, explanation.
- */
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (!violations || violations.length === 0) {
     return { success: true };
@@ -62,13 +58,13 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     for (const v of violations) {
       await client.query(query, [
         sanitize(domain),
-        sanitize(url),       // url column
-        sanitize(url),       // page_url column (same as url as per request)
+        sanitize(url),
+        sanitize(url),
         v.category,
         v.issue_type,
         v.severity,
-        sanitize(v.evidence_html), // evidence_html
-        sanitize(v.evidence_html), // snippet (same as evidence_html as per request)
+        sanitize(v.evidence_html),
+        sanitize(v.evidence_html),
         v.fine_amount,
         v.explanation,
         sanitize(v.recommendation)
@@ -129,7 +125,8 @@ export async function getNextQueueItem() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const query = "SELECT id, url FROM scan_queue WHERE status = 'pending' ORDER BY id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
+    // Приоритизируем задачи по колонке priority
+    const query = "SELECT id, url, depth FROM scan_queue WHERE status = 'pending' ORDER BY priority DESC, id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
     const result = await client.query(query);
     const task = result.rows[0];
 
@@ -164,11 +161,14 @@ export async function getQueueSize(): Promise<number> {
   }
 }
 
-export async function addToQueue(url: string) {
+export async function addToQueue(url: string, depth: number = 0, priority: number = 0) {
   try {
-    await pool.query("INSERT INTO scan_queue (url, status) VALUES ($1, 'pending') ON CONFLICT (url) DO NOTHING", [url]);
+    await pool.query(
+      "INSERT INTO scan_queue (url, status, depth, priority) VALUES ($1, 'pending', $2, $3) ON CONFLICT (url) DO NOTHING", 
+      [url, depth, priority]
+    );
   } catch (error) {
-    // Ignore duplicates
+    // Дубликаты игнорируем
   }
 }
 
