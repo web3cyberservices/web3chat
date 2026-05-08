@@ -1,13 +1,28 @@
+
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/request';
+import type { NextRequest } from 'next/server';
 
 /**
- * Middleware для защиты API админки.
- * В продакшене здесь должна быть проверка JWT или Firebase Auth.
- * Сейчас реализована базовая защита через сессионную куку.
+ * Middleware для управления поддоменами и защиты API.
+ * Поддерживает:
+ * 1. bot.humango.app (основной домен)
+ * 2. sfcc.humango.app (лендинг для e-commerce)
  */
 export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/api/admin')) {
+  const url = request.nextUrl;
+  const hostname = request.headers.get('host') || '';
+
+  // 1. Обработка поддомена SFCC
+  // Если заходим через sfcc.humango.app, показываем страницу /sfcc как главную
+  if (hostname.startsWith('sfcc.')) {
+    // Если пользователь на корневом пути, перенаправляем на /sfcc
+    if (url.pathname === '/') {
+      return NextResponse.rewrite(new URL('/sfcc', request.url));
+    }
+  }
+
+  // 2. Защита API админки (только для основного домена)
+  if (url.pathname.startsWith('/api/admin')) {
     const isAdmin = request.cookies.get('admin_authenticated')?.value === 'true';
     
     if (!isAdmin) {
@@ -22,5 +37,14 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/api/admin/:path*',
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public (public files like logo.png)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|logo.png|bot-policy.txt).*)',
+  ],
 };

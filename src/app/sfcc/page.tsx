@@ -16,7 +16,8 @@ import {
   ShoppingCart, 
   Database, 
   Lock,
-  Zap
+  Zap,
+  ArrowRight
 } from "lucide-react";
 
 export default function SFCCLandingPage() {
@@ -43,10 +44,13 @@ export default function SFCCLandingPage() {
               Humango<span className="text-primary">SFCC</span>
             </span>
           </div>
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-4">
             <Badge variant="outline" className="hidden sm:flex border-primary/20 bg-primary/5 text-primary text-[10px] font-bold tracking-[0.2em] px-3 py-1 rounded-full uppercase">
               SFCC Audit Engine
             </Badge>
+            <Button variant="ghost" size="sm" asChild className="text-slate-400 hover:text-white">
+              <Link href="https://humango.app" className="text-xs font-bold uppercase tracking-wider">Global Portal</Link>
+            </Button>
           </nav>
         </div>
       </header>
@@ -58,18 +62,18 @@ export default function SFCCLandingPage() {
               <Badge variant="outline" className="py-1 px-3 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-[0.2em]">
                 Enterprise E-Commerce Audit
               </Badge>
-              <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight text-white">
-                Salesforce Commerce <br />Cloud Compliance
+              <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight text-white">
+                Salesforce <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-primary">Commerce Cloud</span> <br />Compliance
               </h1>
-              <p className="text-lg text-slate-400 max-w-xl leading-relaxed">
-                HumangoBot specialized module for <span className="text-white font-medium">SFCC Storefronts</span>. Automated monitoring of third-party pixels, security headers, and GDPR posture in high-scale retail environments.
+              <p className="text-xl text-slate-400 max-w-xl leading-relaxed">
+                Specialized HumangoBot module for <span className="text-white font-medium">SFCC Storefronts</span>. Automated monitoring of third-party pixels, security headers, and GDPR posture for global retail.
               </p>
-              <div className="flex flex-wrap gap-4">
-                <Button className="bg-primary hover:bg-primary/90 text-white font-bold h-12 px-8 rounded-xl" asChild>
-                  <a href="mailto:abuse@humango.app">Request Audit Data</a>
+              <div className="flex flex-wrap gap-4 pt-4">
+                <Button className="bg-primary hover:bg-primary/90 text-white font-bold h-14 px-10 rounded-2xl shadow-2xl shadow-primary/20" asChild>
+                  <a href="mailto:abuse@humango.app">Request Audit Data <ArrowRight className="ml-2 w-4 h-4" /></a>
                 </Button>
-                <Button variant="outline" className="border-white/10 hover:bg-white/5 h-12 px-8 rounded-xl" asChild>
-                  <Link href="/legal/bot-policy">Transparency Manifesto</Link>
+                <Button variant="outline" className="border-white/10 hover:bg-white/5 h-14 px-10 rounded-2xl backdrop-blur-md" asChild>
+                  <Link href="/legal/bot-policy">Bot Policy</Link>
                 </Button>
               </div>
             </div>
@@ -81,12 +85,12 @@ export default function SFCCLandingPage() {
                 { icon: Lock, title: "Security Hardening", desc: "Audit of CSP headers, HSTS, and TLS 1.3 standards across SFCC production instances." },
                 { icon: Zap, title: "High-Scale Efficiency", desc: "Polite indexing of large-scale product catalogs without impacting storefront performance." },
               ].map((item, i) => (
-                <Card key={i} className="bg-white/[0.02] border-white/5 p-6 hover:bg-white/[0.04] transition-all border-l-primary/30 border-l-2 shadow-xl">
-                  <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center mb-4">
-                    <item.icon className="w-5 h-5 text-primary" />
+                <Card key={i} className="bg-white/[0.02] border-white/5 p-8 hover:bg-white/[0.04] transition-all border-l-primary/30 border-l-2 shadow-2xl group">
+                  <div className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <item.icon className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="text-sm font-bold text-white mb-2">{item.title}</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
+                  <h3 className="text-lg font-bold text-white mb-3">{item.title}</h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
                 </Card>
               ))}
             </div>
@@ -102,7 +106,7 @@ export default function SFCCLandingPage() {
               <CardContent className="space-y-6 pt-6">
                 <div className="space-y-3">
                   <label className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Bot User-Agent</label>
-                  <div className="p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 break-all leading-relaxed">
+                  <div className="p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-[11px] text-slate-300 break-all leading-relaxed">
                     HumangoBot/1.0 (+https://humango.app)
                   </div>
                 </div>
@@ -131,38 +135,38 @@ export default function SFCCLandingPage() {
                 <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/20 space-y-3">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                    <span className="text-[10px] font-bold uppercase text-indigo-200">SFCC Best Practices Adherence</span>
+                    <span className="text-[10px] font-bold uppercase text-indigo-200">SFCC Best Practices</span>
                   </div>
                   <p className="text-[10px] text-slate-500 leading-relaxed italic">
-                    Our scanner is tuned to bypass common SFCC cache variations while respecting the storefront's CDN rate limits.
+                    Our scanner is tuned to bypass common SFCC cache variations while respecting the storefront's CDN rate limits and robots.txt.
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="p-6 bg-gradient-to-br from-primary/10 to-indigo-500/10 rounded-2xl border border-primary/20">
-              <h3 className="text-sm font-bold text-white mb-2">Request SFCC Scan Report</h3>
-              <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+            <div className="p-8 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-3xl border border-primary/30 shadow-2xl">
+              <h3 className="text-xl font-bold text-white mb-3">Compliance Report</h3>
+              <p className="text-sm text-slate-400 mb-6 leading-relaxed">
                 Automated vulnerability reports for SFCC merchants are available upon verification of domain ownership.
               </p>
-              <Button className="w-full bg-primary font-bold h-11 rounded-xl shadow-lg shadow-primary/20" asChild>
-                <a href="mailto:abuse@humango.app">Contact DPO</a>
+              <Button className="w-full bg-primary font-bold h-12 rounded-xl shadow-lg shadow-primary/30 text-white" asChild>
+                <a href="mailto:abuse@humango.app">Contact Compliance DPO</a>
               </Button>
             </div>
           </div>
         </div>
       </main>
 
-      <footer className="py-8 px-6 border-t border-white/5 bg-[#010413]/50">
-        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[9px] text-slate-500 uppercase tracking-[0.25em] font-bold">
+      <footer className="py-10 px-6 border-t border-white/5 bg-[#010413]/50">
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] text-slate-500 uppercase tracking-[0.25em] font-bold">
           <div className="flex items-center gap-3">
-            <ShieldCheck className="w-4 h-4 text-primary opacity-80" />
+            <ShieldCheck className="w-5 h-5 text-primary opacity-80" />
             <span>Humango SFCC Compliance • Protocol v1.2</span>
           </div>
-          <div className="flex gap-8">
-            <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+          <div className="flex gap-10">
+            <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <Link href="/legal/bot-policy" className="hover:text-white transition-colors">Bot Policy</Link>
-            <Link href="/" className="hover:text-white transition-colors">Global Portal</Link>
+            <Link href="https://humango.app" className="hover:text-white transition-colors">Global</Link>
           </div>
         </div>
       </footer>
