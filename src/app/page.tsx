@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -137,8 +138,8 @@ export default function Home() {
           </div>
           <div className="flex gap-8">
             <span>&copy; {new Date().getFullYear()} Global Infrastructure Group</span>
-            <Link href="/legal#privacy" className="hover:text-white transition-colors">Privacy Statement</Link>
-            <Link href="/legal#rfc9309" className="hover:text-white transition-colors">RFC 9309 Docs</Link>
+            <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Statement</Link>
+            <Link href="/legal/rfc9309" className="hover:text-white transition-colors">RFC 9309 Docs</Link>
           </div>
         </div>
       </footer>
