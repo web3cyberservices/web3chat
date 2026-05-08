@@ -9,7 +9,7 @@ const REQUEST_TIMEOUT = 15000;
 const CHROME_PATH = '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome';
 
 /**
- * Глубокое сканирование для обнаружения динамических нарушений.
+ * Глубокое сканирование для обнаружения динамических нарушений и создания скриншотов.
  */
 async function deepScrapeUrl(url: string) {
   console.log(`[Scraper] Deep Scan (Headless Chrome): ${url}`);
@@ -42,10 +42,10 @@ async function deepScrapeUrl(url: string) {
     
     await page.setDefaultNavigationTimeout(25000);
     
-    // Блокируем тяжелые медиа для вежливости и скорости
+    // Блокируем только тяжелые медиа, оставляем шрифты для корректности скриншота
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-      if (['image', 'media', 'font'].includes(req.resourceType())) {
+      if (['media'].includes(req.resourceType())) {
         req.abort();
       } else {
         req.continue();
@@ -57,10 +57,18 @@ async function deepScrapeUrl(url: string) {
       timeout: 25000 
     });
 
+    // Снимаем скриншот для доказательства (оптимизируем размер для БД)
+    const screenshot = await page.screenshot({ 
+      encoding: 'base64', 
+      type: 'jpeg', 
+      quality: 40,
+      fullPage: false 
+    });
+
     const html = await page.content();
     const cookies = await page.cookies();
     
-    return { html, cookies };
+    return { html, cookies, screenshot };
   } catch (error: any) {
     console.error(`[Scraper] Puppeteer error for ${url}:`, error.message);
     throw error;
@@ -73,9 +81,8 @@ async function deepScrapeUrl(url: string) {
 
 /**
  * Гибридный скрейпинг: Fetch -> Heuristic -> Puppeteer.
- * Поддерживает вежливые заголовки и обработку лимитов.
  */
-export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any, rawHeaders: any, scanType: ScanType, dynamicCookies?: any[]}> {
+export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any, rawHeaders: any, scanType: ScanType, dynamicCookies?: any[], screenshot?: string}> {
   if (redirectCount > MAX_REDIRECTS) throw new Error('REDIRECT_LOOP');
 
   try {
@@ -91,7 +98,6 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
       signal: AbortSignal.timeout(REQUEST_TIMEOUT)
     });
 
-    // Обработка вежливого отказа (Rate Limiting)
     if (response.status === 429 || response.status === 503) {
       throw new Error(`RATE_LIMITED_${response.status}`);
     }
@@ -110,19 +116,22 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
 
     let scanType: ScanType = 'basic';
     let dynamicCookies: any[] = [];
+    let screenshot: string | undefined = undefined;
 
-    if (shouldRunDeepScan(html)) {
+    // Глубокое сканирование если есть подозрение на динамику или отсутствие баннера (нужен скриншот)
+    if (shouldRunDeepScan(html) || !html.includes('cookie')) {
       try {
         const deepResult = await deepScrapeUrl(url);
         html = deepResult.html;
         dynamicCookies = deepResult.cookies;
+        screenshot = deepResult.screenshot;
         scanType = 'deep';
       } catch (e: any) {
         console.warn(`[Scraper] Deep scan fallback: ${e.message}`);
       }
     }
 
-    return { html, rawHeaders: headers, security, scanType, dynamicCookies };
+    return { html, rawHeaders: headers, security, scanType, dynamicCookies, screenshot };
   } catch (error: any) {
     if (error.message.includes('RATE_LIMITED')) throw error;
     console.error(`[Scraper] Fetch failed for ${url}:`, error.message);

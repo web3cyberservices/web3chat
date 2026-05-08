@@ -45,7 +45,8 @@ import {
   ExternalLink,
   FileText,
   Globe,
-  Scale
+  Scale,
+  Camera
 } from "lucide-react";
 
 interface DetectedIssue {
@@ -58,6 +59,7 @@ interface DetectedIssue {
   fine_amount?: string;
   law_name?: string;
   url?: string;
+  evidence_html?: string;
 }
 
 interface SystemLog {
@@ -328,7 +330,7 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Compliance v1.9</Badge>
+            <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Compliance v2.1</Badge>
             <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
               <Zap className={`w-3 h-3 ${isActive ? 'animate-pulse text-emerald-500' : ''}`} /> {isActive ? 'SCANNING' : 'IDLE'}
               {(isRefreshing || isHistoryLoading) && <Activity className="w-3 h-3 text-primary animate-spin ml-2" />}
@@ -541,6 +543,19 @@ export default function AdminDashboard() {
                                       {issue.url} <ExternalLink className="w-3 h-3 shrink-0" />
                                     </a>
                                   </div>
+                                  {issue.evidence_html && (
+                                    <div className="p-3 bg-black/40 rounded-lg border border-white/5">
+                                      <p className="text-[9px] text-slate-500 mb-2 uppercase font-bold flex items-center gap-2">
+                                        <Camera className="w-3 h-3" /> ЦЕЛЬ (СКРИНШОТ):
+                                      </p>
+                                      <img 
+                                        src={issue.evidence_html} 
+                                        alt="Evidence" 
+                                        className="rounded border border-white/10 max-h-[200px] object-cover w-full cursor-zoom-in hover:opacity-80 transition-opacity"
+                                        onClick={() => window.open(issue.evidence_html, '_blank')}
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               {idx < issues.length - 1 && <div className="h-px bg-white/5 w-full mt-6" />}

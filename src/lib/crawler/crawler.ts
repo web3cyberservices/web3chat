@@ -41,12 +41,12 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       return { url: seedUrl, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason };
     }
 
-    // 2. Polite Wait (Respecting Crawl-delay or default)
+    // 2. Polite Wait
     const waitTime = delay || 5000;
     await new Promise(resolve => setTimeout(resolve, waitTime));
 
     // 3. Scrape with Retry/Backoff Handling
-    const { html, security, rawHeaders, scanType, dynamicCookies } = await scrapeUrl(seedUrl);
+    const { html, security, rawHeaders, scanType, dynamicCookies, screenshot } = await scrapeUrl(seedUrl);
     
     // Lang Check for non-EU TLDs
     const isGlobalTld = ['.com', '.net', '.org'].some(tld => domain.endsWith(tld));
@@ -58,9 +58,10 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       }
     }
 
-    const { violations, discoveredLinks } = parseHtmlContent(html, seedUrl, rawHeaders);
+    // Передаем скриншот в парсер для использования в качестве доказательства (GDPR/Impressum)
+    const { violations, discoveredLinks } = parseHtmlContent(html, seedUrl, rawHeaders, screenshot);
     
-    // Dynamic Cookie Audit (GDPR)
+    // Dynamic Cookie Audit
     if (scanType === 'deep' && dynamicCookies && dynamicCookies.length > 0) {
       const trackers = ['fb', 'google', 'ads', 'analytics', 'pixel', 'intercom'];
       const suspicious = dynamicCookies.filter((c: any) => 
@@ -72,7 +73,7 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
           category: 'GDPR',
           issue_type: 'Нарушение конфиденциальности (динамические трекеры)',
           severity: 'high',
-          evidence_html: 'Runtime Cookies: ' + suspicious.map(s => s.name).join(', '),
+          evidence_html: screenshot ? `data:image/jpeg;base64,${screenshot}` : 'Detected cookies',
           snippet: 'Detected via headless browser rendering.',
           description: 'Detected tracking cookies set without consent.',
           law_name: 'EU GDPR / ePrivacy Directive',
