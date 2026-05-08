@@ -1,0 +1,31 @@
+
+HUMANGO BOT COMPLIANCE MANIFEST
+-------------------------------
+Version: 1.2
+Operator: Humango Limited (UK)
+Portal: https://bot.humango.app
+Contact: abuse@humango.app
+
+IDENTIFICATION:
+User-Agent: HumangoBot/1.0 (+https://bot.humango.app)
+Static IPs: 116.203.3.75
+rDNS: bot.humango.app
+
+CRAWLING RULES:
+- Strict adherence to robots.txt (RFC 9309).
+- Respects 'Crawl-delay' and 'Retry-After' headers.
+- Default rate limit: 1 request per 5 seconds per domain.
+- Automated exponential backoff on 429/503 status codes.
+
+PURPOSE:
+Automated Technical Security & GDPR Compliance Auditing. 
+We do not scrape personal data, resell content, or perform DDoS activities.
+
+DATA RETENTION:
+Technical violation logs and evidence are stored for 365 days.
+PII is automatically excluded from indexing.
+
+EXCLUSION:
+To exclude your domain, please update robots.txt with:
+User-agent: HumangoBot
+Disallow: /

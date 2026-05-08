@@ -1,7 +1,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheck, Scale, FileText, ArrowLeft, ExternalLink } from "lucide-react";
+import { ShieldCheck, Scale, FileText, ArrowLeft, ExternalLink, Bot } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,12 +46,29 @@ export default function LegalPage() {
           </div>
 
           <div className="grid gap-6">
+            <Link href="/legal/bot-policy" className="group">
+              <Card className="bg-white/[0.02] border-white/5 hover:bg-white/[0.04] border-primary/20 transition-all duration-300 overflow-hidden">
+                <CardContent className="p-8 flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <div className="p-4 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform duration-300">
+                      <Bot className="w-8 h-8 text-primary" />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-bold text-white">Bot Policy & Purpose</h2>
+                      <p className="text-sm text-slate-500">Operation standards, retention periods, and mission statement.</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-5 h-5 text-slate-700 group-hover:text-primary transition-colors" />
+                </CardContent>
+              </Card>
+            </Link>
+
             <Link href="/legal/privacy" className="group">
               <Card className="bg-white/[0.02] border-white/5 hover:bg-white/[0.04] transition-all duration-300 overflow-hidden">
                 <CardContent className="p-8 flex items-center justify-between">
                   <div className="flex items-center gap-6">
-                    <div className="p-4 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform duration-300">
-                      <ShieldCheck className="w-8 h-8 text-primary" />
+                    <div className="p-4 bg-emerald-500/10 rounded-2xl group-hover:scale-110 transition-transform duration-300">
+                      <ShieldCheck className="w-8 h-8 text-emerald-500" />
                     </div>
                     <div className="space-y-1">
                       <h2 className="text-xl font-bold text-white">Privacy Statement</h2>
@@ -79,19 +96,6 @@ export default function LegalPage() {
                 </CardContent>
               </Card>
             </Link>
-
-            <div className="p-8 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4">
-              <div className="flex items-center gap-3 text-white font-bold">
-                <FileText className="w-5 h-5 text-primary" />
-                Identity Transparency
-              </div>
-              <div className="p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-sm text-slate-300 break-all leading-relaxed">
-                Mozilla/5.0 (compatible; HumangoBot/1.0; +http://bot.humango.app)
-              </div>
-              <p className="text-xs text-slate-500">
-                All requests from HumangoBot carry the above User-Agent. This portal is maintained by the Global Infrastructure Group to provide full operator transparency.
-              </p>
-            </div>
           </div>
         </div>
       </main>

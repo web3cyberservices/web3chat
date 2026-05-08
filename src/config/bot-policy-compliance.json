@@ -22,6 +22,7 @@
     "consent_protocols": {
       "robots_txt": "Strict adherence (RFC 9309)",
       "crawl_delay": "Mandatory priority (Full support)",
+      "retry_after": "Supported (Respects server load)",
       "implicit_consent": "Limited to public technical headers assessment"
     },
     "service_mission": {
@@ -35,8 +36,14 @@
         "No bypass of security controls"
       ]
     },
+    "data_processing": {
+      "retention_period": "365 days (for legal evidence)",
+      "pii_policy": "Automatic masking/exclusion",
+      "purpose": "Technical vulnerability identification"
+    },
     "public_docs": {
       "portal": "https://bot.humango.app",
+      "bot_policy": "https://bot.humango.app/legal/bot-policy",
       "privacy_policy": "https://bot.humango.app/legal/privacy",
       "rfc_compliance": "https://bot.humango.app/legal/rfc9309",
       "abuse_contact": "abuse@humango.app"

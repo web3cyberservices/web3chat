@@ -16,14 +16,13 @@ const DEFAULT_SLEEP = settings.scanIntervalMs || 5000;
 const IDLE_WAIT = 15000;    
 const MAX_QUEUE_LIMIT = 50000; 
 
-// Карта для отслеживания последнего сканирования домена (Rate Limiting)
 const lastScanByDomain = new Map<string, number>();
 
 export async function startEngine() {
   console.log('==================================================');
   console.log('   HUMANGO BOT COMPLIANCE ENGINE v2.5             ');
   console.log(`   User-Agent: ${settings.userAgent}            `);
-  console.log('   Policy: RFC 9309 / Verified Bot Standards      ');
+  console.log('   Policy: Verified Bot / RFC 9309 Compliance    ');
   console.log('==================================================');
   
   try {
@@ -36,7 +35,6 @@ export async function startEngine() {
 
   while (true) {
     try {
-      // Проверка общего статуса бота
       const active = await getBotStatus();
       if (!active) {
         await sleep(5000);
@@ -44,7 +42,6 @@ export async function startEngine() {
       }
 
       const task = await getNextQueueItem();
-      
       if (!task) {
         await sleep(IDLE_WAIT); 
         continue;
@@ -54,7 +51,6 @@ export async function startEngine() {
       const url = new URL(urlStr);
       const domain = url.hostname.toLowerCase();
       
-      // 1. Проверка Robots.txt и Crawl-delay (Polite Check)
       const robotsCheck = await isUrlAllowed(urlStr);
       if (!robotsCheck.allowed) {
         console.log(`[Polite] Skipping ${urlStr}: ${robotsCheck.reason}`);
@@ -62,7 +58,6 @@ export async function startEngine() {
         continue;
       }
 
-      // 2. Определение задержки (Crawl-delay из robots.txt имеет приоритет)
       const dynamicDelay = robotsCheck.delay || DEFAULT_SLEEP;
       const lastScan = lastScanByDomain.get(domain) || 0;
       const now = Date.now();
@@ -75,7 +70,6 @@ export async function startEngine() {
       }
 
       await saveBotEvent('START', `Compliance Scan: ${domain}`);
-      
       let taskStatus: 'completed' | 'failed' = 'completed';
 
       try {
@@ -85,7 +79,6 @@ export async function startEngine() {
         if (result.status === 'failed' || result.status === 'blocked') {
           taskStatus = 'failed';
         } else if (result.status === 'success') {
-          // Auto-Discovery Logic
           if (result.discoveredLinks && result.discoveredLinks.length > 0) {
             const currentQueueSize = await getQueueSize();
             if (currentQueueSize < MAX_QUEUE_LIMIT) {
@@ -99,17 +92,19 @@ export async function startEngine() {
         console.error(`[Engine] Task error:`, taskError.message);
         taskStatus = 'failed';
         
+        // Обработка Retry-After (Verified Bot Policy)
         if (taskError.message.includes('RATE_LIMITED')) {
-          console.log(`[Backoff] Exponential backoff for ${domain}.`);
-          await sleep(30000);
+          const retryMatch = taskError.message.match(/_RETRY_(\d+)/);
+          const waitSeconds = retryMatch ? parseInt(retryMatch[1], 10) : 30;
+          console.log(`[Backoff] Server requested wait: ${waitSeconds}s for ${domain}.`);
+          await saveBotEvent('ERROR', `Rate Limit for ${domain}. Waiting ${waitSeconds}s (Retry-After).`);
+          await sleep(waitSeconds * 1000);
         }
       } finally {
         await updateQueueStatus(task.id, taskStatus);
       }
 
-      // Глобальная пауза между разными доменами для ротации трафика
       await sleep(1000);
-
     } catch (error: any) {
       console.error('[Engine Loop Error]', error.stack || error);
       await sleep(10000);

@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheck, ArrowLeft, Mail, Lock, Info } from "lucide-react";
+import { ShieldCheck, ArrowLeft, Mail, Lock, Info, Scale, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
         <div className="space-y-12">
           <div className="space-y-4">
             <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-[0.2em]">
-              Transparency Report
+              Legal Compliance
             </Badge>
             <h1 className="text-4xl font-extrabold tracking-tight text-white">
               Privacy Statement
@@ -48,21 +48,21 @@ export default function PrivacyPage() {
 
           <section className="space-y-6">
             <h2 className="text-xl font-bold flex items-center gap-3 text-white border-l-2 border-primary pl-4">
-              <ShieldCheck className="w-5 h-5 text-primary" /> Core Data Principles
+              <ShieldCheck className="w-5 h-5 text-primary" /> Data Minimization & Crawler Scope
             </h2>
             <div className="space-y-4 text-slate-400 leading-relaxed">
               <p>
-                HumangoBot strictly adheres to the principle of <strong>Data Minimization</strong>. Our scanning activities are limited to the objective assessment of technical infrastructure.
+                HumangoBot strictly adheres to the principle of <strong>Data Minimization</strong> (Art. 5 GDPR). Our scanning activities are limited to the objective assessment of technical infrastructure.
               </p>
               <ul className="list-disc pl-6 space-y-4">
                 <li>
-                  <strong className="text-white">Technical Scope:</strong> We index technical metadata (HTTP headers, SSL versions, CSP policies).
+                  <strong className="text-white">Technical Scope:</strong> We index technical metadata (HTTP headers, SSL versions, CSP policies, cookie names).
                 </li>
                 <li>
-                  <strong className="text-white">No PII Harvesting:</strong> We do not index user profiles, email addresses, or private credentials. Our engine automatically ignores text blocks containing personal data.
+                  <strong className="text-white">No PII Harvesting:</strong> We do not index user profiles, email addresses, or private credentials. Our engine automatically ignores text blocks containing personal data using regex-based masking.
                 </li>
                 <li>
-                  <strong className="text-white">No Reselling:</strong> Technical audit data is never sold or traded to third-party marketing entities.
+                  <strong className="text-white">Retention:</strong> Audit data is stored for a maximum of 365 days for compliance evidence purposes before automatic deletion.
                 </li>
               </ul>
             </div>
@@ -70,26 +70,20 @@ export default function PrivacyPage() {
 
           <section className="space-y-6">
             <h2 className="text-xl font-bold flex items-center gap-3 text-white border-l-2 border-primary pl-4">
-              <Info className="w-5 h-5 text-primary" /> Verified Bot Compliance
+              <Scale className="w-5 h-5 text-primary" /> Legal Basis for Processing
             </h2>
-            <div className="text-slate-400 leading-relaxed space-y-4">
-              <p>
-                To maintain "Verified Bot" status with major CDNs and Cloudflare, we provide full transparency regarding our origin:
-              </p>
-              <div className="p-6 bg-white/5 rounded-2xl border border-white/5 space-y-2">
-                <p className="text-sm">Origin Identity: <strong>HumangoBot/1.0</strong></p>
-                <p className="text-sm">Verification: <strong>Reverse DNS (PTR)</strong> records are configured for all origin IPs.</p>
-              </div>
-            </div>
+            <p className="text-slate-400 leading-relaxed">
+              Our data processing is based on <strong>Legitimate Interest</strong> (Art. 6(1)(f) GDPR) for the purpose of ensuring web security and monitoring the digital compliance posture of European web infrastructure.
+            </p>
           </section>
 
           <section className="p-8 bg-white/5 rounded-2xl border border-white/5 space-y-4">
             <div className="flex items-center gap-3 text-white font-bold">
               <Mail className="w-5 h-5 text-primary" />
-              Contact Our DPO
+              Data Protection Officer (DPO)
             </div>
             <p className="text-sm text-slate-400">
-              For any questions regarding our data handling or exclusion requests:
+              For any questions regarding our data handling, your rights under GDPR, or exclusion requests:
             </p>
             <a href="mailto:abuse@humango.app" className="inline-block text-primary font-bold hover:underline">
               abuse@humango.app

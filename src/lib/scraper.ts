@@ -42,7 +42,6 @@ async function deepScrapeUrl(url: string) {
     
     await page.setDefaultNavigationTimeout(25000);
     
-    // Блокируем только тяжелые медиа, оставляем шрифты для корректности скриншота
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       if (['media'].includes(req.resourceType())) {
@@ -57,7 +56,6 @@ async function deepScrapeUrl(url: string) {
       timeout: 25000 
     });
 
-    // Снимаем скриншот для доказательства (оптимизируем размер для БД)
     const screenshot = await page.screenshot({ 
       encoding: 'base64', 
       type: 'jpeg', 
@@ -81,6 +79,7 @@ async function deepScrapeUrl(url: string) {
 
 /**
  * Гибридный скрейпинг: Fetch -> Heuristic -> Puppeteer.
+ * С поддержкой Retry-After (RFC 9309 / Verified Bot).
  */
 export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: string, security: any, rawHeaders: any, scanType: ScanType, dynamicCookies?: any[], screenshot?: string}> {
   if (redirectCount > MAX_REDIRECTS) throw new Error('REDIRECT_LOOP');
@@ -98,8 +97,11 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
       signal: AbortSignal.timeout(REQUEST_TIMEOUT)
     });
 
+    // Обработка Retry-After согласно политике вежливого сканирования
     if (response.status === 429 || response.status === 503) {
-      throw new Error(`RATE_LIMITED_${response.status}`);
+      const retryAfter = response.headers.get('retry-after');
+      const retryReason = retryAfter ? `_RETRY_${retryAfter}` : '';
+      throw new Error(`RATE_LIMITED_${response.status}${retryReason}`);
     }
 
     if (!response.ok) throw new Error(`HTTP_ERROR_${response.status}`);
@@ -118,7 +120,6 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
     let dynamicCookies: any[] = [];
     let screenshot: string | undefined = undefined;
 
-    // Глубокое сканирование если есть подозрение на динамику или отсутствие баннера (нужен скриншот)
     if (shouldRunDeepScan(html) || !html.includes('cookie')) {
       try {
         const deepResult = await deepScrapeUrl(url);
