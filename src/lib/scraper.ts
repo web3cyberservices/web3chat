@@ -16,7 +16,9 @@ const CHROME_PATH = '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-li
 async function deepScrapeUrl(url: string) {
   logger.info(`Deep Scan (Headless Chrome) initiating for: ${url}`);
   
-  let browser;
+  let browser: any = null;
+  let context: any = null;
+
   try {
     browser = await puppeteer.launch({
       executablePath: CHROME_PATH,
@@ -25,18 +27,16 @@ async function deepScrapeUrl(url: string) {
         '--no-sandbox', 
         '--disable-setuid-sandbox', 
         '--disable-dev-shm-usage', 
-        '--disable-gpu',
-        '--single-process'
+        '--disable-gpu'
       ]
     });
-  } catch (error: any) {
-    logger.error(`Chrome launch failed: ${error.message}`);
-    throw new Error('CHROME_LAUNCH_FAILED');
-  }
 
-  try {
+    if (!browser) {
+      throw new Error('FAILED_TO_LAUNCH_CHROME');
+    }
+
     // Создаем изолированный контекст (Incognito), чтобы не сохранять куки и сессии
-    const context = await browser.createBrowserContext();
+    context = await browser.createBrowserContext();
     const page = await context.newPage();
     
     await page.setUserAgent(settings.userAgent);
@@ -77,16 +77,16 @@ async function deepScrapeUrl(url: string) {
     const html = await page.content();
     const cookies = await page.cookies();
     
-    // Закрываем контекст немедленно
-    await context.close();
-    
     return { html, cookies, screenshot };
   } catch (error: any) {
-    logger.error(`Puppeteer error for ${url}: ${error.message}`);
+    logger.error(`Puppeteer deep scan failed for ${url}: ${error.message}`);
     throw error;
   } finally {
-    if (browser) {
-      await browser.close();
+    try {
+      if (context) await context.close();
+      if (browser) await browser.close();
+    } catch (closeError: any) {
+      logger.warn(`Error during browser cleanup: ${closeError.message}`);
     }
   }
 }
@@ -107,8 +107,8 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
         'X-Crawler-Contact': settings.abuseEmail,
         'X-Compliance-Portal': 'https://bot.humango.app',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'DNT': '1', // Do Not Track
-        'Sec-GPC': '1' // Global Privacy Control
+        'DNT': '1',
+        'Sec-GPC': '1'
       },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT)
     });

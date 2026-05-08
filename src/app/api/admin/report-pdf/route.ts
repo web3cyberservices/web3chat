@@ -17,6 +17,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Domain is required' }, { status: 400 });
   }
 
+  let browser: any = null;
+
   try {
     const res = await pool.query(`
       SELECT page_url, issue_type, severity, explanation, fine_amount, law_name, created_at
@@ -183,22 +185,23 @@ export async function GET(request: Request) {
       </html>
     `;
 
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       executablePath: CHROME_PATH,
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
 
+    if (!browser) throw new Error('Failed to launch browser for PDF');
+
     const page = await browser.newPage();
-    await page.setContent(htmlContent);
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    
     const pdfBuffer = await page.pdf({ 
       format: 'A4',
       printBackground: true,
       margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
     });
     
-    await browser.close();
-
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
@@ -210,5 +213,13 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error('[PDF Export Error]', error);
     return NextResponse.json({ error: 'Failed to generate PDF report' }, { status: 500 });
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (e) {
+        console.error('Error closing browser in PDF API:', e);
+      }
+    }
   }
 }
