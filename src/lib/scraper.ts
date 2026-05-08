@@ -1,4 +1,3 @@
-
 import settings from '@/config/crawler-settings.json';
 import { shouldRunDeepScan } from './parser';
 import puppeteer from 'puppeteer';
@@ -35,9 +34,13 @@ async function deepScrapeUrl(url: string) {
   try {
     const page = await browser.newPage();
     await page.setUserAgent(settings.userAgent);
+    
+    // Поддержка Privacy-стандартов: всегда отправляем DNT: 1
     await page.setExtraHTTPHeaders({
       'From': settings.abuseEmail,
-      'X-Compliance-Portal': 'https://bot.humango.app'
+      'X-Compliance-Portal': 'https://bot.humango.app',
+      'DNT': '1',
+      'Sec-GPC': '1'
     });
     
     await page.setDefaultNavigationTimeout(25000);
@@ -92,7 +95,9 @@ export async function scrapeUrl(url: string, redirectCount = 0): Promise<{html: 
         'From': settings.abuseEmail,
         'X-Crawler-Contact': settings.abuseEmail,
         'X-Compliance-Portal': 'https://bot.humango.app',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'DNT': '1', // Do Not Track
+        'Sec-GPC': '1' // Global Privacy Control
       },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT)
     });

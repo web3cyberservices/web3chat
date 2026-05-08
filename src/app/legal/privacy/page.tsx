@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheck, ArrowLeft, Mail, Lock, Info, Scale, FileText, EyeOff } from "lucide-react";
+import { ShieldCheck, ArrowLeft, Mail, Lock, Info, Scale, FileText, EyeOff, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -41,13 +41,13 @@ export default function PrivacyPage() {
               Privacy Statement
             </h1>
             <p className="text-slate-400 leading-relaxed text-lg">
-              Official policy regarding the collection, processing, and storage of technical data by the HumangoBot network.
+              Official policy regarding the collection, processing, and storage of technical data by Humango Limited.
             </p>
           </div>
 
           <section className="space-y-6">
             <h2 className="text-xl font-bold flex items-center gap-3 text-white border-l-2 border-primary pl-4">
-              <ShieldCheck className="w-5 h-5 text-primary" /> Data Minimization & Ethics
+              <ShieldCheck className="w-5 h-5 text-primary" /> Data Minimization & PII Policy
             </h2>
             <div className="space-y-4 text-slate-400 leading-relaxed">
               <p>
@@ -55,13 +55,13 @@ export default function PrivacyPage() {
               </p>
               <ul className="list-disc pl-6 space-y-4">
                 <li>
-                  <strong className="text-white">Stateless Scanning:</strong> We do not store cookies or fingerprint users. Every request is a clean session.
+                  <strong className="text-white">No PII Scraping:</strong> Our engine automatically ignores and redacts emails, phone numbers, and PII found in page content. We do not store any personal data of website visitors.
                 </li>
                 <li>
-                  <strong className="text-white">Zero PII Storage:</strong> We automatically redact emails, names, and phone numbers found in HTML content. We do not scrape form inputs.
+                  <strong className="text-white">Stateless Operations:</strong> We do not store cookies or fingerprint users. Every request is an isolated session.
                 </li>
                 <li>
-                  <strong className="text-white">Retention:</strong> Technical audit logs are kept for 365 days for compliance verification and legal evidence.
+                  <strong className="text-white">DNT Support:</strong> We respect Global Privacy Control and always transmit <code>DNT: 1</code> headers.
                 </li>
               </ul>
             </div>
@@ -69,21 +69,27 @@ export default function PrivacyPage() {
 
           <section className="space-y-6">
             <h2 className="text-xl font-bold flex items-center gap-3 text-white border-l-2 border-primary pl-4">
-              <Scale className="w-5 h-5 text-primary" /> Legal Basis (Art. 6 GDPR)
+              <Scale className="w-5 h-5 text-primary" /> Legal Basis (Art. 6(1)(f) GDPR)
             </h2>
             <p className="text-slate-400 leading-relaxed">
-              Our data processing is justified under <strong>Legitimate Interest (Art. 6(1)(f) GDPR)</strong>. The purpose is to identify technical vulnerabilities and monitor the digital compliance posture of web infrastructure to ensure a secure internet environment.
+              Our data processing is justified under <strong>Legitimate Interest (Art. 6(1)(f) GDPR)</strong>. The purpose is the identification of technical vulnerabilities and the monitoring of digital compliance to ensure a secure and transparent internet environment. A Legitimate Interest Assessment (LIA) is maintained internally to ensure the balance of rights.
             </p>
           </section>
 
           <section className="p-8 bg-white/5 rounded-2xl border border-white/5 space-y-4">
             <div className="flex items-center gap-3 text-white font-bold">
-              <Mail className="w-5 h-5 text-primary" />
-              Data Protection Officer (DPO)
+              <MapPin className="w-5 h-5 text-primary" />
+              Company Details
             </div>
-            <p className="text-sm text-slate-400">
-              For GDPR rights (access, erasure, objection) or exclusion requests, contact:
-            </p>
+            <div className="text-sm text-slate-400 space-y-1">
+              <p><strong>Humango Limited</strong></p>
+              <p>182-184 High Street North, London, England, E6 2JA</p>
+              <p>Company Registration No: 16750477</p>
+            </div>
+            <div className="pt-4 flex items-center gap-3 text-white font-bold">
+              <Mail className="w-5 h-5 text-primary" />
+              Data Protection Officer
+            </div>
             <a href="mailto:abuse@humango.app" className="inline-block text-primary font-bold hover:underline">
               abuse@humango.app
             </a>
@@ -93,7 +99,7 @@ export default function PrivacyPage() {
 
       <footer className="py-8 px-6 border-t border-white/5 bg-[#010413]/50">
         <div className="container mx-auto text-[9px] text-slate-500 uppercase tracking-[0.25em] font-bold text-center">
-          &copy; {new Date().getFullYear()} Global Infrastructure Group • Humango Privacy v1.5
+          &copy; {new Date().getFullYear()} Humango Limited • Privacy v1.6
         </div>
       </footer>
     </div>

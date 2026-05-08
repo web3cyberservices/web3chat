@@ -1,62 +1,41 @@
 {
   "policy_compliance": {
-    "version": "1.0",
+    "version": "1.1",
+    "bot_category": "Security",
+    "business_purpose": "Automated GDPR compliance auditing and security monitoring to identify missing legal disclosures and encryption vulnerabilities.",
     "traffic_volume": {
       "target": ">1000 requests/day",
-      "strategy": "Multi-domain queue rotation",
-      "status": "Required for Cloudflare Verified Bot status"
+      "strategy": "Multi-domain queue rotation"
     },
     "bot_identification": {
       "user_agent_format": "HumangoBot/1.0 (+https://bot.humango.app)",
-      "min_length_requirement": ">5 characters",
-      "special_chars_policy": "Standard delimiters only (/, ., :, +)",
-      "is_generic_agent": false,
-      "verified_identity": "HumangoBot"
+      "identity": "HumangoBot",
+      "gpc_support": true,
+      "dnt_enabled": true
     },
     "ip_verification": {
       "method": "Static IP & Reverse DNS",
       "static_ips": ["116.203.3.75"],
-      "rdns_suffix": "bot.humango.app",
-      "rdns_status": "PTR records must match domain"
+      "rdns_suffix": "bot.humango.app"
     },
     "consent_protocols": {
       "robots_txt": "Strict adherence (RFC 9309)",
-      "crawl_delay": "Mandatory priority (Full support)",
-      "retry_after": "Supported (Respects server load)",
-      "implicit_consent": "Limited to public technical headers assessment"
+      "crawl_delay": "Full support",
+      "retry_after": "Full support",
+      "legal_basis": "Legitimate Interest (Art. 6(1)(f) GDPR)"
     },
-    "cookies_tracking": {
-      "no_cookie_storage": "Stateless scanning. No Set-Cookie headers are persisted or shared between sessions.",
-      "no_fingerprinting": "Zero execution of fingerprinting or tracking scripts.",
-      "session_policy": "Clean slate for every page request."
+    "privacy_standards": {
+      "stateless": true,
+      "no_fingerprinting": true,
+      "pii_redaction": true,
+      "dnt_header": "DNT: 1 (Sent with every request)",
+      "retention": "365 days"
     },
-    "security_audit": {
-      "tls_inspection": "Encryption audit only (TLS version, certificate validity). No interception of encrypted payloads.",
-      "vulnerability_scan": "Limited to publicly visible headers and HTML indicators."
-    },
-    "data_processing": {
-      "retention_period": "365 days (for legal evidence)",
-      "pii_policy": "Automatic masking/exclusion. Zero storage of emails, phones, or form data.",
-      "minimization": "Collection limited to technical metadata and compliance markers.",
-      "legal_basis": "Legitimate Interest (Art. 6(1)(f) GDPR) for cybersecurity and legal compliance monitoring."
-    },
-    "service_mission": {
-      "category": "Harmless / Beneficial",
-      "purpose": "Security Auditing & GDPR Compliance Monitoring",
-      "prohibited_actions": [
-        "No scalping",
-        "No directory traversal",
-        "No aggressive data harvesting",
-        "No DDoS simulation",
-        "No bypass of security controls"
-      ]
-    },
-    "public_docs": {
-      "portal": "https://bot.humango.app",
-      "bot_policy": "https://bot.humango.app/legal/bot-policy",
-      "privacy_policy": "https://bot.humango.app/legal/privacy",
-      "rfc_compliance": "https://bot.humango.app/legal/rfc9309",
-      "abuse_contact": "abuse@humango.app"
+    "company_info": {
+      "name": "Humango Limited",
+      "address": "182-184 High Street North, London, England, E6 2JA",
+      "registration": "16750477",
+      "dpo_contact": "abuse@humango.app"
     }
   }
 }
