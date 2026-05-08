@@ -42,7 +42,10 @@ import {
   Bug,
   Activity,
   Clock,
-  ExternalLink
+  ExternalLink,
+  FileText,
+  Globe,
+  Scale
 } from "lucide-react";
 
 interface DetectedIssue {
@@ -76,6 +79,7 @@ export default function AdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [lastSync, setLastSync] = useState<string>("");
+  const [isExporting, setIsExporting] = useState<string | null>(null);
   const { toast } = useToast();
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -216,6 +220,28 @@ export default function AdminDashboard() {
       toast({ title: "Успешно", description: "CSV отчет скачан." });
     } catch (error) {
       toast({ variant: "destructive", title: "Ошибка", description: "Не удалось скачать CSV." });
+    }
+  };
+
+  const handleDownloadPDF = async (domain: string) => {
+    setIsExporting(domain);
+    try {
+      const res = await fetch(`/api/admin/report-pdf?domain=${encodeURIComponent(domain)}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to download PDF');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Humango_Audit_${domain}_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: "Отчет готов", description: `PDF файл для ${domain} скачан.` });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Ошибка PDF", description: "Не удалось сформировать PDF отчет." });
+    } finally {
+      setIsExporting(null);
     }
   };
 
@@ -455,7 +481,7 @@ export default function AdminDashboard() {
                             <div className="bg-primary/10 p-2 rounded-lg">
                               <Globe className="w-5 h-5 text-primary" />
                             </div>
-                            <div>
+                            <div className="flex-1">
                               <span className="font-bold text-base text-white">{domain}</span>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <Badge variant="secondary" className="bg-white/5 text-[9px] border-white/10">
@@ -470,6 +496,18 @@ export default function AdminDashboard() {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pb-6 border-t border-white/5 pt-4">
+                        <div className="flex justify-end mb-4">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 gap-2"
+                            onClick={() => handleDownloadPDF(domain)}
+                            disabled={isExporting === domain}
+                          >
+                            {isExporting === domain ? <Activity className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                            Скачать PDF отчет
+                          </Button>
+                        </div>
                         <div className="space-y-6">
                           {issues.map((issue, idx) => (
                             <div key={issue.id} className="relative pl-6 border-l-2 border-primary/20 hover:border-primary transition-colors py-2">
