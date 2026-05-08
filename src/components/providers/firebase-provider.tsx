@@ -5,7 +5,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, onAuthStateChanged, User } from 'firebase/auth';
 
-// Placeholder config - in production these should be in .env
 const firebaseConfig = {
   apiKey: "placeholder-api-key",
   authDomain: "bot-humango-app.firebaseapp.com",
@@ -36,18 +35,23 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-    const firebaseAuth = getAuth(firebaseApp);
-    
-    setApp(firebaseApp);
-    setAuth(firebaseAuth);
+    try {
+      const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+      const firebaseAuth = getAuth(firebaseApp);
+      
+      setApp(firebaseApp);
+      setAuth(firebaseAuth);
 
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
-      setUser(currentUser);
+      const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
+        setUser(currentUser);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Firebase initialization failed:", error);
       setLoading(false);
-    });
-
-    return () => unsubscribe();
+    }
   }, []);
 
   return (
