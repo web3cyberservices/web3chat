@@ -43,7 +43,7 @@ const nextConfig: NextConfig = {
 
     return [
       {
-        source: '/(.*)',
+        source: '/((?!_next|favicon.ico|logo.png).*)',
         headers: [
           {
             key: 'X-DNS-Prefetch-Control',
