@@ -3,22 +3,24 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   ShieldCheck, 
   Globe, 
-  Terminal, 
   Scale, 
-  Clock, 
   Activity, 
   ShoppingCart, 
   Database, 
   Lock,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Search,
+  CheckCircle2,
+  FileBarChart
 } from "lucide-react";
+import { Button as ShadButton } from "@/components/ui/button";
 
 export default function SFCCLandingPage() {
   return (
@@ -46,11 +48,11 @@ export default function SFCCLandingPage() {
           </div>
           <nav className="flex items-center gap-4">
             <Badge variant="outline" className="hidden sm:flex border-primary/20 bg-primary/5 text-primary text-[10px] font-bold tracking-[0.2em] px-3 py-1 rounded-full uppercase">
-              SFCC Audit Engine
+              Enterprise Compliance
             </Badge>
-            <Button variant="ghost" size="sm" asChild className="text-slate-400 hover:text-white">
+            <ShadButton variant="ghost" size="sm" asChild className="text-slate-400 hover:text-white">
               <Link href="https://humango.app" className="text-xs font-bold uppercase tracking-wider">Global Portal</Link>
-            </Button>
+            </ShadButton>
           </nav>
         </div>
       </header>
@@ -60,30 +62,30 @@ export default function SFCCLandingPage() {
           <div className="lg:col-span-7 space-y-8">
             <div className="space-y-6">
               <Badge variant="outline" className="py-1 px-3 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-[0.2em]">
-                Enterprise E-Commerce Audit
+                Automated Retail Audit
               </Badge>
               <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight text-white">
-                Salesforce <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-primary">Commerce Cloud</span> <br />Compliance
+                Salesforce <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-primary">Commerce Cloud</span> <br />Monitoring
               </h1>
               <p className="text-xl text-slate-400 max-w-xl leading-relaxed">
-                Specialized HumangoBot module for <span className="text-white font-medium">SFCC Storefronts</span>. Automated monitoring of third-party pixels, security headers, and GDPR posture for global retail.
+                Humango provides automated infrastructure auditing for <span className="text-white font-medium">SFCC Stores</span>. We ensure global retailers stay compliant, secure, and performant by monitoring third-party risks in real-time.
               </p>
               <div className="flex flex-wrap gap-4 pt-4">
-                <Button className="bg-primary hover:bg-primary/90 text-white font-bold h-14 px-10 rounded-2xl shadow-2xl shadow-primary/20" asChild>
-                  <a href="mailto:abuse@humango.app">Request Audit Data <ArrowRight className="ml-2 w-4 h-4" /></a>
-                </Button>
-                <Button variant="outline" className="border-white/10 hover:bg-white/5 h-14 px-10 rounded-2xl backdrop-blur-md" asChild>
-                  <Link href="/legal/bot-policy">Bot Policy</Link>
-                </Button>
+                <ShadButton className="bg-primary hover:bg-primary/90 text-white font-bold h-14 px-10 rounded-2xl shadow-2xl shadow-primary/20" asChild>
+                  <a href="mailto:abuse@humango.app">Partner with Us <ArrowRight className="ml-2 w-4 h-4" /></a>
+                </ShadButton>
+                <ShadButton variant="outline" className="border-white/10 hover:bg-white/5 h-14 px-10 rounded-2xl backdrop-blur-md" asChild>
+                  <Link href="/legal/bot-policy">Transparency Policy</Link>
+                </ShadButton>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {[
-                { icon: ShoppingCart, title: "Storefront Integrity", desc: "Detection of unauthorized script injections and pixel tracking on SFCC checkout flows." },
-                { icon: Database, title: "Data Minimization", desc: "Stateless crawling that respects PII boundaries. No transactional data is ever stored." },
-                { icon: Lock, title: "Security Hardening", desc: "Audit of CSP headers, HSTS, and TLS 1.3 standards across SFCC production instances." },
-                { icon: Zap, title: "High-Scale Efficiency", desc: "Polite indexing of large-scale product catalogs without impacting storefront performance." },
+                { icon: ShoppingCart, title: "Pixel Monitoring", desc: "Automated tracking of marketing pixels and third-party script behavior to prevent data leaks." },
+                { icon: ShieldCheck, title: "Compliance Guard", desc: "Real-time auditing of GDPR, CCPA, and regional e-commerce regulations across your entire fleet." },
+                { icon: Lock, title: "Security Hardening", desc: "Constant verification of CSP, HSTS, and encryption standards on production storefronts." },
+                { icon: Zap, title: "UX Integrity", desc: "Identifying technical glitches in checkout flows and product catalog accessibility." },
               ].map((item, i) => (
                 <Card key={i} className="bg-white/[0.02] border-white/5 p-8 hover:bg-white/[0.04] transition-all border-l-primary/30 border-l-2 shadow-2xl group">
                   <div className="bg-primary/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -100,58 +102,53 @@ export default function SFCCLandingPage() {
             <Card className="bg-white/[0.03] border-white/10 backdrop-blur-xl shadow-2xl overflow-hidden border-t-primary/20">
               <CardHeader className="bg-white/[0.02] border-b border-white/5">
                 <CardTitle className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Terminal className="w-4 h-4 text-primary" /> SFCC Auditor Identity
+                  <Search className="w-4 h-4 text-primary" /> Our Enterprise Mission
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
-                <div className="space-y-3">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Bot User-Agent</label>
-                  <div className="p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-[11px] text-slate-300 break-all leading-relaxed">
-                    HumangoBot/1.0 (+https://humango.app)
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Network Origin</label>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 font-mono text-xs text-slate-200">
-                        <Globe className="w-3.5 h-3.5 text-primary" />
-                        <span>116.203.3.75</span>
-                      </div>
-                      <Badge className="bg-primary/10 text-primary border-primary/20 text-[8px] px-2 h-4">Static</Badge>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Reverse DNS (PTR)</label>
-                    <div className="flex items-center gap-2 font-mono text-xs text-slate-200">
-                      <Activity className="w-3.5 h-3.5 text-primary" />
-                      <span>bot.humango.app</span>
-                    </div>
-                  </div>
+                <div className="space-y-4">
+                   <div className="flex items-start gap-4">
+                     <div className="mt-1 bg-emerald-500/20 p-1 rounded-full"><CheckCircle2 className="w-3 h-3 text-emerald-500" /></div>
+                     <p className="text-xs text-slate-400 leading-relaxed">
+                       <strong className="text-slate-200">Continuous Monitoring:</strong> We act as an external auditor, ensuring that changes in your SFCC Business Manager don't compromise security.
+                     </p>
+                   </div>
+                   <div className="flex items-start gap-4">
+                     <div className="mt-1 bg-emerald-500/20 p-1 rounded-full"><CheckCircle2 className="w-3 h-3 text-emerald-500" /></div>
+                     <p className="text-xs text-slate-400 leading-relaxed">
+                       <strong className="text-slate-200">Stateless Auditing:</strong> Our system performs audits without storing sensitive customer data, maintaining 100% privacy.
+                     </p>
+                   </div>
+                   <div className="flex items-start gap-4">
+                     <div className="mt-1 bg-emerald-500/20 p-1 rounded-full"><CheckCircle2 className="w-3 h-3 text-emerald-500" /></div>
+                     <p className="text-xs text-slate-400 leading-relaxed">
+                       <strong className="text-slate-200">Global Verification:</strong> We provide transparency for CDNs and security teams to verify our audit traffic.
+                     </p>
+                   </div>
                 </div>
 
-                <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/20 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                    <span className="text-[10px] font-bold uppercase text-indigo-200">SFCC Best Practices</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 leading-relaxed italic">
-                    Our scanner is tuned to bypass common SFCC cache variations while respecting the storefront's CDN rate limits and robots.txt.
-                  </p>
+                <div className="pt-6 border-t border-white/5">
+                   <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/20 flex items-center gap-4">
+                     <FileBarChart className="w-8 h-8 text-indigo-400 shrink-0" />
+                     <div>
+                       <p className="text-[10px] font-bold uppercase text-indigo-200">Retail Integrity Report</p>
+                       <p className="text-[10px] text-slate-500 leading-relaxed italic">
+                         We generate technical evidence of compliance to help retailers avoid regulatory fines and security breaches.
+                       </p>
+                     </div>
+                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <div className="p-8 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-3xl border border-primary/30 shadow-2xl">
-              <h3 className="text-xl font-bold text-white mb-3">Compliance Report</h3>
+              <h3 className="text-xl font-bold text-white mb-3">Auditing Expertise</h3>
               <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-                Automated vulnerability reports for SFCC merchants are available upon verification of domain ownership.
+                We specialize in Salesforce Commerce Cloud, providing unmatched insights into third-party risks and platform-specific vulnerabilities.
               </p>
-              <Button className="w-full bg-primary font-bold h-12 rounded-xl shadow-lg shadow-primary/30 text-white" asChild>
-                <a href="mailto:abuse@humango.app">Contact Compliance DPO</a>
-              </Button>
+              <ShadButton className="w-full bg-primary font-bold h-12 rounded-xl shadow-lg shadow-primary/30 text-white" asChild>
+                <a href="mailto:abuse@humango.app">Contact Our Experts</a>
+              </ShadButton>
             </div>
           </div>
         </div>
@@ -161,7 +158,7 @@ export default function SFCCLandingPage() {
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] text-slate-500 uppercase tracking-[0.25em] font-bold">
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-5 h-5 text-primary opacity-80" />
-            <span>Humango SFCC Compliance • Protocol v1.2</span>
+            <span>Humango Enterprise • Compliance Solutions</span>
           </div>
           <div className="flex gap-10">
             <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy</Link>
