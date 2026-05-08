@@ -96,6 +96,7 @@ export default function AdminDashboard() {
     setIsRefreshing(true);
     try {
       const timestamp = Date.now();
+      // Добавляем timestamp для обхода кэша на всех уровнях
       const [statusRes, statsRes, logsRes] = await Promise.all([
         fetch(`/api/admin/control?t=${timestamp}`, { cache: 'no-store' }),
         fetch(`/api/admin/stats?t=${timestamp}`, { cache: 'no-store' }),
@@ -138,6 +139,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
+      // Поллинг каждые 4 секунды для актуальности данных
       pollingRef.current = setInterval(fetchData, 4000);
     }
     return () => {
@@ -146,13 +148,16 @@ export default function AdminDashboard() {
   }, [isAuthenticated, fetchData]);
 
   useEffect(() => {
-    // Скроллим ТОЛЬКО если это не первая загрузка и пришли новые данные
+    // Скроллим к новым логам только ЕСЛИ это не первая загрузка и пришли новые данные
     if (!isFirstLoad.current && systemLogs.length > prevLogLength.current) {
       logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
     
-    if (systemLogs.length > 0) {
+    // После того как логи загрузились в первый раз, помечаем загрузку завершенной
+    if (systemLogs.length > 0 && isFirstLoad.current) {
       isFirstLoad.current = false;
+      prevLogLength.current = systemLogs.length;
+    } else if (systemLogs.length > prevLogLength.current) {
       prevLogLength.current = systemLogs.length;
     }
   }, [systemLogs]);

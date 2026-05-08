@@ -172,14 +172,15 @@ export async function saveAuditLog(domain: string, statusCode: number, errorMess
 
 export async function getStats() {
   try {
-    // Directly count from tables without any intermediate cache tables
+    // Выполняем прямые запросы к таблицам для получения актуальных данных
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
+    const recentIssues = await getViolations(10);
     
     return {
       pagesScanned: Number(pagesRes.rows[0]?.count) || 0,
       issuesFound: Number(issuesRes.rows[0]?.total) || 0,
-      recentIssues: await getViolations(10)
+      recentIssues: recentIssues
     };
   } catch (error) {
     console.error('[DB Stats Error]', error);
