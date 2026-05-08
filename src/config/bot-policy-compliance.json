@@ -1,6 +1,6 @@
-
 {
   "policy_compliance": {
+    "version": "1.0",
     "traffic_volume": {
       "target": ">1000 requests/day",
       "strategy": "Multi-domain queue rotation",
