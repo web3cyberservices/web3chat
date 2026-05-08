@@ -39,8 +39,7 @@ const nextConfig: NextConfig = {
       object-src 'none';
       base-uri 'self';
       form-action 'self';
-      frame-ancestors 'none';
-      upgrade-insecure-requests;
+      frame-ancestors 'self' *;
     `.replace(/\s{2,}/g, ' ').trim();
 
     return [
@@ -61,7 +60,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'SAMEORIGIN',
           },
           {
             key: 'Referrer-Policy',
@@ -70,10 +69,6 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             value: cspHeader,
-          },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
           },
         ],
       },
