@@ -3,25 +3,15 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * Middleware для управления поддоменами и защиты API.
- * Поддерживает:
- * 1. bot.humango.app (основной домен)
- * 2. sfcc.humango.app (лендинг для e-commerce)
+ * Middleware для управления путями и защиты API.
  */
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
-  const hostname = request.headers.get('host') || '';
+  
+  // В Cloud Workstations поддомены через заголовки host могут работать нестабильно в dev-режиме.
+  // Мы оставляем логику защиты API, но упрощаем логику поддоменов для предпросмотра.
 
-  // 1. Обработка поддомена SFCC
-  // Если заходим через sfcc.humango.app, показываем страницу /sfcc как главную
-  if (hostname.startsWith('sfcc.')) {
-    // Если пользователь на корневом пути, перенаправляем на /sfcc
-    if (url.pathname === '/') {
-      return NextResponse.rewrite(new URL('/sfcc', request.url));
-    }
-  }
-
-  // 2. Защита API админки (только для основного домена)
+  // 1. Защита API админки
   if (url.pathname.startsWith('/api/admin')) {
     const isAdmin = request.cookies.get('admin_authenticated')?.value === 'true';
     
@@ -43,8 +33,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public (public files like logo.png)
+     * - public (public files)
      */
-    '/((?!_next/static|_next/image|favicon.ico|logo.png|bot-policy.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|logo.png|audit-scope.txt|bot-policy.txt).*)',
   ],
 };
