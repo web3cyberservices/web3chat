@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { 
   Accordion,
@@ -142,7 +143,14 @@ export default function AdminDashboard() {
     setIsHistoryLoading(true);
     try {
       const timestamp = Date.now();
-      const res = await fetch(`/api/admin/violations?t=${timestamp}`, { cache: 'no-store' });
+      // Force no-cache with timestamp and header params
+      const res = await fetch(`/api/admin/violations?t=${timestamp}`, { 
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         setAllViolations(data.violations || []);
@@ -420,6 +428,9 @@ export default function AdminDashboard() {
               </div>
               {isHistoryLoading && <Activity className="w-4 h-4 animate-spin text-primary" />}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Подробный список всех обнаруженных технических нарушений и правовых рисков.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
              {allViolations.length === 0 ? (
