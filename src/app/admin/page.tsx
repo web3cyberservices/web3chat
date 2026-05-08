@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,8 @@ import {
   Download,
   Bug,
   Activity,
-  Clock
+  Clock,
+  ExternalLink
 } from "lucide-react";
 
 interface DetectedIssue {
@@ -167,12 +168,10 @@ export default function AdminDashboard() {
   }, [isAuthenticated, fetchData]);
 
   useEffect(() => {
-    // Скроллим только если это не первая загрузка И количество логов увеличилось
     if (!isFirstLoad.current && systemLogs.length > prevLogLength.current) {
       logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
     
-    // Инициализируем prevLogLength и снимаем флаг первой загрузки
     if (systemLogs.length > 0) {
       if (isFirstLoad.current) {
         isFirstLoad.current = false;
@@ -235,6 +234,17 @@ export default function AdminDashboard() {
     setIsAuthenticated(false);
     document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   };
+
+  const groupedViolations = useMemo(() => {
+    const groups: Record<string, DetectedIssue[]> = {};
+    allViolations.forEach(issue => {
+      if (!groups[issue.domain]) {
+        groups[issue.domain] = [];
+      }
+      groups[issue.domain].push(issue);
+    });
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  }, [allViolations]);
 
   if (isAuthenticated === null) return null;
 
@@ -421,65 +431,83 @@ export default function AdminDashboard() {
           <DialogHeader className="p-6 border-b border-white/5">
             <DialogTitle className="flex items-center justify-between text-xl font-bold">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="text-amber-500" /> История всех нарушений
+                <AlertTriangle className="text-amber-500" /> История нарушений (по доменам)
               </div>
               {isHistoryLoading && <Activity className="w-4 h-4 animate-spin text-primary" />}
             </DialogTitle>
             <DialogDescription>
-              Подробный список всех обнаруженных технических нарушений и правовых рисков с разбивкой по законам и штрафам.
+              Все обнаруженные технические нарушения, сгруппированные по доменам. Раскройте домен для просмотра подробностей по каждой странице и рисков штрафов.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
-             {allViolations.length === 0 ? (
+             {groupedViolations.length === 0 ? (
                <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-2">
                  <ShieldCheck className="w-12 h-12 opacity-20" />
                  <p className="text-sm italic">Список пуст или загружается...</p>
                </div>
              ) : (
-               <Accordion type="single" collapsible className="w-full space-y-2">
-                  {allViolations.map((issue) => (
-                    <AccordionItem key={issue.id} value={String(issue.id)} className="border border-white/5 bg-white/[0.02] rounded-lg px-4 hover:border-white/10 transition-all">
-                      <AccordionTrigger className="hover:no-underline">
-                        <div className="flex flex-1 items-center justify-between text-left pr-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm">{issue.domain}</span>
-                              <Badge className={issue.level === 'critical' ? 'bg-rose-500' : 'bg-amber-500'}>{issue.level}</Badge>
+               <Accordion type="single" collapsible className="w-full space-y-3">
+                  {groupedViolations.map(([domain, issues]) => (
+                    <AccordionItem key={domain} value={domain} className="border border-white/5 bg-white/[0.02] rounded-xl px-4 hover:border-white/10 transition-all overflow-hidden shadow-lg">
+                      <AccordionTrigger className="hover:no-underline py-5">
+                        <div className="flex flex-1 items-center justify-between text-left pr-6">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-primary/10 p-2 rounded-lg">
+                              <Globe className="w-5 h-5 text-primary" />
                             </div>
-                            <p className="text-[10px] text-slate-500">{issue.type}</p>
-                          </div>
-                          <div className="text-right space-y-1">
-                             <span className="text-[10px] text-slate-500 block">{new Date(issue.date).toLocaleString()}</span>
-                             <span className="text-xs text-primary font-bold">{issue.fine_amount}</span>
+                            <div>
+                              <span className="font-bold text-base text-white">{domain}</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <Badge variant="secondary" className="bg-white/5 text-[9px] border-white/10">
+                                  {issues.length} инцидентов
+                                </Badge>
+                                {issues.some(i => i.level === 'critical') && (
+                                  <Badge className="bg-rose-500/20 text-rose-500 border-rose-500/20 text-[9px]">Critical Risk</Badge>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className="pb-4">
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                             <div className="p-2 bg-white/5 rounded border border-white/5">
-                                <span className="text-[8px] text-slate-500 uppercase font-bold block">Применимый закон</span>
-                                <span className="text-xs text-slate-200">{issue.law_name || 'EU GDPR'}</span>
-                             </div>
-                             <div className="p-2 bg-white/5 rounded border border-white/5">
-                                <span className="text-[8px] text-slate-500 uppercase font-bold block">Риск штрафа</span>
-                                <span className="text-xs text-rose-400 font-bold">{issue.fine_amount}</span>
-                             </div>
-                          </div>
-                          <div className="p-3 bg-primary/5 rounded border border-primary/10 text-xs text-slate-300 leading-relaxed">
-                            <p className="font-bold text-primary mb-1 uppercase tracking-tighter">Правовое обоснование:</p>
-                            {issue.description}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div className="p-3 bg-black/40 rounded border border-white/5 text-[10px] font-mono text-emerald-400 overflow-x-auto">
-                                <p className="text-slate-500 mb-1 uppercase tracking-tighter">URL страницы:</p>
-                                <a href={issue.url} target="_blank" rel="noreferrer" className="hover:underline break-all">{issue.url}</a>
-                             </div>
-                             <div className="p-3 bg-black/40 rounded border border-white/5 text-[10px] font-mono text-amber-400 overflow-x-auto">
-                                <p className="text-slate-500 mb-1 uppercase tracking-tighter">Фрагмент кода (Evidence):</p>
-                                <div className="max-h-20 overflow-y-auto">{issue.description || 'Data logged to secure audit trail.'}</div>
-                             </div>
-                          </div>
+                      <AccordionContent className="pb-6 border-t border-white/5 pt-4">
+                        <div className="space-y-6">
+                          {issues.map((issue, idx) => (
+                            <div key={issue.id} className="relative pl-6 border-l-2 border-primary/20 hover:border-primary transition-colors py-2">
+                              <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-white uppercase tracking-tight">{issue.type}</span>
+                                    <Badge className={issue.level === 'critical' ? 'bg-rose-500 h-4 text-[8px]' : 'bg-amber-500 h-4 text-[8px]'}>{issue.level}</Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
+                                    <Clock className="w-3 h-3" /> {new Date(issue.date).toLocaleString()}
+                                  </div>
+                                </div>
+                                <div className="bg-rose-500/5 border border-rose-500/20 rounded-lg px-3 py-1.5 text-right">
+                                  <span className="text-[8px] text-slate-500 uppercase font-bold block mb-0.5">Риск штрафа</span>
+                                  <span className="text-xs text-rose-400 font-bold">{issue.fine_amount}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="p-3 bg-white/5 rounded-lg border border-white/5">
+                                  <p className="text-[9px] text-primary font-bold mb-2 uppercase tracking-widest flex items-center gap-1.5">
+                                    <Scale className="w-3 h-3" /> Обоснование ({issue.law_name}):
+                                  </p>
+                                  <p className="text-xs text-slate-300 leading-relaxed">{issue.description}</p>
+                                </div>
+                                <div className="space-y-3">
+                                  <div className="p-3 bg-black/40 rounded-lg border border-white/5 font-mono">
+                                    <p className="text-[9px] text-slate-500 mb-2 uppercase font-bold">URL СТРАНИЦЫ:</p>
+                                    <a href={issue.url} target="_blank" rel="noreferrer" className="text-[10px] text-emerald-400 hover:underline break-all flex items-center gap-1.5">
+                                      {issue.url} <ExternalLink className="w-3 h-3 shrink-0" />
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                              {idx < issues.length - 1 && <div className="h-px bg-white/5 w-full mt-6" />}
+                            </div>
+                          ))}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
