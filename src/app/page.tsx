@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -6,7 +5,7 @@ import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Globe, Terminal, Scale, Clock, ShieldCheck, FileText, Lock, Activity, ShoppingCart, ArrowRight, Info } from "lucide-react";
+import { Mail, Globe, Terminal, Scale, Clock, ShieldCheck, FileText, Lock, Activity, ShoppingCart, ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (
@@ -167,9 +166,6 @@ export default function Home() {
             <span>Humango Compliance • Audit Protocol v2.5</span>
           </div>
           <div className="flex gap-8 items-center">
-            <Link href="/legal/impressum" className="hover:text-white transition-colors flex items-center gap-1">
-              <Info className="w-3 h-3" /> Impressum
-            </Link>
             <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Statement</Link>
             <Link href="/legal/rfc9309" className="hover:text-white transition-colors">RFC 9309 Compliance</Link>
           </div>
