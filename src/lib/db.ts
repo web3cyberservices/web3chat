@@ -1,3 +1,4 @@
+
 import 'dotenv/config';
 import { Pool } from 'pg';
 import DOMPurify from 'isomorphic-dompurify';
@@ -45,9 +46,10 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     const query = `
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
-        evidence_html, snippet, fine_amount, explanation, law_name, recommendation, scan_type, created_at, potential_fine
+        evidence_html, snippet, fine_amount, explanation, law_name, recommendation, 
+        scan_type, report_type, created_at, potential_fine
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15)
     `;
 
     for (const v of violations) {
@@ -65,10 +67,11 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.law_name,
         sanitize(v.recommendation),
         scanType,
+        v.report_type,
         v.potential_fine
       ]);
       
-      await saveBotEvent('SUCCESS', `[ИНЦИДЕНТ] ${domain} | ${v.issue_type} | ${v.severity.toUpperCase()} | Риск: ${v.potential_fine}`);
+      await saveBotEvent('SUCCESS', `[ИНЦИДЕНТ ${v.report_type}] ${domain} | ${v.issue_type} | Риск: ${v.potential_fine}`);
     }
     
     await client.query('COMMIT');
@@ -203,7 +206,8 @@ export async function getViolations(limit = 100) {
         fine_amount,
         law_name,
         page_url as url,
-        evidence_html
+        evidence_html,
+        report_type
       FROM site_violations 
       ORDER BY created_at DESC
       LIMIT $1

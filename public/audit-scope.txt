@@ -1,37 +1,52 @@
 
-HUMANGO BOT AUDIT SCOPE v1.2
-============================
+============================================================
+HUMANGO BOT | OFFICIAL AUDIT SCOPE & TECHNICAL MANIFESTO
+Version: 2.7 (May 2026)
+Compliance: GDPR Art. 5/12/13/14, RFC 9309, BITV 2.0
+============================================================
 
-HumangoBot performes a comprehensive semantic and technical audit of web resources.
-The following checks are active as of 2025:
+HumangoBot operates as a stateless security crawler designed to provide high-fidelity auditing for modern web infrastructure. Our discovery logic and content analysis are split into two primary reporting modules:
 
-1. CONTENT DISCOVERY
-- Deep crawl of all accessible internal links.
-- Identification of legal sections: Privacy, Cookies, Terms, Impressum, Contact.
-- Multi-language keyword matching (EN, DE, FR, IT, ES, PL).
+I. SaaS-COMPLIANCE MODULE (Automated fixes available)
+------------------------------------------------------------
+1. DOCUMENT DISCOVERY
+   - Full site traversal beyond common paths.
+   - Multilingual keyword analysis (privacy, cookies, terms, legal, impressum, conditions, ecc.)
+   - Status: Marks "Violation: Document missing" if mandatory EU legal files are not found.
 
-2. LEGAL DOCUMENT ANALYSIS
-- Completeness Audit: Verification of mandatory GDPR clauses (Art. 13/14).
-- Data Categories: Identification of IP, Cookies, PII collection disclosures.
-- User Rights: Verification of mentions regarding Erasure (Art. 17), Portability (Art. 20), Access (Art. 15).
-- Retention Periods: Detection of data storage and deletion schedules.
-- Recency Check: Identification of "Last Updated" dates; flagging documents older than 12 months.
+2. CONTENT SEMANTICS (GDPR ART. 13/14)
+   - Mandatory Clauses: Verification of Data Categories, Processing Purposes, Retention Periods, Controller Contacts, and User Rights (Art. 15-22).
+   - Recency Audit: Detection of document update dates. Documents older than 12 months are flagged as "Outdated".
+   - Regulatory Mentions: Verification of local law citations (GDPR, UK GDPR, LOPDGDD, TMG).
 
-3. LANGUAGE & TRANSPARENCY
-- Local Language Matching: Ensuring legal documents are available in the website's primary interface language.
-- Semantic Clarity: Identification of vague or non-compliant processing purposes.
+3. LINGUISTIC TRANSPARENCY
+   - Site Language vs. Document Language matching.
+   - Flags "Violation: No local language" if policies do not match the interface language (e.g., FR site with EN policy).
 
-4. TECHNICAL COMPLIANCE
-- HTTPS Enforcement: Verification of SSL/TLS encryption for all pages.
-- Status Monitoring: Ensuring all legal documents return 200 OK.
-- Link Integrity: Automated detection of broken internal links within legal texts.
-- Cookie Consent: Detection of Consent Management Platforms (CMP) and tracking scripts.
+II. TECHNICAL/MANUAL AUDIT MODULE (Direct implementation required)
+------------------------------------------------------------
+1. INFRASTRUCTURE SECURITY
+   - SSL/TLS: Verification of HTTPS encryption on all pages.
+   - Response Integrity: Monitoring 200 OK availability for all legal resources.
+   - Header Audit: HSTS, CSP, and X-Frame-Options verification.
 
-5. SECURITY HEADERS
-- Verification of CSP (Content Security Policy).
-- HSTS (HTTP Strict Transport Security) header presence.
-- X-Frame-Options (Clickjacking protection).
+2. LINK INTEGRITY
+   - Recursive scan of links inside legal documents to identify 404 (Broken Link) errors.
 
-Operator: Humango Limited (London)
-Policy: https://humango.app/legal/bot-policy
-Contact: abuse@humango.app
+3. DYNAMIC PRIVACY (Deep Scan Mode)
+   - Detection of tracking cookies and pixels set before user consent.
+   - Analysis of CMP (Consent Management Platform) existence and behavior.
+
+4. ACCESSIBILITY & IMAGES (Manual Report)
+   - Alt-Tag Violations: Flagged in the "Direct/Manual" report as they require per-image correction.
+   - Broken Media: Identification of 404 image resources.
+
+III. BOT POLICIES (RFC 9309)
+------------------------------------------------------------
+- Identity: HumangoBot/1.0 (+https://humango.app)
+- Politeness: Strict robots.txt adherence, 5s default delay, exponential backoff.
+- Privacy: Sends DNT: 1 and GPC: 1 headers with every request.
+- Stateless: No session storage, no cookies retained, no fingerprinting.
+
+Contact for Opt-Out: abuse@humango.app
+============================================================

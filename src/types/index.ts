@@ -2,6 +2,7 @@
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
 export type Category = 'ADA' | 'GDPR' | 'Privacy' | 'Security' | 'AI' | 'Transactional' | 'HR_Edu' | 'Legal_Content';
 export type ScanType = 'basic' | 'deep';
+export type ReportType = 'SaaS' | 'Manual';
 
 export interface Violation {
   category: Category;
@@ -15,6 +16,7 @@ export interface Violation {
   potential_fine: string;  
   recommendation?: string;
   scan_type?: ScanType;
+  report_type: ReportType;
   metadata?: any;
 }
 

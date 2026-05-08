@@ -46,7 +46,8 @@ import {
   FileText,
   Globe,
   Scale,
-  Camera
+  Camera,
+  Layers
 } from "lucide-react";
 
 interface DetectedIssue {
@@ -60,6 +61,7 @@ interface DetectedIssue {
   law_name?: string;
   url?: string;
   evidence_html?: string;
+  report_type: 'SaaS' | 'Manual';
 }
 
 interface SystemLog {
@@ -86,9 +88,6 @@ export default function AdminDashboard() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   
-  const isFirstLoad = useRef(true);
-  const prevLogLength = useRef(0);
-  
   const [metrics, setMetrics] = useState({
     pagesScanned: 0,
     issuesFound: 0,
@@ -100,10 +99,7 @@ export default function AdminDashboard() {
   }, []);
 
   const fetchData = useCallback(async () => {
-    if (!document.cookie.includes('admin_authenticated=true')) {
-      return;
-    }
-
+    if (!document.cookie.includes('admin_authenticated=true')) return;
     setIsRefreshing(true);
     try {
       const timestamp = Date.now();
@@ -112,163 +108,55 @@ export default function AdminDashboard() {
         fetch(`/api/admin/stats?t=${timestamp}`, { cache: 'no-store' }),
         fetch(`/api/admin/system-logs?t=${timestamp}`, { cache: 'no-store' })
       ]);
-
-      if (statusRes.status === 401) {
-        setIsAuthenticated(false);
-        return;
-      }
-
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setIsActive(statusData.isActive);
-      }
-
+      if (statusRes.ok) setIsActive((await statusRes.json()).isActive);
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setMetrics({
-          pagesScanned: Number(statsData.pagesScanned) || 0,
-          issuesFound: Number(statsData.issuesFound) || 0
-        });
+        setMetrics({ pagesScanned: statsData.pagesScanned || 0, issuesFound: statsData.issuesFound || 0 });
         setRecentIssues(statsData.recentIssues || []);
         setLastSync(new Date().toLocaleTimeString());
       }
-
-      if (logsRes.ok) {
-        const logsData = await logsRes.json();
-        setSystemLogs(logsData.logs || []);
-      }
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('[Admin] Fetch error:', error);
+      if (logsRes.ok) setSystemLogs((await logsRes.json()).logs || []);
     } finally {
       setIsRefreshing(false);
+      setIsLoading(false);
     }
   }, []);
-
-  const fetchFullHistory = async () => {
-    setIsHistoryLoading(true);
-    try {
-      const timestamp = Date.now();
-      const res = await fetch(`/api/admin/violations?t=${timestamp}`, { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        setAllViolations(data.violations || []);
-      }
-    } catch (error) {
-      console.error('[Admin] History fetch error:', error);
-    } finally {
-      setIsHistoryLoading(false);
-      setShowIssuesDialog(true);
-    }
-  };
 
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
       pollingRef.current = setInterval(fetchData, 4000);
     }
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [isAuthenticated, fetchData]);
 
-  useEffect(() => {
-    if (!isFirstLoad.current && systemLogs.length > prevLogLength.current) {
-      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const fetchFullHistory = async () => {
+    setIsHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/admin/violations?t=${Date.now()}`, { cache: 'no-store' });
+      if (res.ok) setAllViolations((await res.json()).violations || []);
+    } finally {
+      setIsHistoryLoading(false);
+      setShowIssuesDialog(true);
     }
-    
-    if (systemLogs.length > 0) {
-      if (isFirstLoad.current) {
-        isFirstLoad.current = false;
-        prevLogLength.current = systemLogs.length;
-      } else if (systemLogs.length > prevLogLength.current) {
-        prevLogLength.current = systemLogs.length;
-      }
-    }
-  }, [systemLogs]);
+  };
 
   const handleToggleBot = async (checked: boolean) => {
-    try {
-      const res = await fetch('/api/admin/control', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: checked }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setIsActive(checked);
-        toast({ title: checked ? "Сканирование запущено" : "Сканирование приостановлено" });
-        fetchData();
-      }
-    } catch (error) {
-      toast({ variant: "destructive", title: "Ошибка", description: "Не удалось изменить статус." });
+    const res = await fetch('/api/admin/control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: checked }),
+    });
+    if (res.ok) {
+      setIsActive(checked);
+      toast({ title: checked ? "Сканирование запущено" : "Сканирование приостановлено" });
     }
-  };
-
-  const handleDownloadCSV = async () => {
-    try {
-      const res = await fetch('/api/admin/export', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Failed to download');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `audit_report_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast({ title: "Успешно", description: "CSV отчет скачан." });
-    } catch (error) {
-      toast({ variant: "destructive", title: "Ошибка", description: "Не удалось скачать CSV." });
-    }
-  };
-
-  const handleDownloadPDF = async (domain: string) => {
-    setIsExporting(domain);
-    try {
-      const res = await fetch(`/api/admin/report-pdf?domain=${encodeURIComponent(domain)}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error('Failed to download PDF');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `Humango_Audit_${domain}_${new Date().toISOString().split('T')[0]}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast({ title: "Отчет готов", description: `PDF файл для ${domain} скачан.` });
-    } catch (error) {
-      toast({ variant: "destructive", title: "Ошибка PDF", description: "Не удалось сформировать PDF отчет." });
-    } finally {
-      setIsExporting(null);
-    }
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passphrase === "humango-admin-2025") {
-      document.cookie = "admin_authenticated=true; path=/; max-age=3600; SameSite=Lax";
-      setIsAuthenticated(true);
-      toast({ title: "Доступ разрешен" });
-    } else {
-      toast({ variant: "destructive", title: "Неверный пароль" });
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   };
 
   const groupedViolations = useMemo(() => {
     const groups: Record<string, DetectedIssue[]> = {};
     allViolations.forEach(issue => {
-      if (!groups[issue.domain]) {
-        groups[issue.domain] = [];
-      }
+      if (!groups[issue.domain]) groups[issue.domain] = [];
       groups[issue.domain].push(issue);
     });
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
@@ -276,143 +164,99 @@ export default function AdminDashboard() {
 
   if (isAuthenticated === null) return null;
 
-  if (isAuthenticated === false) {
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 font-body">
-        <Card className="w-full max-w-md bg-white/[0.03] border-white/10 backdrop-blur-xl shadow-2xl p-8 space-y-8 text-slate-50">
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6">
+        <Card className="w-full max-w-md bg-white/[0.03] border-white/10 p-8 space-y-8 text-slate-50">
           <div className="flex flex-col items-center text-center space-y-4">
             <Image src="/logo.png" alt="Logo" width={64} height={64} priority />
-            <h1 className="text-2xl font-bold tracking-tight text-white">Вход в Терминал</h1>
+            <h1 className="text-2xl font-bold">Вход в Терминал</h1>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <Input 
-              type="password" 
-              placeholder="Пароль" 
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              className="bg-white/5 border-white/10 h-12 text-center text-white"
-            />
-            <Button type="submit" className="w-full h-12 bg-primary font-bold">Разблокировать</Button>
+          <form onSubmit={(e) => { e.preventDefault(); if (passphrase === "humango-admin-2025") { document.cookie = "admin_authenticated=true; path=/; max-age=3600"; setIsAuthenticated(true); } }} className="space-y-4">
+            <Input type="password" placeholder="Пароль" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} className="bg-white/5 text-center" />
+            <Button type="submit" className="w-full">Разблокировать</Button>
           </form>
-          <div className="text-center">
-            <Link href="/" className="text-xs text-slate-500 hover:text-white transition-colors uppercase font-bold tracking-widest">Вернуться на портал</Link>
-          </div>
         </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-[#020617] text-slate-50 overflow-hidden font-body">
+    <div className="flex h-screen bg-[#020617] text-slate-50 overflow-hidden">
       <aside className="w-64 border-r border-white/5 bg-[#0b1120] hidden md:flex flex-col">
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
           <Image src="/logo.png" alt="Logo" width={32} height={32} />
-          <span className="font-bold text-lg text-white">HumangoBot</span>
+          <span className="font-bold text-lg">HumangoBot</span>
         </div>
         <nav className="flex-1 p-4 space-y-2">
-          <Button variant="secondary" className="w-full justify-start gap-3 bg-primary/10 text-primary border-primary/20">
-            <LayoutDashboard className="w-4 h-4" /> Дашборд
-          </Button>
-          <Button variant="ghost" onClick={fetchFullHistory} className="w-full justify-start gap-3 text-slate-400 hover:text-white">
-            <AlertTriangle className="w-4 h-4" /> Все нарушения
-          </Button>
-          <Button variant="ghost" onClick={handleDownloadCSV} className="w-full justify-start gap-3 text-slate-400 hover:text-white">
-            <Download className="w-4 h-4" /> CSV Отчет
-          </Button>
+          <Button variant="secondary" className="w-full justify-start gap-3 bg-primary/10 text-primary"><LayoutDashboard className="w-4 h-4" /> Дашборд</Button>
+          <Button variant="ghost" onClick={fetchFullHistory} className="w-full justify-start gap-3 text-slate-400"><AlertTriangle className="w-4 h-4" /> Все нарушения</Button>
         </nav>
         <div className="p-4 border-t border-white/5">
-          <Button onClick={handleLogout} variant="ghost" className="w-full justify-start gap-3 text-rose-400 hover:bg-rose-500/10">
-            <LogOut className="w-4 h-4" /> Выйти
-          </Button>
+          <Button onClick={() => { setIsAuthenticated(false); document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"; }} variant="ghost" className="w-full justify-start gap-3 text-rose-400"><LogOut className="w-4 h-4" /> Выйти</Button>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Compliance v2.1</Badge>
+            <Badge variant="outline" className="text-primary border-primary/20">Dual-Report Engine v2.7</Badge>
             <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
               <Zap className={`w-3 h-3 ${isActive ? 'animate-pulse text-emerald-500' : ''}`} /> {isActive ? 'SCANNING' : 'IDLE'}
-              {(isRefreshing || isHistoryLoading) && <Activity className="w-3 h-3 text-primary animate-spin ml-2" />}
-              {lastSync && <span className="ml-2 flex items-center gap-1"><Clock className="w-3 h-3" /> Sync: {lastSync}</span>}
+              {lastSync && <span className="ml-2">Sync: {lastSync}</span>}
             </div>
           </div>
           <div className="flex items-center gap-4 bg-white/5 px-4 py-1.5 rounded-full border border-white/10">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Master Power</span>
-            <Switch 
-              checked={isActive} 
-              onCheckedChange={handleToggleBot} 
-              className="data-[state=checked]:bg-emerald-500" 
-            />
+            <span className="text-[10px] font-bold text-slate-500">MASTER POWER</span>
+            <Switch checked={isActive} onCheckedChange={handleToggleBot} className="data-[state=checked]:bg-emerald-500" />
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-white/[0.03] border-white/10 transition-all duration-300 hover:border-primary/30">
-              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase font-bold">Просканировано</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold transition-all tabular-nums">{metrics.pagesScanned}</div>
-                <p className="text-[10px] text-emerald-400 mt-1 font-bold flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Live Audit Feed</p>
-              </CardContent>
+            <Card className="bg-white/[0.03] border-white/10">
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase">Просканировано</CardTitle></CardHeader>
+              <CardContent><div className="text-3xl font-bold tabular-nums">{metrics.pagesScanned}</div></CardContent>
             </Card>
-            
-            <Card className="bg-white/[0.03] border-white/10 border-amber-500/20 transition-all duration-300 hover:border-amber-500/40">
-              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase font-bold">Нарушения</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-amber-500 tabular-nums">{metrics.issuesFound}</div>
-                <p className="text-[10px] text-slate-400 mt-1 font-bold flex items-center gap-1"><Bug className="w-3 h-3" /> Обнаружено инцидентов</p>
-              </CardContent>
+            <Card className="bg-white/[0.03] border-white/10 border-amber-500/20">
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase">Нарушения</CardTitle></CardHeader>
+              <CardContent><div className="text-3xl font-bold text-amber-500 tabular-nums">{metrics.issuesFound}</div></CardContent>
             </Card>
-
-            <Card className="bg-white/[0.03] border-white/10 transition-all duration-300 hover:border-emerald-500/30">
-              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase font-bold">Система</CardTitle></CardHeader>
-              <CardContent>
-                <div className={`text-3xl font-bold ${isActive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {isActive ? 'ACTIVE' : 'PAUSED'}
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1 font-bold flex items-center gap-1"><Zap className="w-3 h-3" /> Crawler Engine Status</p>
-              </CardContent>
+            <Card className="bg-white/[0.03] border-white/10">
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase">Система</CardTitle></CardHeader>
+              <CardContent><div className={`text-3xl font-bold ${isActive ? 'text-emerald-500' : 'text-rose-500'}`}>{isActive ? 'ACTIVE' : 'PAUSED'}</div></CardContent>
             </Card>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <Card className="bg-white/[0.03] border-white/10 overflow-hidden shadow-2xl">
+            <Card className="bg-white/[0.03] border-white/10">
               <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-4">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" /> Последние инциденты (Live)
-                </CardTitle>
-                <Button size="sm" variant="ghost" className="h-8 text-[10px] font-bold uppercase" onClick={fetchFullHistory}>История</Button>
+                <CardTitle className="text-sm font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /> Последние инциденты</CardTitle>
+                <Button size="sm" variant="ghost" className="h-8 text-[10px]" onClick={fetchFullHistory}>История</Button>
               </CardHeader>
-              <CardContent className="p-0 max-h-[450px] overflow-y-auto scrollbar-hide">
+              <CardContent className="p-0 max-h-[450px] overflow-y-auto">
                 <Table>
                   <TableHeader className="bg-[#0b1120] sticky top-0 z-10">
                     <TableRow className="border-white/5">
-                      <TableHead className="text-[9px] uppercase font-bold">Домен</TableHead>
-                      <TableHead className="text-[9px] uppercase font-bold">Тип</TableHead>
-                      <TableHead className="text-[9px] uppercase font-bold">Уровень</TableHead>
-                      <TableHead className="text-right text-[9px] uppercase font-bold">Время</TableHead>
+                      <TableHead className="text-[9px]">ДОМЕН</TableHead>
+                      <TableHead className="text-[9px]">ТИП ОТЧЕТА</TableHead>
+                      <TableHead className="text-[9px]">УРОВЕНЬ</TableHead>
+                      <TableHead className="text-right text-[9px]">ВРЕМЯ</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentIssues.length === 0 ? (
-                      <TableRow><TableCell colSpan={4} className="text-center py-12 text-slate-500 text-xs italic">Нарушений не обнаружено</TableCell></TableRow>
-                    ) : (
-                      recentIssues.map((issue) => (
-                        <TableRow key={issue.id} className="border-white/5 hover:bg-white/[0.02] transition-colors group animate-in fade-in slide-in-from-left-2">
-                          <TableCell className="text-xs font-medium group-hover:text-primary transition-colors">{issue.domain}</TableCell>
-                          <TableCell className="text-xs text-slate-400 truncate max-w-[150px]">{issue.type}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={`text-[8px] font-bold uppercase ${issue.level === 'critical' ? 'border-rose-500/50 text-rose-500 bg-rose-500/5' : 'border-amber-500/50 text-amber-500 bg-amber-500/5'}`}>
-                              {issue.level}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right text-[9px] font-mono text-slate-500">
-                            {new Date(issue.date).toLocaleTimeString()}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                    {recentIssues.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center py-12 text-slate-500 text-xs">Нет данных</TableCell></TableRow> : recentIssues.map((issue) => (
+                      <TableRow key={issue.id} className="border-white/5 hover:bg-white/[0.02] transition-colors group">
+                        <TableCell className="text-xs font-medium">{issue.domain}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={`text-[8px] ${issue.report_type === 'SaaS' ? 'border-blue-500 text-blue-500 bg-blue-500/5' : 'border-purple-500 text-purple-500 bg-purple-500/5'}`}>
+                            {issue.report_type} Module
+                          </Badge>
+                        </TableCell>
+                        <TableCell><Badge variant="outline" className={`text-[8px] ${issue.level === 'critical' ? 'text-rose-500' : 'text-amber-500'}`}>{issue.level}</Badge></TableCell>
+                        <TableCell className="text-right text-[9px] font-mono text-slate-500">{new Date(issue.date).toLocaleTimeString()}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -420,34 +264,17 @@ export default function AdminDashboard() {
 
             <div className="bg-[#0b1120] rounded-xl border border-white/10 p-6 font-mono text-[11px] h-[510px] flex flex-col shadow-2xl">
               <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-4">
-                <div className="flex items-center gap-3">
-                  <TerminalIcon className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Logs (Live Stream)</span>
-                </div>
+                <div className="flex items-center gap-3"><TerminalIcon className="w-4 h-4 text-primary" /><span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Logs</span></div>
                 {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
               </div>
-              <div className="flex-1 overflow-y-auto space-y-2 scrollbar-hide text-slate-400 pr-2">
-                {isLoading ? (
-                  <div className="h-full flex items-center justify-center italic">Подключение к терминалу...</div>
-                ) : (
-                  systemLogs.map((log) => (
-                    <div key={log.id} className="flex gap-3 leading-relaxed animate-in fade-in slide-in-from-bottom-1">
-                      <span className="text-slate-600 shrink-0 font-bold">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                      <span className={`font-bold shrink-0 ${
-                        log.type === 'ERROR' ? 'text-rose-500' : 
-                        log.type === 'START' ? 'text-blue-500' : 
-                        log.type === 'STOP' ? 'text-amber-500' : 'text-emerald-500'
-                      }`}>
-                        {log.type}:
-                      </span>
-                      <span className={log.type === 'ERROR' ? 'text-rose-400/80' : 'text-slate-300'}>
-                        {log.message}
-                      </span>
-                    </div>
-                  ))
-                )}
-                {systemLogs.length === 0 && !isLoading && <div className="text-slate-600 italic">Событий пока нет...</div>}
-                <div ref={logEndRef} />
+              <div className="flex-1 overflow-y-auto space-y-2 text-slate-400">
+                {systemLogs.map((log) => (
+                  <div key={log.id} className="flex gap-3 leading-relaxed">
+                    <span className="text-slate-600">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
+                    <span className={`font-bold ${log.type === 'ERROR' ? 'text-rose-500' : 'text-emerald-500'}`}>{log.type}:</span>
+                    <span>{log.message}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -457,116 +284,56 @@ export default function AdminDashboard() {
       <Dialog open={showIssuesDialog} onOpenChange={setShowIssuesDialog}>
         <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="p-6 border-b border-white/5">
-            <DialogTitle className="flex items-center justify-between text-xl font-bold">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="text-amber-500" /> История нарушений (по доменам)
-              </div>
-              {isHistoryLoading && <Activity className="w-4 h-4 animate-spin text-primary" />}
-            </DialogTitle>
-            <DialogDescription>
-              Все обнаруженные технические нарушения, сгруппированные по доменам. Раскройте домен для просмотра подробностей по каждой странице и рисков штрафов.
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Layers className="text-primary" /> История нарушений (SaaS & Manual Modules)</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
-             {groupedViolations.length === 0 ? (
-               <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-2">
-                 <ShieldCheck className="w-12 h-12 opacity-20" />
-                 <p className="text-sm italic">Список пуст или загружается...</p>
-               </div>
-             ) : (
-               <Accordion type="single" collapsible className="w-full space-y-3">
-                  {groupedViolations.map(([domain, issues]) => (
-                    <AccordionItem key={domain} value={domain} className="border border-white/5 bg-white/[0.02] rounded-xl px-4 hover:border-white/10 transition-all overflow-hidden shadow-lg">
-                      <AccordionTrigger className="hover:no-underline py-5">
-                        <div className="flex flex-1 items-center justify-between text-left pr-6">
-                          <div className="flex items-center gap-4">
-                            <div className="bg-primary/10 p-2 rounded-lg">
-                              <Globe className="w-5 h-5 text-primary" />
-                            </div>
-                            <div className="flex-1">
-                              <span className="font-bold text-base text-white">{domain}</span>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <Badge variant="secondary" className="bg-white/5 text-[9px] border-white/10">
-                                  {issues.length} инцидентов
-                                </Badge>
-                                {issues.some(i => i.level === 'critical') && (
-                                  <Badge className="bg-rose-500/20 text-rose-500 border-rose-500/20 text-[9px]">Critical Risk</Badge>
-                                )}
-                              </div>
+             <Accordion type="single" collapsible className="w-full space-y-3">
+                {groupedViolations.map(([domain, issues]) => (
+                  <AccordionItem key={domain} value={domain} className="border border-white/5 bg-white/[0.02] rounded-xl px-4">
+                    <AccordionTrigger className="hover:no-underline py-5">
+                      <div className="flex flex-1 items-center justify-between text-left pr-6">
+                        <div className="flex items-center gap-4">
+                          <Globe className="w-5 h-5 text-primary" />
+                          <div>
+                            <span className="font-bold text-base">{domain}</span>
+                            <div className="flex gap-2 mt-0.5">
+                              <Badge className="bg-blue-500/10 text-blue-400 text-[8px]">{issues.filter(i => i.report_type === 'SaaS').length} SaaS</Badge>
+                              <Badge className="bg-purple-500/10 text-purple-400 text-[8px]">{issues.filter(i => i.report_type === 'Manual').length} Manual</Badge>
                             </div>
                           </div>
                         </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-6 border-t border-white/5 pt-4">
-                        <div className="flex justify-end mb-4">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 gap-2"
-                            onClick={() => handleDownloadPDF(domain)}
-                            disabled={isExporting === domain}
-                          >
-                            {isExporting === domain ? <Activity className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                            Скачать PDF отчет
-                          </Button>
-                        </div>
-                        <div className="space-y-6">
-                          {issues.map((issue, idx) => (
-                            <div key={issue.id} className="relative pl-6 border-l-2 border-primary/20 hover:border-primary transition-colors py-2">
-                              <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-white uppercase tracking-tight">{issue.type}</span>
-                                    <Badge className={issue.level === 'critical' ? 'bg-rose-500 h-4 text-[8px]' : 'bg-amber-500 h-4 text-[8px]'}>{issue.level}</Badge>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
-                                    <Clock className="w-3 h-3" /> {new Date(issue.date).toLocaleString()}
-                                  </div>
-                                </div>
-                                <div className="bg-rose-500/5 border border-rose-500/20 rounded-lg px-3 py-1.5 text-right">
-                                  <span className="text-[8px] text-slate-500 uppercase font-bold block mb-0.5">Риск штрафа</span>
-                                  <span className="text-xs text-rose-400 font-bold">{issue.fine_amount}</span>
-                                </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-6 border-t border-white/5 pt-4">
+                      <div className="space-y-6">
+                        {issues.map((issue) => (
+                          <div key={issue.id} className="relative pl-6 border-l-2 border-primary/20 py-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="text-[8px]">{issue.report_type}</Badge>
+                                <span className="text-xs font-bold text-white uppercase">{issue.type}</span>
+                                <Badge className={issue.level === 'critical' ? 'bg-rose-500' : 'bg-amber-500'} text-xs>{issue.level}</Badge>
                               </div>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="p-3 bg-white/5 rounded-lg border border-white/5">
-                                  <p className="text-[9px] text-primary font-bold mb-2 uppercase tracking-widest flex items-center gap-1.5">
-                                    <Scale className="w-3 h-3" /> Обоснование ({issue.law_name}):
-                                  </p>
-                                  <p className="text-xs text-slate-300 leading-relaxed">{issue.description}</p>
-                                </div>
-                                <div className="space-y-3">
-                                  <div className="p-3 bg-black/40 rounded-lg border border-white/5 font-mono">
-                                    <p className="text-[9px] text-slate-500 mb-2 uppercase font-bold">URL СТРАНИЦЫ:</p>
-                                    <a href={issue.url} target="_blank" rel="noreferrer" className="text-[10px] text-emerald-400 hover:underline break-all flex items-center gap-1.5">
-                                      {issue.url} <ExternalLink className="w-3 h-3 shrink-0" />
-                                    </a>
-                                  </div>
-                                  {issue.evidence_html && (
-                                    <div className="p-3 bg-black/40 rounded-lg border border-white/5">
-                                      <p className="text-[9px] text-slate-500 mb-2 uppercase font-bold flex items-center gap-2">
-                                        <Camera className="w-3 h-3" /> ЦЕЛЬ (СКРИНШОТ):
-                                      </p>
-                                      <img 
-                                        src={issue.evidence_html} 
-                                        alt="Evidence" 
-                                        className="rounded border border-white/10 max-h-[200px] object-cover w-full cursor-zoom-in hover:opacity-80 transition-opacity"
-                                        onClick={() => window.open(issue.evidence_html, '_blank')}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              {idx < issues.length - 1 && <div className="h-px bg-white/5 w-full mt-6" />}
+                              <span className="text-xs text-rose-400 font-bold">{issue.fine_amount}</span>
                             </div>
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-             )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="p-3 bg-white/5 rounded-lg">
+                                <p className="text-[9px] text-primary font-bold mb-1 uppercase tracking-widest"><Scale className="w-3 h-3 inline mr-1" /> Обоснование:</p>
+                                <p className="text-xs text-slate-300">{issue.description}</p>
+                                <p className="text-[9px] text-slate-500 mt-2 italic">Source: {issue.law_name}</p>
+                              </div>
+                              <div className="p-3 bg-black/40 rounded-lg font-mono">
+                                <p className="text-[9px] text-slate-500 mb-1 uppercase">Target URL:</p>
+                                <a href={issue.url} target="_blank" className="text-[10px] text-emerald-400 hover:underline break-all">{issue.url}</a>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+             </Accordion>
           </div>
         </DialogContent>
       </Dialog>

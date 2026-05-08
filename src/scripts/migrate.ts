@@ -12,51 +12,8 @@ const pool = new Pool({
 async function migrate() {
   const client = await pool.connect();
   try {
-    console.log('[Migration] Starting database schema initialization based on provided schema...');
+    console.log('[Migration] Updating database schema for dual-report architecture...');
     
-    // audit_logs
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS public.audit_logs (
-        id SERIAL PRIMARY KEY,
-        domain character varying(255) NOT NULL,
-        status_code integer,
-        error_message text,
-        created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    
-    // bot_events
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS public.bot_events (
-        id SERIAL PRIMARY KEY,
-        type character varying(20) NOT NULL,
-        message text,
-        "timestamp" timestamp without time zone DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // bot_settings
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS public.bot_settings (
-        id integer DEFAULT 1 NOT NULL PRIMARY KEY,
-        is_active boolean DEFAULT true,
-        updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT one_row CHECK (id = 1)
-      );
-    `);
-
-    // scan_queue
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS public.scan_queue (
-        id SERIAL PRIMARY KEY,
-        url text NOT NULL UNIQUE,
-        status character varying(20) DEFAULT 'pending',
-        priority integer DEFAULT 0,
-        depth integer DEFAULT 0,
-        created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
     // site_violations
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.site_violations (
@@ -75,21 +32,30 @@ async function migrate() {
         explanation text,
         law_name text,
         potential_fine text,
-        scan_type character varying(255)
+        scan_type character varying(255),
+        report_type character varying(20) DEFAULT 'SaaS'
       );
     `);
 
-    // Indexes
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_violations_domain ON public.site_violations USING btree (domain);`);
-
-    // Initial Data
+    // Ensure report_type column exists
     await client.query(`
-      INSERT INTO public.bot_settings (id, is_active)
-      VALUES (1, true)
-      ON CONFLICT (id) DO NOTHING;
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='site_violations' AND COLUMN_NAME='report_type') THEN
+          ALTER TABLE public.site_violations ADD COLUMN report_type character varying(20) DEFAULT 'SaaS';
+        END IF;
+      END $$;
+    `);
+
+    // audit_logs, bot_events, bot_settings, scan_queue (ensure they exist)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS public.audit_logs (id SERIAL PRIMARY KEY, domain varchar(255), status_code int, error_message text, created_at timestamp DEFAULT NOW());
+      CREATE TABLE IF NOT EXISTS public.bot_events (id SERIAL PRIMARY KEY, type varchar(20), message text, timestamp timestamp DEFAULT NOW());
+      CREATE TABLE IF NOT EXISTS public.bot_settings (id int DEFAULT 1 PRIMARY KEY, is_active boolean DEFAULT true, updated_at timestamp DEFAULT NOW());
+      CREATE TABLE IF NOT EXISTS public.scan_queue (id SERIAL PRIMARY KEY, url text UNIQUE, status varchar(20) DEFAULT 'pending', priority int DEFAULT 0, depth int DEFAULT 0, created_at timestamp DEFAULT NOW());
     `);
     
-    console.log('[Migration] Schema synchronized successfully.');
+    console.log('[Migration] Database schema is up to date.');
   } catch (err) {
     console.error('[Migration] Critical Error:', err);
     process.exit(1);
