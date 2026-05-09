@@ -1,13 +1,73 @@
+
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Globe, Terminal, Scale, Clock, ShieldCheck, FileText, Lock, Activity, ShoppingCart, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { startCrawlAction } from '@/app/actions/crawler-actions';
+import { 
+  Mail, 
+  Globe, 
+  Terminal, 
+  Scale, 
+  Clock, 
+  ShieldCheck, 
+  FileText, 
+  Lock, 
+  Activity, 
+  ShoppingCart, 
+  ArrowRight, 
+  Search, 
+  Zap,
+  Loader2,
+  AlertTriangle
+} from "lucide-react";
 
 export default function Home() {
+  const [url, setUrl] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const { toast } = useToast();
+
+  const handleScan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url) return;
+
+    setIsScanning(true);
+    setScanResult(null);
+
+    try {
+      const result = await startCrawlAction(url);
+      setScanResult(result);
+      
+      if (result.status === 'success') {
+        toast({
+          title: "Scan Completed",
+          description: `Found ${result.issuesFound} potential compliance issues on ${url}.`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Scan Failed",
+          description: result.reason || "Could not complete the scan. Please check the URL.",
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred during the scan.",
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#020617] text-slate-50 font-body overflow-x-hidden flex flex-col">
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
@@ -58,6 +118,77 @@ export default function Home() {
                 HumangoBot is a specialized security crawler identifying technical vulnerabilities and <span className="text-white font-medium">GDPR posture</span>. We strictly follow the "Polite Crawling" standards.
               </p>
             </div>
+
+            {/* URL SCANNER FIELD */}
+            <div className="max-w-xl w-full">
+              <form onSubmit={handleScan} className="relative group">
+                <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative flex items-center bg-white/[0.03] border border-white/10 p-1.5 rounded-2xl backdrop-blur-xl focus-within:border-primary/50 transition-all">
+                  <div className="pl-4 pr-2">
+                    <Globe className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <Input 
+                    type="url" 
+                    placeholder="Enter website URL (e.g., https://example.com)" 
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    className="bg-transparent border-none focus-visible:ring-0 text-white placeholder:text-slate-600 h-12 text-sm"
+                    required
+                  />
+                  <Button 
+                    type="submit" 
+                    disabled={isScanning}
+                    className="bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-xl shrink-0 gap-2"
+                  >
+                    {isScanning ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4" />
+                    )}
+                    {isScanning ? 'Scanning...' : 'Scan Now'}
+                  </Button>
+                </div>
+              </form>
+              <p className="mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                <ShieldCheck className="w-3 h-3 text-primary" /> RFC 9309 Compliant Audit • Stateless Agent
+              </p>
+            </div>
+
+            {/* SCAN RESULTS DISPLAY */}
+            {scanResult && scanResult.status === 'success' && (
+              <Card className="bg-white/[0.03] border-white/10 animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
+                <div className="bg-primary/5 border-b border-white/5 p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Scan Results for {new URL(scanResult.url).hostname}</span>
+                  </div>
+                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">Complete</Badge>
+                </div>
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Issues Found</p>
+                      <p className={`text-2xl font-bold ${scanResult.issuesFound > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        {scanResult.issuesFound} {scanResult.issuesFound === 1 ? 'Violation' : 'Violations'}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Security Score</p>
+                      <div className="flex gap-1.5 mt-1">
+                        <Badge variant="outline" className={scanResult.securityHeaders?.ssl ? 'text-emerald-500 border-emerald-500/20' : 'text-rose-500 border-rose-500/20'}>SSL</Badge>
+                        <Badge variant="outline" className={scanResult.securityHeaders?.csp ? 'text-emerald-500 border-emerald-500/20' : 'text-rose-500 border-rose-500/20'}>CSP</Badge>
+                        <Badge variant="outline" className={scanResult.securityHeaders?.hsts ? 'text-emerald-500 border-emerald-500/20' : 'text-rose-500 border-rose-500/20'}>HSTS</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-end justify-end">
+                      <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-widest text-primary hover:text-primary/80" asChild>
+                        <Link href="/admin">View Detailed Report <ArrowRight className="w-3 h-3 ml-2" /></Link>
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {[
