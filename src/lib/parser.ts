@@ -56,7 +56,7 @@ function getLegalDetail(docType: string, domain: string) {
     terms: {
       law: isDE ? '§ 305 BGB (Germany)' : 'Consumer Rights Directive / GDPR',
       risk: isDE 
-        ? 'Risk: Under § 305 BGB, customers must have a reasonable opportunity to view Terms (AGB) before a contract is formed. Missing AGB can lead to "Abmahnungen" (legal warnings) and invalid contract terms.'
+        ? 'Risk: Under § 305 BGB, customers must have a reasonable opportunity to view Terms (AGB) before a contract is formed. Missing AGB can lead to legal warnings and invalid contract terms.'
         : 'Risk: Missing Terms of Service leaves the business unprotected regarding liability and usage rights, and violates transparency requirements for e-commerce.',
       fine: isDE ? 'Legal warnings (€1,000+) + court costs' : 'Up to €10m / 2% turnover',
       recommendation: 'Link your Terms & Conditions (AGB) in the global footer or during the checkout flow.'
@@ -108,7 +108,6 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
 
   // 2. Technical Checks
   if (!url.startsWith('https:')) {
-    const detail = getLegalDetail('security', domain);
     violations.push({
       category: 'Security',
       report_type: 'Manual',
@@ -123,7 +122,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     });
   }
 
-  // 3. Document Discovery
+  // 3. Document Discovery (COSTERA Engine)
   const docsFound: Record<string, string | null> = {};
   for (const key of Object.keys(LEGAL_KEYWORDS)) docsFound[key] = null;
 
@@ -137,7 +136,6 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     }
   });
 
-  // Mandatory Document Check
   const mandatory = ['privacy', 'terms', 'cookies'];
   if (domain.endsWith('.de') || domain.endsWith('.at')) mandatory.push('impressum');
 
@@ -150,7 +148,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         issue_type: `Missing Document: ${doc.toUpperCase()}`,
         severity: 'critical',
         evidence_html: url,
-        description: `Violation: Missing mandatory link to ${doc.toUpperCase()}. Where: No text matching keywords [${LEGAL_KEYWORDS[doc].join(', ')}] found in site navigation or footer.`,
+        description: `Costera engine scanned the footer and did not detect a link to ${doc.toUpperCase()}. This is a transparency violation under ${detail.law}.`,
         law_name: detail.law,
         potential_fine: detail.fine,
         explanation: detail.risk,
@@ -159,7 +157,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     }
   });
 
-  // 4. Content Audit of existing docs
+  // 4. Content Audit (XEVON Engine)
   if (bodyText.includes('policy') || bodyText.includes('datenschutz') || bodyText.includes('privacy') || bodyText.includes('terms')) {
     const docLang = detectLanguage(bodyText);
     if (docLang !== siteLang && bodyText.length > 500) {
@@ -169,19 +167,18 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         issue_type: 'Language Mismatch',
         severity: 'medium',
         evidence_html: url,
-        description: `Violation: Legal document is in ${docLang.toUpperCase()} while the main site is in ${siteLang.toUpperCase()}. Where: Automatic language detection of body text.`,
+        description: `Xevon engine analyzed the text. Link found, but the document is in ${docLang.toUpperCase()} while the site interface is in ${siteLang.toUpperCase()}.`,
         law_name: 'GDPR Art. 12 (Transparency)',
         potential_fine: 'Up to €20m',
-        explanation: 'Risk: Art. 12 GDPR requires information to be provided in an "intelligible and easily accessible form, using clear and plain language." Forcing users to read a policy in a foreign language is a transparency failure.',
+        explanation: 'Risk: Art. 12 GDPR requires information to be provided in an intelligible and easily accessible form.',
         recommendation: 'Translate your legal documents into all languages supported by your website interface.'
       });
     }
 
-    // Completeness check
     const missingBlocks = [];
-    if (!CONTENT_MARKERS.data_categories.some(m => bodyText.includes(m))) missingBlocks.push('Data Categories (IP, Cookies)');
-    if (!CONTENT_MARKERS.retention.some(m => bodyText.includes(m))) missingBlocks.push('Retention/Storage Periods');
-    if (!CONTENT_MARKERS.rights.some(m => bodyText.includes(m))) missingBlocks.push('User Rights (Access, Deletion)');
+    if (!CONTENT_MARKERS.data_categories.some(m => bodyText.includes(m))) missingBlocks.push('Data Categories');
+    if (!CONTENT_MARKERS.retention.some(m => bodyText.includes(m))) missingBlocks.push('Retention Periods');
+    if (!CONTENT_MARKERS.rights.some(m => bodyText.includes(m))) missingBlocks.push('User Rights');
 
     if (missingBlocks.length > 0 && bodyText.length > 300) {
       violations.push({
@@ -190,12 +187,12 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         issue_type: 'Incomplete Clauses',
         severity: 'high',
         evidence_html: screenshot ? `data:image/jpeg;base64,${screenshot}` : url,
-        snippet: `Missing key blocks: ${missingBlocks.join(', ')}`,
-        description: `Violation: Legal document is missing mandatory GDPR disclosure blocks. Where: Scanned text for keywords related to [${missingBlocks.join(', ')}].`,
+        snippet: `Missing sections: ${missingBlocks.join(', ')}`,
+        description: `Xevon engine analyzed the text. Link found, but mandatory sections (${missingBlocks.join(', ')}) are missing from the document content.`,
         law_name: 'GDPR Art. 13/14',
         potential_fine: 'Up to €20m / 4% turnover',
-        explanation: 'Risk: Omitting required information like retention periods or specific data categories is a primary cause for GDPR fines under the transparency principle.',
-        recommendation: 'Update your legal document to include specific sections for data categories, storage durations, and data subject rights.'
+        explanation: 'Risk: Omitting required information like retention periods or data subject rights is a primary cause for regulatory fines.',
+        recommendation: 'Update the document to include specific sections for data categories and user rights.'
       });
     }
   }

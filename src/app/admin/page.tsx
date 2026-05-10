@@ -85,10 +85,8 @@ export default function AdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [lastSync, setLastSync] = useState<string>("");
-  const [isExporting, setIsExporting] = useState<string | null>(null);
   const { toast } = useToast();
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const logEndRef = useRef<HTMLDivElement>(null);
   
   const [metrics, setMetrics] = useState({
     pagesScanned: 0,
@@ -202,7 +200,7 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-primary border-primary/20">Dual-Report Engine v2.7</Badge>
+            <Badge variant="outline" className="text-primary border-primary/20">Dual-Report Engine v2.8</Badge>
             <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
               <Zap className={`w-3 h-3 ${isActive ? 'animate-pulse text-emerald-500' : ''}`} /> {isActive ? 'SCANNING' : 'IDLE'}
               {lastSync && <span className="ml-2">Sync: {lastSync}</span>}
@@ -252,7 +250,7 @@ export default function AdminDashboard() {
                         <TableCell className="text-xs font-medium">{issue.domain}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={`text-[8px] ${issue.report_type === 'SaaS' ? 'border-blue-500 text-blue-500 bg-blue-500/5' : 'border-purple-500 text-purple-500 bg-purple-500/5'}`}>
-                            {issue.report_type} Module
+                            {issue.report_type === 'SaaS' ? 'COSTERA/XEVON' : 'MANUAL'}
                           </Badge>
                         </TableCell>
                         <TableCell><Badge variant="outline" className={`text-[8px] ${issue.level === 'critical' ? 'text-rose-500' : 'text-amber-500'}`}>{issue.level}</Badge></TableCell>
@@ -286,7 +284,7 @@ export default function AdminDashboard() {
       <Dialog open={showIssuesDialog} onOpenChange={setShowIssuesDialog}>
         <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="p-6 border-b border-white/5">
-            <DialogTitle className="flex items-center gap-2"><Layers className="text-primary" /> Violation History (SaaS & Manual Modules)</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Layers className="text-primary" /> Diagnostic History (COSTERA/XEVON/MANUAL)</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
              <Accordion type="single" collapsible className="w-full space-y-3">
@@ -299,8 +297,8 @@ export default function AdminDashboard() {
                           <div>
                             <span className="font-bold text-base">{domain}</span>
                             <div className="flex gap-2 mt-0.5">
-                              <Badge className="bg-blue-500/10 text-blue-400 text-[8px]">{issues.filter(i => i.report_type === 'SaaS').length} SaaS</Badge>
-                              <Badge className="bg-purple-500/10 text-purple-400 text-[8px]">{issues.filter(i => i.report_type === 'Manual').length} Manual</Badge>
+                              <Badge className="bg-blue-500/10 text-blue-400 text-[8px]">{issues.filter(i => i.report_type === 'SaaS').length} SaaS Module</Badge>
+                              <Badge className="bg-purple-500/10 text-purple-400 text-[8px]">{issues.filter(i => i.report_type === 'Manual').length} Manual Module</Badge>
                             </div>
                           </div>
                         </div>
@@ -312,7 +310,7 @@ export default function AdminDashboard() {
                           <div key={issue.id} className="relative pl-6 border-l-2 border-primary/20 py-2">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="text-[8px]">{issue.report_type}</Badge>
+                                <Badge variant="secondary" className="text-[8px]">{issue.report_type === 'SaaS' ? 'Automated' : 'Manual'}</Badge>
                                 <span className="text-xs font-bold text-white uppercase">{issue.type}</span>
                                 <Badge className={issue.level === 'critical' ? 'bg-rose-500' : 'bg-amber-500'} text-xs>{issue.level}</Badge>
                               </div>
@@ -321,13 +319,13 @@ export default function AdminDashboard() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="p-3 bg-white/5 rounded-lg space-y-3">
                                 <div>
-                                  <p className="text-[9px] text-primary font-bold mb-1 uppercase tracking-widest"><Info className="w-3 h-3 inline mr-1" /> Summary:</p>
-                                  <p className="text-xs text-slate-300">{issue.summary}</p>
+                                  <p className="text-[9px] text-primary font-bold mb-1 uppercase tracking-widest"><Info className="w-3 h-3 inline mr-1" /> Diagnostic Summary:</p>
+                                  <p className="text-xs text-slate-300">{issue.description}</p>
                                 </div>
                                 <div>
-                                  <p className="text-[9px] text-emerald-500 font-bold mb-1 uppercase tracking-widest"><Scale className="w-3 h-3 inline mr-1" /> Legal Explanation:</p>
-                                  <p className="text-xs text-slate-400 italic">"{issue.description}"</p>
-                                  <p className="text-[9px] text-slate-500 mt-2 font-mono">Source: {issue.law_name}</p>
+                                  <p className="text-[9px] text-emerald-500 font-bold mb-1 uppercase tracking-widest"><Scale className="w-3 h-3 inline mr-1" /> Legal Justification:</p>
+                                  <p className="text-xs text-slate-400 italic">"{issue.summary}"</p>
+                                  <p className="text-[9px] text-slate-500 mt-2 font-mono">Reference: {issue.law_name}</p>
                                 </div>
                               </div>
                               <div className="p-3 bg-black/40 rounded-lg font-mono">
@@ -335,7 +333,7 @@ export default function AdminDashboard() {
                                 <a href={issue.url} target="_blank" className="text-[10px] text-emerald-400 hover:underline break-all">{issue.url}</a>
                                 {issue.evidence_html && issue.evidence_html.startsWith('data:') && (
                                   <div className="mt-3">
-                                    <p className="text-[9px] text-slate-500 mb-2 uppercase">Screenshot Evidence:</p>
+                                    <p className="text-[9px] text-slate-500 mb-2 uppercase">Diagnostic Capture:</p>
                                     <img src={issue.evidence_html} className="rounded border border-white/10 w-full opacity-80 hover:opacity-100 transition-opacity cursor-zoom-in" alt="evidence" />
                                   </div>
                                 )}
