@@ -9,7 +9,7 @@
       "strategy": "Multi-domain queue rotation"
     },
     "bot_identification": {
-      "user_agent_format": "HumangoBot/1.0 (+https://humango.app)",
+      "user_agent_format": "bot.humango.app",
       "identity": "HumangoBot",
       "gpc_support": true,
       "dnt_enabled": true

@@ -261,7 +261,7 @@ export default function Home() {
                 <div className="space-y-3">
                   <label className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Audit Agent</label>
                   <div className="p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 break-all leading-relaxed">
-                    HumangoBot/1.0 (+https://humango.app)
+                    bot.humango.app
                   </div>
                 </div>
                 

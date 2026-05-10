@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -123,7 +124,7 @@ export default function BotPolicyPage() {
                 <Card className="bg-white/5 border-white/5 p-4 text-center">
                   <Cpu className="w-5 h-5 text-primary mx-auto mb-2" />
                   <p className="text-[10px] font-bold text-slate-500 uppercase">User-Agent</p>
-                  <p className="text-[9px] font-mono text-white">HumangoBot/1.0 (+https://humango.app)</p>
+                  <p className="text-[9px] font-mono text-white">bot.humango.app</p>
                 </Card>
                 <Card className="bg-white/5 border-white/5 p-4 text-center">
                   <ShieldCheck className="w-5 h-5 text-primary mx-auto mb-2" />
