@@ -5,7 +5,7 @@ import { Violation, ReportType } from '@/types';
 const LEGAL_KEYWORDS: Record<string, string[]> = {
   privacy: ['privacy', 'datenschutz', 'confidentialite', 'privacidad', 'confidenzialita', 'politika privatnosti', 'privacy policy'],
   cookies: ['cookie', 'cookies', 'galletas', 'biscotti', 'cookie policy'],
-  terms: ['terms', 'tos', 'conditions', 'bedingungen', 'condiciones', 'termini', 'terms of service'],
+  terms: ['terms', 'tos', 'conditions', 'bedingungen', 'condiciones', 'termini', 'terms of service', 'agb', 'allgemeine geschäftsbedingungen'],
   impressum: ['impressum', 'legal notice', 'mentions legales', 'aviso legal', 'note legali'],
   legal_notice: ['legal notice', 'mentions legales', 'rechtliche hinweise'],
   consumer_rights: ['consumer rights', 'verbraucherrechte', 'droits des consommateurs', 'derechos del consumidor'],
@@ -44,29 +44,45 @@ function detectLanguage(text: string): string {
   return bestLang;
 }
 
-function getLawContext(domain: string) {
-  const d = domain.toLowerCase();
-  if (d.endsWith('.de')) return { law: 'BITV 2.0 / GDPR / TMG', fine: 'up to €50,000 / 4% turnover' };
-  if (d.endsWith('.fr')) return { law: 'RGAA / GDPR / LIL', fine: 'up to €20m / 4% turnover' };
-  return { law: 'EU GDPR / ePrivacy', fine: 'up to €20m or 4% turnover' };
+function getLegalDetail(docType: string, domain: string) {
+  const isDE = domain.endsWith('.de');
+  const details: Record<string, any> = {
+    privacy: {
+      law: 'GDPR Art. 13 / 14',
+      risk: 'Risk: Failure to provide transparent data processing information violates Art. 12 GDPR. Supervisory authorities can impose fines up to €20 million or 4% of global turnover.',
+      fine: 'Up to €20m / 4% turnover',
+      recommendation: 'Create a dedicated Privacy Policy page and link it clearly in the footer.'
+    },
+    terms: {
+      law: isDE ? '§ 305 BGB (Germany)' : 'Consumer Rights Directive / GDPR',
+      risk: isDE 
+        ? 'Risk: Under § 305 BGB, customers must have a reasonable opportunity to view Terms (AGB) before a contract is formed. Missing AGB can lead to "Abmahnungen" (legal warnings) and invalid contract terms.'
+        : 'Risk: Missing Terms of Service leaves the business unprotected regarding liability and usage rights, and violates transparency requirements for e-commerce.',
+      fine: isDE ? 'Legal warnings (€1,000+) + court costs' : 'Up to €10m / 2% turnover',
+      recommendation: 'Link your Terms & Conditions (AGB) in the global footer or during the checkout flow.'
+    },
+    impressum: {
+      law: isDE ? '§ 5 TMG (Telemediengesetz)' : 'e-Commerce Directive Art. 5',
+      risk: isDE
+        ? 'Risk: § 5 TMG requires every commercial website to provide an "easily recognizable, directly accessible, and permanently available" imprint. Missing it is a high-risk violation frequently targeted by competitors.'
+        : 'Risk: Professional entities must provide clear identification and contact details to ensure legal transparency in the EU.',
+      fine: isDE ? 'Up to €50,000 + legal warnings' : 'Varies by EU state',
+      recommendation: 'Create an Imprint/Impressum page with your full legal name, physical address, and official contact email.'
+    },
+    cookies: {
+      law: 'ePrivacy Directive / GDPR Art. 7',
+      risk: 'Risk: Storing trackers without a clear Cookie Policy violates the consent requirements of the ePrivacy Directive. This is a primary target for DPA audits.',
+      fine: 'Up to €20m',
+      recommendation: 'Deploy a Cookie Policy explaining each tracker and its specific purpose.'
+    }
+  };
+
+  return details[docType] || details['privacy'];
 }
 
-/**
- * Heuristic to determine if the page likely uses tracking scripts that require JS execution.
- */
 export function shouldRunDeepScan(html: string): boolean {
   const lowerHtml = html.toLowerCase();
-  const dynamicMarkers = [
-    'fbq(', // Facebook Pixel
-    'gtag(', // Google Tag Manager
-    'analytics.js',
-    'googletagmanager',
-    'cookiebot',
-    'onetrust',
-    'trustarc',
-    'civicuk',
-    'cookie-consent'
-  ];
+  const dynamicMarkers = ['fbq(', 'gtag(', 'analytics.js', 'googletagmanager', 'cookiebot', 'onetrust', 'cookie-consent'];
   return dynamicMarkers.some(m => lowerHtml.includes(m));
 }
 
@@ -76,12 +92,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const discoveredLinks: string[] = [];
   const currentUrl = new URL(url);
   const domain = currentUrl.hostname.toLowerCase();
-  const lawContext = getLawContext(domain);
   
   const bodyText = $('body').text().toLowerCase();
   const siteLang = $('html').attr('lang')?.toLowerCase()?.split('-')[0] || detectLanguage(bodyText);
 
-  // 1. Link Discovery (Deep Crawl)
+  // 1. Link Discovery
   $('a[href]').each((_, el) => {
     try {
       const href = $(el).attr('href');
@@ -91,23 +106,24 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     } catch (e) {}
   });
 
-  // 2. Manual/Technical Checks (Manual Report)
+  // 2. Technical Checks
   if (!url.startsWith('https:')) {
+    const detail = getLegalDetail('security', domain);
     violations.push({
       category: 'Security',
       report_type: 'Manual',
-      issue_type: 'Missing HTTPS',
+      issue_type: 'Missing HTTPS Encryption',
       severity: 'critical',
       evidence_html: url,
-      description: 'Site is running over unencrypted HTTP.',
-      law_name: 'GDPR Art. 32',
-      potential_fine: lawContext.fine,
-      explanation: 'Lack of encryption endangers user data.',
-      recommendation: 'Configure SSL and redirect to HTTPS.'
+      description: 'Violation: Site is running over unencrypted HTTP. Where: Root domain protocol check.',
+      law_name: 'GDPR Art. 32 (Security of Processing)',
+      potential_fine: 'Up to €20m',
+      explanation: 'Risk: Lack of encryption endangers user data and is a direct violation of Art. 32 GDPR, which mandates technical measures to protect personal data.',
+      recommendation: 'Install an SSL certificate and force redirect all traffic to HTTPS.'
     });
   }
 
-  // 3. Document Discovery & SaaS Content Audit
+  // 3. Document Discovery
   const docsFound: Record<string, string | null> = {};
   for (const key of Object.keys(LEGAL_KEYWORDS)) docsFound[key] = null;
 
@@ -121,90 +137,66 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     }
   });
 
-  // Missing Documents (SaaS Report)
-  const mandatoryDocs = ['privacy', 'cookies', 'terms'];
-  mandatoryDocs.forEach(doc => {
+  // Mandatory Document Check
+  const mandatory = ['privacy', 'terms', 'cookies'];
+  if (domain.endsWith('.de') || domain.endsWith('.at')) mandatory.push('impressum');
+
+  mandatory.forEach(doc => {
     if (!docsFound[doc]) {
+      const detail = getLegalDetail(doc, domain);
       violations.push({
         category: 'Legal_Content',
         report_type: 'SaaS',
-        issue_type: `Document Missing: ${doc.toUpperCase()}`,
+        issue_type: `Missing Document: ${doc.toUpperCase()}`,
         severity: 'critical',
         evidence_html: url,
-        description: `Mandatory ${doc} document not found on the website.`,
-        law_name: 'GDPR Art. 13',
-        potential_fine: lawContext.fine,
-        explanation: 'Missing mandatory legal information is a gross violation of transparency.',
-        recommendation: `Create and publish a ${doc} document.`
+        description: `Violation: Missing mandatory link to ${doc.toUpperCase()}. Where: No text matching keywords [${LEGAL_KEYWORDS[doc].join(', ')}] found in site navigation or footer.`,
+        law_name: detail.law,
+        potential_fine: detail.fine,
+        explanation: detail.risk,
+        recommendation: detail.recommendation
       });
     }
   });
 
-  // Content Audit of existing docs
-  if (bodyText.includes('policy') || bodyText.includes('datenschutz') || bodyText.includes('privacy')) {
-    // Language Check
+  // 4. Content Audit of existing docs
+  if (bodyText.includes('policy') || bodyText.includes('datenschutz') || bodyText.includes('privacy') || bodyText.includes('terms')) {
     const docLang = detectLanguage(bodyText);
     if (docLang !== siteLang && bodyText.length > 500) {
       violations.push({
         category: 'Legal_Content',
         report_type: 'SaaS',
-        issue_type: 'Missing Local Language',
+        issue_type: 'Language Mismatch',
         severity: 'medium',
         evidence_html: url,
-        description: `Policy is in ${docLang} but site is in ${siteLang}.`,
+        description: `Violation: Legal document is in ${docLang.toUpperCase()} while the main site is in ${siteLang.toUpperCase()}. Where: Automatic language detection of body text.`,
         law_name: 'GDPR Art. 12 (Transparency)',
-        potential_fine: 'up to €20m',
-        explanation: 'Legal documents must be understandable to the user in their language.',
-        recommendation: 'Translate legal documents into the site interface language.'
+        potential_fine: 'Up to €20m',
+        explanation: 'Risk: Art. 12 GDPR requires information to be provided in an "intelligible and easily accessible form, using clear and plain language." Forcing users to read a policy in a foreign language is a transparency failure.',
+        recommendation: 'Translate your legal documents into all languages supported by your website interface.'
       });
     }
 
-    // Completeness (SaaS Report)
+    // Completeness check
     const missingBlocks = [];
-    if (!CONTENT_MARKERS.data_categories.some(m => bodyText.includes(m))) missingBlocks.push('Data Categories');
-    if (!CONTENT_MARKERS.retention.some(m => bodyText.includes(m))) missingBlocks.push('Retention Periods');
-    if (!CONTENT_MARKERS.rights.some(m => bodyText.includes(m))) missingBlocks.push('User Rights');
-    if (!CONTENT_MARKERS.contacts.some(m => bodyText.includes(m))) missingBlocks.push('Controller Contacts');
+    if (!CONTENT_MARKERS.data_categories.some(m => bodyText.includes(m))) missingBlocks.push('Data Categories (IP, Cookies)');
+    if (!CONTENT_MARKERS.retention.some(m => bodyText.includes(m))) missingBlocks.push('Retention/Storage Periods');
+    if (!CONTENT_MARKERS.rights.some(m => bodyText.includes(m))) missingBlocks.push('User Rights (Access, Deletion)');
 
     if (missingBlocks.length > 0 && bodyText.length > 300) {
       violations.push({
         category: 'Legal_Content',
         report_type: 'SaaS',
-        issue_type: 'Incomplete Document',
+        issue_type: 'Incomplete Clauses',
         severity: 'high',
         evidence_html: screenshot ? `data:image/jpeg;base64,${screenshot}` : url,
-        snippet: `Missing blocks: ${missingBlocks.join(', ')}`,
-        description: 'Privacy document is missing mandatory GDPR clauses.',
+        snippet: `Missing key blocks: ${missingBlocks.join(', ')}`,
+        description: `Violation: Legal document is missing mandatory GDPR disclosure blocks. Where: Scanned text for keywords related to [${missingBlocks.join(', ')}].`,
         law_name: 'GDPR Art. 13/14',
-        potential_fine: lawContext.fine,
-        explanation: 'The document lacks critical information about rights or retention periods.',
-        recommendation: 'Add missing sections to the text of the document.'
+        potential_fine: 'Up to €20m / 4% turnover',
+        explanation: 'Risk: Omitting required information like retention periods or specific data categories is a primary cause for GDPR fines under the transparency principle.',
+        recommendation: 'Update your legal document to include specific sections for data categories, storage durations, and data subject rights.'
       });
-    }
-
-    // Recency Check
-    const dateRegex = /(?:last updated|stand|updated|fecha|дата):?\s*(\d{1,2}[\.\/\-]\d{1,2}[\.\/\-]\d{4}|\w+\s\d{1,2},?\s\d{4})/gi;
-    const dateMatch = dateRegex.exec(bodyText);
-    if (dateMatch) {
-      try {
-        const updateDate = new Date(dateMatch[1]);
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        if (updateDate < oneYearAgo) {
-          violations.push({
-            category: 'Legal_Content',
-            report_type: 'SaaS',
-            issue_type: 'Outdated Document',
-            severity: 'medium',
-            evidence_html: url,
-            description: 'Document has not been updated for over 12 months.',
-            law_name: 'GDPR Art. 5 (Transparency)',
-            potential_fine: 'up to €20m',
-            explanation: 'Documents must reflect current data processing activities.',
-            recommendation: 'Conduct an annual audit and update the document date.'
-          });
-        }
-      } catch (e) {}
     }
   }
 
