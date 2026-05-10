@@ -1,24 +1,19 @@
 
 import * as cheerio from 'cheerio';
-import { Violation, ReportType } from '@/types';
+import { Violation, ReportType, Category } from '@/types';
 
 const LEGAL_KEYWORDS: Record<string, string[]> = {
   privacy: ['privacy', 'datenschutz', 'confidentialite', 'privacidad', 'confidenzialita', 'politika privatnosti', 'privacy policy'],
   cookies: ['cookie', 'cookies', 'galletas', 'biscotti', 'cookie policy'],
   terms: ['terms', 'tos', 'conditions', 'bedingungen', 'condiciones', 'termini', 'terms of service', 'agb', 'allgemeine geschäftsbedingungen'],
   impressum: ['impressum', 'legal notice', 'mentions legales', 'aviso legal', 'note legali'],
-  legal_notice: ['legal notice', 'mentions legales', 'rechtliche hinweise'],
-  consumer_rights: ['consumer rights', 'verbraucherrechte', 'droits des consommateurs', 'derechos del consumidor'],
-  accessibility: ['accessibility', 'barrierefreiheit', 'accessibilite', 'accesibilidad', 'accessibilita']
 };
 
 const CONTENT_MARKERS = {
   data_categories: ['ip address', 'cookies', 'email', 'name', 'phone', 'address', 'location', 'personbezogene daten'],
-  purposes: ['analytics', 'marketing', 'security', 'service', 'provision', 'optimization', 'zwecke'],
   retention: ['retention', 'storage', 'duration', 'deletion', 'period', 'aufbewahrung'],
   rights: ['right to access', 'erasure', 'portability', 'rectification', 'objection', 'withdraw consent', 'betroffenenrechte'],
   contacts: ['contact', 'email', 'address', 'controller', 'dpo', 'datenschutzbeachter'],
-  laws: ['gdpr', 'dsgvo', 'rgpd', 'uk gdpr', 'data protection act']
 };
 
 const LANG_MARKERS: Record<string, string[]> = {
@@ -45,7 +40,7 @@ function detectLanguage(text: string): string {
 }
 
 function getLegalDetail(docType: string, domain: string) {
-  const isDE = domain.endsWith('.de');
+  const isDE = domain.endsWith('.de') || domain.endsWith('.at');
   const details: Record<string, any> = {
     privacy: {
       law: 'GDPR Art. 13 / 14',
@@ -54,17 +49,17 @@ function getLegalDetail(docType: string, domain: string) {
       recommendation: 'Create a dedicated Privacy Policy page and link it clearly in the footer.'
     },
     terms: {
-      law: isDE ? '§ 305 BGB (Germany)' : 'Consumer Rights Directive / GDPR',
+      law: isDE ? '§ 305 BGB (Germany)' : 'Consumer Rights Directive',
       risk: isDE 
-        ? 'Risk: Under § 305 BGB, customers must have a reasonable opportunity to view Terms (AGB) before a contract is formed. Missing AGB can lead to legal warnings and invalid contract terms.'
-        : 'Risk: Missing Terms of Service leaves the business unprotected regarding liability and usage rights, and violates transparency requirements for e-commerce.',
+        ? 'Risk: Under § 305 BGB, customers must have a reasonable opportunity to view Terms (AGB) before a contract is formed. Missing AGB leads to legal warnings and invalid contract terms.'
+        : 'Risk: Missing Terms of Service leaves the business unprotected regarding liability and usage rights, violating transparency requirements for e-commerce.',
       fine: isDE ? 'Legal warnings (€1,000+) + court costs' : 'Up to €10m / 2% turnover',
       recommendation: 'Link your Terms & Conditions (AGB) in the global footer or during the checkout flow.'
     },
     impressum: {
       law: isDE ? '§ 5 TMG (Telemediengesetz)' : 'e-Commerce Directive Art. 5',
       risk: isDE
-        ? 'Risk: § 5 TMG requires every commercial website to provide an "easily recognizable, directly accessible, and permanently available" imprint. Missing it is a high-risk violation frequently targeted by competitors.'
+        ? 'Risk: § 5 TMG requires every commercial website to provide an "easily recognizable, directly accessible, and permanently available" imprint. Missing it is a high-risk violation targeted by competitors.'
         : 'Risk: Professional entities must provide clear identification and contact details to ensure legal transparency in the EU.',
       fine: isDE ? 'Up to €50,000 + legal warnings' : 'Varies by EU state',
       recommendation: 'Create an Imprint/Impressum page with your full legal name, physical address, and official contact email.'
@@ -96,7 +91,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const bodyText = $('body').text().toLowerCase();
   const siteLang = $('html').attr('lang')?.toLowerCase()?.split('-')[0] || detectLanguage(bodyText);
 
-  // 1. Link Discovery
+  // 1. Link Discovery for Crawling
   $('a[href]').each((_, el) => {
     try {
       const href = $(el).attr('href');
@@ -106,7 +101,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     } catch (e) {}
   });
 
-  // 2. Technical Checks
+  // 2. Technical Checks (Manual Module)
   if (!url.startsWith('https:')) {
     violations.push({
       category: 'Security',
@@ -114,7 +109,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'Missing HTTPS Encryption',
       severity: 'critical',
       evidence_html: url,
-      description: 'Violation: Site is running over unencrypted HTTP. Where: Root domain protocol check.',
+      description: 'The website is running over unencrypted HTTP protocol.',
       law_name: 'GDPR Art. 32 (Security of Processing)',
       potential_fine: 'Up to €20m',
       explanation: 'Risk: Lack of encryption endangers user data and is a direct violation of Art. 32 GDPR, which mandates technical measures to protect personal data.',
@@ -148,7 +143,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         issue_type: `Missing Document: ${doc.toUpperCase()}`,
         severity: 'critical',
         evidence_html: url,
-        description: `Costera engine scanned the footer and did not detect a link to ${doc.toUpperCase()}. This is a transparency violation under ${detail.law}.`,
+        description: `Costera engine proscanned the footer and did not detect a link to ${doc.toUpperCase()}. This is a transparency violation under ${detail.law}.`,
         law_name: detail.law,
         potential_fine: detail.fine,
         explanation: detail.risk,
@@ -158,9 +153,9 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   });
 
   // 4. Content Audit (XEVON Engine)
-  if (bodyText.includes('policy') || bodyText.includes('datenschutz') || bodyText.includes('privacy') || bodyText.includes('terms')) {
+  if (bodyText.length > 500) {
     const docLang = detectLanguage(bodyText);
-    if (docLang !== siteLang && bodyText.length > 500) {
+    if (docLang !== siteLang) {
       violations.push({
         category: 'Legal_Content',
         report_type: 'SaaS',
@@ -170,7 +165,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         description: `Xevon engine analyzed the text. Link found, but the document is in ${docLang.toUpperCase()} while the site interface is in ${siteLang.toUpperCase()}.`,
         law_name: 'GDPR Art. 12 (Transparency)',
         potential_fine: 'Up to €20m',
-        explanation: 'Risk: Art. 12 GDPR requires information to be provided in an intelligible and easily accessible form.',
+        explanation: 'Risk: Art. 12 GDPR requires information to be provided in an intelligible and easily accessible form for the target audience.',
         recommendation: 'Translate your legal documents into all languages supported by your website interface.'
       });
     }
@@ -180,19 +175,19 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     if (!CONTENT_MARKERS.retention.some(m => bodyText.includes(m))) missingBlocks.push('Retention Periods');
     if (!CONTENT_MARKERS.rights.some(m => bodyText.includes(m))) missingBlocks.push('User Rights');
 
-    if (missingBlocks.length > 0 && bodyText.length > 300) {
+    if (missingBlocks.length > 0) {
       violations.push({
         category: 'Legal_Content',
         report_type: 'SaaS',
-        issue_type: 'Incomplete Clauses',
+        issue_type: 'Incomplete Legal Clauses',
         severity: 'high',
         evidence_html: screenshot ? `data:image/jpeg;base64,${screenshot}` : url,
         snippet: `Missing sections: ${missingBlocks.join(', ')}`,
-        description: `Xevon engine analyzed the text. Link found, but mandatory sections (${missingBlocks.join(', ')}) are missing from the document content.`,
+        description: `Xevon engine analyzed the text. Document found, but mandatory sections (${missingBlocks.join(', ')}) are missing from the content.`,
         law_name: 'GDPR Art. 13/14',
         potential_fine: 'Up to €20m / 4% turnover',
         explanation: 'Risk: Omitting required information like retention periods or data subject rights is a primary cause for regulatory fines.',
-        recommendation: 'Update the document to include specific sections for data categories and user rights.'
+        recommendation: 'Update the legal document to include specific sections for data categories and user rights.'
       });
     }
   }

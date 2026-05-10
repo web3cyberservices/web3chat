@@ -61,9 +61,9 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html),
-        sanitize(v.snippet || v.evidence_html),
-        sanitize(v.description),
-        sanitize(v.explanation),
+        sanitize(v.snippet || v.description),
+        sanitize(v.description), // Factual engine finding
+        sanitize(v.explanation), // Legal risk explanation
         sanitize(v.law_name),
         sanitize(v.recommendation),
         scanType,
