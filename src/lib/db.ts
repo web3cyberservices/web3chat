@@ -39,7 +39,7 @@ export function normalizeUrl(url: string): string {
     u.pathname = pathname;
     return u.href.toLowerCase();
   } catch (e) {
-    return url.toLowerCase().replace(/\/$/, "");
+    return url.toLowerCase().replace(/\/$/, "").split('?')[0];
   }
 }
 
@@ -66,7 +66,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     const cleanUrl = normalizeUrl(url);
 
     // Group and deduplicate findings by type and page_url
-    // Ensures variants of the same domain are consolidated.
+    // ДЕДУПЛИКАЦИЯ (Убирает повторы costera.tech)
     const uniqueViolations = new Map();
     violations.forEach(v => {
       const affectedUrl = normalizeUrl(v.evidence_html || url);

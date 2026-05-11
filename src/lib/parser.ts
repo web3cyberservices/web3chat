@@ -3,15 +3,15 @@ import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, Category, VerificationMethod } from '@/types';
 
 /**
- * Authoritative Liability Knowledge Base (Hard-Reset Logic)
- * Eliminates "null" or "calculating" values in reports.
+ * ПРЯМАЯ ИНСТРУКЦИЯ: ЖЕСТКИЙ МАППИНГ ШТРАФОВ
+ * ЭТОТ ОБЪЕКТ УБИВАЕТ NULL И "CALCULATING..." В ОТЧЕТАХ
  */
 const LIABILITY_DATABASE: Record<string, string> = {
-    'PRIVACY': 'Administrative fines up to €20,000,000 or 4% of global turnover (Art. 83 GDPR).',
+    'PRIVACY': 'Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).',
     'COOKIES': 'Fines up to €10,000,000 or 2% of global turnover (ePrivacy Directive).',
-    'IMPRESSUM': 'Fines up to €50,000 (§ 5 TMG).',
-    'TERMS': 'Loss of liability protection and fines up to €10,000.',
-    'DEFAULT': 'Administrative fines under GDPR Art. 83.'
+    'IMPRESSUM': 'Fines up to €50,000 (German TMG §5).',
+    'TERMS': 'Loss of liability protection and potential consumer law fines.',
+    'DEFAULT': 'Administrative fines under GDPR Article 83.'
 };
 
 /**
@@ -37,7 +37,7 @@ const MANDATORY_CLUSTERS = {
     remediation: "Specify criteria or exact timeframes for how long user data is stored."
   },
   DPO: {
-    keywords: [/data protection officer/i, /datenschutzbeauftragter/i, /délégué à la protection des données/i, /DPO contact/i, /privacy officer/i],
+    keywords: [/data protection officer/i, /datenschutzbeaustragter/i, /délégué à la protection des données/i, /DPO contact/i, /privacy officer/i],
     law: "GDPR Article 13(1)(b)",
     name: "DPO Contact Details",
     remediation: "Provide professional contact details for privacy inquiries."
@@ -46,7 +46,7 @@ const MANDATORY_CLUSTERS = {
 
 /**
  * Authoritative URL Normalizer
- * Standardizes URLs and removes trailing slashes/fragments to prevent duplicates.
+ * Standardizes URLs and removes trailing slashes/fragments/query params to prevent duplicates.
  */
 export function normalizeUrl(url: string, base: string): string | null {
   try {
@@ -60,7 +60,7 @@ export function normalizeUrl(url: string, base: string): string | null {
     absolute.pathname = pathname;
     return absolute.href.toLowerCase();
   } catch (e) {
-    return url.toLowerCase().replace(/\/$/, "");
+    return url.toLowerCase().replace(/\/$/, "").split('?')[0];
   }
 }
 
@@ -79,7 +79,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   // Analyze first 100KB for cluster matching to save RAM
   const auditText = html.substring(0, 102400).toLowerCase();
 
-  // NAV-SCOUT: Hardened Link Discovery (URL Patterns + Text)
+  // NAV-SCOUT: УМНЫЙ ПОИСК (Убирает "Missing Document", если ссылка есть в тексте или href)
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href')?.toLowerCase() || '';
@@ -88,10 +88,10 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const normalized = normalizeUrl(href, url);
     if (!normalized) return;
 
-    // Semantic Mapping: Match by text OR URL pattern (prevents "Blind-Pugh" errors)
-    const isPrivacy = /privacy|datenschutz|privacy-policy/i.test(text) || /privacy|datenschutz/i.test(href);
-    const isImpressum = /impressum|legal-notice|legal-disclosure/i.test(text) || /impressum|legal-notice/i.test(href);
-    const isTerms = /terms|agb|tos|conditions/i.test(text) || /agb|tos|terms-of-service/i.test(href);
+    // Semantic Mapping: Match by text OR URL pattern
+    const isPrivacy = /privacy|datenschutz|privacy-policy|protection/i.test(text) || /privacy|datenschutz/i.test(href);
+    const isImpressum = /impressum|legal-notice|legal-disclosure|legal/i.test(text) || /impressum|legal-notice|legal/i.test(href);
+    const isTerms = /terms|agb|tos|conditions|usage/i.test(text) || /agb|tos|terms/i.test(href);
     const isCookies = /cookie|cookies/i.test(text) || /cookie/i.test(href);
 
     if (!links.privacy && isPrivacy) links.privacy = normalized;
@@ -113,7 +113,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const foundUrl = links[doc.key as keyof typeof links];
     
     if (!foundUrl) {
-      // Status: MISSING (Navigational Failure)
+      // Status: MISSING (Only if zero links detected)
       violations.push({
         category: doc.category as Category,
         report_type: 'SaaS',
@@ -128,10 +128,8 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         verification_method
       });
     } else {
-      // Status: INCOMPLETE (LEX-ANALYZER Cluster Check)
-      // If document is found, we check mandatory sections instead of reporting it as missing.
+      // Status: INCOMPLETE (If document exists but lacks clusters)
       Object.entries(MANDATORY_CLUSTERS).forEach(([clusterKey, cluster]) => {
-        // Semantic Filter: Only check relevant clusters for each document type
         if (doc.key === 'impressum' && clusterKey !== 'CONTROLLER') return;
         if (doc.key === 'cookies' || doc.key === 'terms') return;
 
@@ -143,11 +141,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             issue_type: `Incomplete ${doc.name}: Missing ${cluster.name}`,
             severity: 'high',
             evidence_html: foundUrl,
-            description: `Document detected at ${foundUrl}, but the mandatory section [${cluster.name}] is semantically missing.`,
+            description: `Legal document detected at ${foundUrl}, but mandatory section [${cluster.name}] is missing.`,
             law_name: cluster.law,
             potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
             explanation: `${cluster.law} mandates the explicit disclosure of ${cluster.name} within the legal document.`,
-            recommendation: `Corrective Action: You must append the following information to satisfy ${cluster.law}: ${cluster.remediation}`,
+            recommendation: `Corrective Action Required: You must append the following information to satisfy ${cluster.law}: ${cluster.remediation}`,
             verification_method
           });
         }

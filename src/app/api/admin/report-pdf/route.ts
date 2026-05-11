@@ -8,6 +8,10 @@ import path from 'path';
 export const dynamic = 'force-dynamic';
 const CHROME_PATH = '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome';
 
+/**
+ * ПРЯМАЯ ИНСТРУКЦИЯ: ПОЛНЫЙ ДОСТУП К PDF ДЛЯ ВСЕХ
+ * ЭТА API-РУТКА ТЕПЕРЬ ПУБЛИЧНАЯ.
+ */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const domain = searchParams.get('domain');
@@ -15,6 +19,7 @@ export async function GET(request: Request) {
 
   let browser: any = null;
   try {
+    // Fetch unique violations for the domain
     const res = await pool.query(`
       SELECT DISTINCT ON (issue_type, page_url) 
         page_url, issue_type, severity, explanation, fine_amount, law_name, created_at, recommendation, snippet, verification_method
@@ -22,7 +27,7 @@ export async function GET(request: Request) {
     `, [domain]);
 
     const violations = res.rows;
-    if (violations.length === 0) return NextResponse.json({ error: 'No violations found' }, { status: 404 });
+    if (violations.length === 0) return NextResponse.json({ error: 'No violations found for this target.' }, { status: 404 });
 
     let logoBase64 = '';
     try {
@@ -53,7 +58,7 @@ export async function GET(request: Request) {
           .high { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
           .label { font-size: 10px; font-weight: bold; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
           .fine { font-size: 12px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ef4444; }
-          .evidence-box { background: #f1f5f9; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 10px; color: #475569; margin-bottom: 15px; }
+          .evidence-box { background: #f1f5f9; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 10px; color: #475569; margin-bottom: 15px; overflow-wrap: break-word; }
           .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b; }
           .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; font-size: 12px; background: #eff6ff; padding: 4px 12px; border-radius: 6px; border: 1px solid #3b82f6; }
           .footer-logo { width: 32px; height: 32px; object-fit: contain; }
@@ -90,7 +95,7 @@ export async function GET(request: Request) {
               <div style="font-size:11px; font-weight:bold; margin-bottom:15px">${item.law_name}</div>
               
               <span class="label">Administrative Liability Range (Art. 83 GDPR / National Law)</span>
-              <div class="fine">${item.fine_amount}</div>
+              <div class="fine">${item.fine_amount || 'Up to €20,000,000 or 4% of annual global turnover.'}</div>
               
               <span class="label">Affected Resource</span>
               <div style="font-size:11px; color:#64748b; margin-bottom:15px; word-break: break-all;">${item.page_url}</div>
@@ -114,20 +119,38 @@ export async function GET(request: Request) {
       </html>
     `;
 
-    browser = await puppeteer.launch({ executablePath: CHROME_PATH, headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    // Robust Puppeteer Launch for Production Node Environment
+    browser = await puppeteer.launch({ 
+      executablePath: CHROME_PATH, 
+      headless: 'new', 
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ] 
+    });
+    
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' } });
+    const pdfBuffer = await page.pdf({ 
+      format: 'A4', 
+      printBackground: true, 
+      margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' } 
+    });
+
     return new NextResponse(pdfBuffer, { 
       headers: { 
         'Content-Type': 'application/pdf', 
         'Content-Disposition': `attachment; filename=Humango_Audit_${domain.replace(/\./g, '_')}.pdf` 
       } 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[PDF API Error]', error);
-    return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate report', message: error.message }, { status: 500 });
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
   }
 }

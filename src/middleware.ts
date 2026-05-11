@@ -4,14 +4,13 @@ import type { NextRequest } from 'next/server';
 
 /**
  * Middleware for path management and API protection.
- * Updated to ensure /api/admin/report-pdf is strictly public for audit users.
+ * ПРЯМАЯ ИНСТРУКЦИЯ: ПОЛНЫЙ ДОСТУП К PDF ДЛЯ ВСЕХ
  */
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
   
   // 1. Admin API Protection
   // We explicitly permit /api/admin/report-pdf so public users can download their results.
-  // All other /api/admin/* routes require 'admin_authenticated' cookie.
   const isReportPdf = url.pathname === '/api/admin/report-pdf';
   const isAdminPath = url.pathname.startsWith('/api/admin');
   
