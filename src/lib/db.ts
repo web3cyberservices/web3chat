@@ -24,7 +24,7 @@ function sanitize(text: string | null | undefined): string {
 }
 
 // 3. ДЕДУПЛИКАЦИЯ URL (Убирает повторы costera.tech)
-function normalizeUrl(url: string): string {
+export function normalizeUrl(url: string): string {
   try {
     const u = new URL(url);
     u.hash = '';
@@ -82,8 +82,6 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of uniqueViolations.values()) {
-      const fine = v.potential_fine || v.fine_amount || "Administrative fines under GDPR Art. 83.";
-      
       await client.query(query, [
         sanitize(domain),
         sanitize(cleanUrl),
@@ -99,7 +97,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(v.recommendation),
         scanType,
         v.report_type,
-        fine
+        v.potential_fine || v.fine_amount
       ]);
     }
     await client.query('COMMIT');

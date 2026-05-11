@@ -2,14 +2,13 @@
 import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, Category, VerificationMethod } from '@/types';
 
-// 1. ЖЕСТКИЙ МАППИНГ ШТРАФОВ (Убирает null и Calculating...)
-const LIABILITY_RULES: Record<string, string> = {
-  'PRIVACY': 'Administrative fines up to €20,000,000 or 4% of global turnover (Art. 83 GDPR).',
-  'COOKIES': 'Fines up to €10,000,000 or 2% of global turnover (ePrivacy Directive).',
-  'IMPRESSUM': 'Fines up to €50,000 (§ 5 TMG).',
-  'TERMS': 'Loss of liability protection and fines up to €10,000.',
-  'SECURITY': 'Administrative fines up to €20,000,000 or 4% of global turnover (Art. 83 GDPR).',
-  'DEFAULT': 'Administrative fines under GDPR Art. 83.'
+// 1. КОНСТАНТЫ (Убивают null и Calculating...)
+const LIABILITY_DATABASE: Record<string, string> = {
+    'PRIVACY': 'Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR).',
+    'COOKIES': 'Up to €10,000,000 or 2% of annual global turnover (ePrivacy Directive).',
+    'IMPRESSUM': 'Up to €50,000 (German TMG §5).',
+    'TERMS': 'Loss of liability protection and potential consumer law fines.',
+    'DEFAULT': 'Administrative fines under GDPR Art. 83.'
 };
 
 const MANDATORY_CLUSTERS = {
@@ -35,22 +34,8 @@ const MANDATORY_CLUSTERS = {
     keywords: [/data protection officer/i, /datenschutzbeauftragter/i, /délégué à la protection des données/i, /DPO contact/i],
     law: "GDPR Article 13(1)(b)",
     name: "DPO Contact Details",
-    remediation: "Provide professional contact details for privacy inquiries (if applicable)."
+    remediation: "Provide professional contact details for privacy inquiries."
   }
-};
-
-const LEGAL_PATTERNS = {
-  impressum: [/impressum/i, /legal notice/i, /mentions légales/i, /aviso legal/i, /legal-disclosure/i],
-  privacy: [/privacy/i, /datenschutz/i, /confidentialité/i, /privacidad/i, /data protection/i, /privacy-policy/i],
-  terms: [/terms/i, /tos/i, /conditions/i, /bedingungen/i, /condiciones/i, /agb/i, /terms-of-service/i],
-  cookies: [/cookie/i, /galletas/i, /biscotti/i, /cookie policy/i, /cookie-richtlinie/i]
-};
-
-const URL_PATTERNS = {
-  impressum: [/impressum/i, /legal-notice/i, /legal/i],
-  privacy: [/privacy/i, /datenschutz/i, /privacy-policy/i],
-  terms: [/terms/i, /agb/i, /tos/i, /conditions/i],
-  cookies: [/cookie/i, /cookies/i]
 };
 
 // 3. ДЕДУПЛИКАЦИЯ URL (Убирает повторы)
@@ -60,7 +45,6 @@ export function normalizeUrl(url: string, base: string): string | null {
     absolute.hash = '';
     absolute.search = ''; 
     let pathname = absolute.pathname.toLowerCase();
-    // Normalize trailing slashes
     if (pathname.length > 1 && pathname.endsWith('/')) {
       pathname = pathname.slice(0, -1);
     }
@@ -82,9 +66,9 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   
   const links: Record<string, string | null> = { impressum: null, privacy: null, terms: null, cookies: null };
   const violations: Violation[] = [];
-  const lowerHtml = html.substring(0, 100000).toLowerCase(); // LEX-ANALYZER limit: 100KB
+  const lowerHtml = html.substring(0, 100000).toLowerCase();
 
-  // 2. УМНЫЙ ПОИСК ССЫЛОК (Убирает "Missing Document", если ссылка есть по паттерну)
+  // 2. УМНЫЙ ПОИСК ССЫЛОК (Убирает "Missing Document", если ссылка есть в href или тексте)
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href')?.toLowerCase() || '';
@@ -93,13 +77,16 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const normalized = normalizeUrl(href, url);
     if (!normalized) return;
 
-    const checkText = (patterns: RegExp[]) => patterns.some(p => p.test(text));
-    const checkHref = (patterns: RegExp[]) => patterns.some(p => p.test(href));
+    // Smart Regex Matching for navigation discovery
+    const isPrivacy = /privacy|datenschutz|privacy-policy/i.test(text) || /privacy|datenschutz/i.test(href);
+    const isImpressum = /impressum|legal-notice|legal-disclosure/i.test(text) || /impressum|legal-notice/i.test(href);
+    const isTerms = /terms|agb|tos|conditions/i.test(text) || /agb|tos|terms-of-service/i.test(href);
+    const isCookies = /cookie|cookies/i.test(text) || /cookie/i.test(href);
 
-    if (!links.impressum && (checkText(LEGAL_PATTERNS.impressum) || checkHref(URL_PATTERNS.impressum))) links.impressum = normalized;
-    if (!links.privacy && (checkText(LEGAL_PATTERNS.privacy) || checkHref(URL_PATTERNS.privacy))) links.privacy = normalized;
-    if (!links.terms && (checkText(LEGAL_PATTERNS.terms) || checkHref(URL_PATTERNS.terms))) links.terms = normalized;
-    if (!links.cookies && (checkText(LEGAL_PATTERNS.cookies) || checkHref(URL_PATTERNS.cookies))) links.cookies = normalized;
+    if (!links.privacy && isPrivacy) links.privacy = normalized;
+    if (!links.impressum && isImpressum) links.impressum = normalized;
+    if (!links.terms && isTerms) links.terms = normalized;
+    if (!links.cookies && isCookies) links.cookies = normalized;
   });
 
   const mandatoryDocs = [
@@ -112,7 +99,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   mandatoryDocs.forEach(doc => {
     const foundUrl = links[doc.key as keyof typeof links];
     
-    // 4. ЛОГИКА СТАТУСА: "MISSING" ставится ТОЛЬКО если ссылка вообще не найдена.
+    // 4. ЛОГИКА СТАТУСА
     if (!foundUrl) {
       violations.push({
         category: doc.category as Category,
@@ -120,18 +107,18 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         issue_type: `Missing ${doc.name}`,
         severity: 'critical',
         evidence_html: url,
-        description: `NAV-SCOUT engine scanned the footer and did not detect a compliant link to the ${doc.name}. This is a transparency violation.`,
+        description: `NAV-SCOUT engine scanned the domain but could not detect an accessible link to the ${doc.name}. This is a mandatory transparency requirement.`,
         law_name: doc.law,
-        potential_fine: LIABILITY_RULES[doc.category] || LIABILITY_RULES.DEFAULT,
-        explanation: 'Mandatory legal information must be easily recognizable and directly accessible.',
-        recommendation: `Implement a high-visibility footer link labeled "${doc.name}" pointing to a compliant document.`,
+        potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
+        explanation: `Under ${doc.law}, website operators must provide a clearly visible and easily accessible ${doc.name}.`,
+        recommendation: `Action Required: Create a ${doc.name} and add a direct link to it in your website footer.`,
         verification_method
       });
     } else {
-      // "INCOMPLETE" ставится если Lex-Analyzer находит отсутствие секций
+      // Check for mandatory sections inside the document
       Object.entries(MANDATORY_CLUSTERS).forEach(([clusterKey, cluster]) => {
         if (doc.key === 'impressum' && clusterKey !== 'CONTROLLER') return;
-        if (doc.key === 'cookies') return; // Cookies usually checked via CMP detect
+        if (doc.key === 'cookies') return;
 
         if (!cluster.keywords.some(k => k.test(lowerHtml))) {
           violations.push({
@@ -140,12 +127,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             issue_type: `Incomplete ${doc.name}`,
             severity: 'high',
             evidence_html: foundUrl,
-            snippet: html.substring(0, 500) + '...',
-            description: `LEX-ANALYZER identified the ${doc.name} at ${foundUrl}, but mandatory section [${cluster.name}] is missing.`,
+            description: `LEX-ANALYZER identified the document, but the mandatory section [${cluster.name}] is missing from the text content.`,
             law_name: cluster.law,
-            potential_fine: LIABILITY_RULES[doc.category] || LIABILITY_RULES.DEFAULT,
-            explanation: `Transparency requirements under Art. 13 GDPR mandate the disclosure of [${cluster.name}].`,
-            recommendation: `Corrective Action Required: You must add the following to satisfy Art. 13 GDPR: ${cluster.remediation}`,
+            potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
+            explanation: `${cluster.law} mandates the disclosure of ${cluster.name} within your ${doc.name}.`,
+            recommendation: `Corrective Action Required: You must add the following specific text to your document: ${cluster.remediation}`,
             verification_method
           });
         }
@@ -153,8 +139,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     }
   });
 
-  const cmpSignatures = [/cookiebot/i, /onetrust/i, /usercentrics/i, /sourcepoint/i, /cookie-law-info/i];
-  const hasCMP = cmpSignatures.some(s => s.test(lowerHtml));
+  const hasCMP = [/cookiebot/i, /onetrust/i, /usercentrics/i, /sourcepoint/i].some(s => s.test(lowerHtml));
 
   return {
     violations,
