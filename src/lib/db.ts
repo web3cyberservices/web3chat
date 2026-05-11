@@ -26,7 +26,6 @@ function sanitize(text: string | null | undefined): string {
 export async function testConnection() {
   try {
     const res = await pool.query('SELECT NOW()');
-    console.log('[DB] Connection test successful:', res.rows[0].now);
     return true;
   } catch (err: any) {
     console.error('[DB] Connection test FAILED:', err.message);
@@ -42,9 +41,6 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
-    // We use both fine_amount and potential_fine columns for backwards compatibility,
-    // but fine_amount is the primary one used by the UI.
     const query = `
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
@@ -56,11 +52,12 @@ export async function saveAuditResults(domain: string, url: string, violations: 
 
     for (const v of violations) {
       const fine = v.potential_fine || '€1,000 - €20,000,000';
+      const affectedUrls = v.affected_urls?.join(', ') || v.evidence_html;
       
       await client.query(query, [
         sanitize(domain),
         sanitize(url),
-        sanitize(url),
+        sanitize(affectedUrls),
         v.category,
         v.issue_type,
         v.severity,
@@ -74,16 +71,12 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.report_type,
         fine
       ]);
-      
-      await saveBotEvent('SUCCESS', `[INCIDENT ${v.report_type}] ${domain} | ${v.issue_type} | Fine: ${fine}`);
     }
-    
     await client.query('COMMIT');
     return { success: true };
   } catch (error: any) {
     await client.query('ROLLBACK');
     console.error('[DB SAVE ERROR]', error.stack || error.message);
-    await saveBotEvent('ERROR', `Error saving data for ${domain}: ${error.message}`);
     return { success: false, error };
   } finally {
     client.release();
@@ -95,7 +88,6 @@ export async function saveBotEvent(type: 'START' | 'STOP' | 'ERROR' | 'SUCCESS',
     await pool.query('INSERT INTO bot_events (type, message, timestamp) VALUES ($1, $2, NOW())', [type, sanitize(message)]);
     return { success: true };
   } catch (error) {
-    console.error('[DB Error] Failed to save bot event:', error);
     return { success: false };
   }
 }
@@ -134,7 +126,6 @@ export async function getNextQueueItem() {
     const query = "SELECT id, url, depth FROM scan_queue WHERE status = 'pending' ORDER BY priority DESC, id ASC LIMIT 1 FOR UPDATE SKIP LOCKED";
     const result = await client.query(query);
     const task = result.rows[0];
-
     if (task) {
       await client.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
     }
@@ -151,9 +142,7 @@ export async function getNextQueueItem() {
 export async function updateQueueStatus(id: number, status: 'completed' | 'failed') {
   try {
     await pool.query('UPDATE scan_queue SET status = $1 WHERE id = $2', [status, id]);
-  } catch (error) {
-    console.error('[DB Error] Failed to update queue status:', error);
-  }
+  } catch (error) {}
 }
 
 export async function getQueueSize(): Promise<number> {
@@ -185,14 +174,12 @@ export async function getStats() {
     const pagesRes = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
     const issuesRes = await pool.query('SELECT COUNT(*) as total FROM site_violations');
     const recentIssues = await getViolations(10);
-    
     return {
       pagesScanned: Number(pagesRes.rows[0]?.count) || 0,
       issuesFound: Number(issuesRes.rows[0]?.total) || 0,
       recentIssues: recentIssues
     };
   } catch (error) {
-    console.error('[DB Stats Error]', error);
     return { pagesScanned: 0, issuesFound: 0, recentIssues: [] };
   }
 }
@@ -201,25 +188,14 @@ export async function getViolations(limit = 100) {
   try {
     const res = await pool.query(`
       SELECT 
-        id, 
-        domain, 
-        issue_type as type, 
-        severity as level, 
-        created_at as date, 
-        description as summary,
-        explanation as description,
+        id, domain, issue_type as type, severity as level, created_at as date, 
+        description as summary, explanation as description,
         COALESCE(fine_amount, potential_fine) as fine_amount,
-        law_name,
-        page_url as url,
-        evidence_html,
-        report_type
-      FROM site_violations 
-      ORDER BY created_at DESC
-      LIMIT $1
+        law_name, page_url as url, evidence_html, report_type
+      FROM site_violations ORDER BY created_at DESC LIMIT $1
     `, [limit]);
     return res.rows || [];
   } catch (error) {
-    console.error('[DB Violations Error]', error);
     return [];
   }
 }

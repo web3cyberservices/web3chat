@@ -3,6 +3,7 @@ export type Severity = 'low' | 'medium' | 'high' | 'critical';
 export type Category = 'ADA' | 'GDPR' | 'Privacy' | 'Security' | 'AI' | 'Transactional' | 'HR_Edu' | 'Legal_Content';
 export type ScanType = 'basic' | 'deep';
 export type ReportType = 'SaaS' | 'Manual';
+export type VerificationMethod = 'Static Analysis' | 'Dynamic Emulation';
 
 export interface Violation {
   category: Category;
@@ -17,10 +18,13 @@ export interface Violation {
   recommendation?: string;
   scan_type?: ScanType;
   report_type: ReportType;
+  affected_urls?: string[];
+  verification_method?: VerificationMethod;
 }
 
 export interface ComplianceReport {
   score: number;
+  verdict: 'COMPLIANT' | 'RISKY';
   nav_scout: {
     found_links: string[];
     missing_critical: string[];
@@ -53,6 +57,7 @@ export interface CrawlResult {
     duration_ms: number;
     memory_usage_mb: number;
     method: 'fetch' | 'puppeteer';
+    verification_method: VerificationMethod;
     hasCMP: boolean;
     legal_links: Record<string, string | null>;
   };

@@ -6,61 +6,40 @@ import fs from 'fs';
 import path from 'path';
 
 export const dynamic = 'force-dynamic';
-
 const CHROME_PATH = '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const domain = searchParams.get('domain');
-
-  if (!domain) {
-    return NextResponse.json({ error: 'Domain is required' }, { status: 400 });
-  }
+  if (!domain) return NextResponse.json({ error: 'Domain is required' }, { status: 400 });
 
   let browser: any = null;
-
   try {
     const res = await pool.query(`
       SELECT page_url, issue_type, severity, explanation, fine_amount, law_name, created_at
-      FROM site_violations 
-      WHERE domain = $1
-      ORDER BY created_at DESC
+      FROM site_violations WHERE domain = $1 ORDER BY created_at DESC
     `, [domain]);
 
     const violations = res.rows;
-    
-    if (violations.length === 0) {
-      return NextResponse.json({ error: 'No violations found for this domain' }, { status: 404 });
-    }
+    if (violations.length === 0) return NextResponse.json({ error: 'No violations found' }, { status: 404 });
 
-    // Group violations by type for summary
-    const grouped = violations.reduce((acc: any, curr: any) => {
-      const type = curr.issue_type;
-      if (!acc[type]) {
-        acc[type] = {
-          type: type,
-          severity: curr.severity,
-          explanation: curr.explanation,
-          fine: curr.fine_amount,
-          law: curr.law_name,
-          urls: []
-        };
+    // Grouping for Deduplication in PDF
+    const groupedMap = new Map();
+    violations.forEach(v => {
+      const key = `${v.issue_type}_${v.law_name}`;
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, { ...v, urls: new Set([v.page_url]) });
+      } else {
+        groupedMap.get(key).urls.add(v.page_url);
       }
-      acc[type].urls.push(curr.page_url);
-      return acc;
-    }, {});
+    });
+    const groupedArray = Array.from(groupedMap.values()).map(v => ({...v, urls: Array.from(v.urls)}));
 
-    const groupedArray = Object.values(grouped);
-
-    // Load logo
     let logoBase64 = '';
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-      const logoBuffer = fs.readFileSync(logoPath);
-      logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
-    } catch (e) {
-      console.warn('Logo file not found, skipping base64 conversion');
-    }
+      logoBase64 = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
+    } catch (e) {}
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -75,152 +54,70 @@ export async function GET(request: Request) {
           .logo-text { font-size: 24px; font-weight: bold; color: #0f172a; }
           .company-info { font-size: 10px; color: #64748b; text-align: right; }
           .title-section { margin-bottom: 30px; }
-          .title { font-size: 18px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
+          .title { font-size: 18px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
           .domain-badge { background: #eff6ff; color: #3b82f6; padding: 4px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
-          
-          .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
-          .summary-title { font-size: 14px; font-weight: bold; color: #334155; margin-bottom: 10px; text-transform: uppercase; }
-          
-          .violation-item { border: 1px solid #f1f5f9; border-radius: 8px; margin-bottom: 20px; overflow: hidden; page-break-inside: avoid; }
-          .violation-header { background: #fdfdfd; padding: 15px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
-          .violation-type { font-weight: bold; font-size: 14px; color: #0f172a; }
-          .violation-count { background: #fee2e2; color: #ef4444; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+          .violation-item { border: 1px solid #f1f5f9; border-radius: 8px; margin-bottom: 20px; page-break-inside: avoid; }
+          .violation-header { background: #fdfdfd; padding: 15px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
+          .violation-type { font-weight: bold; font-size: 14px; }
           .violation-body { padding: 15px; }
           .severity-badge { font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
-          .critical { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
-          .high { background: #fff7ed; color: #f97316; border: 1px solid #ffedd5; }
-          
-          .explanation-text { font-size: 12px; color: #475569; margin-bottom: 15px; }
-          .law-note { font-size: 10px; color: #94a3b8; font-style: italic; }
-          .fine-text { font-size: 12px; font-weight: bold; color: #ef4444; margin-top: 10px; }
-          
-          .url-list-title { font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase; }
-          .url-list { list-style: none; padding: 0; margin: 0; font-family: monospace; font-size: 10px; color: #3b82f6; }
-          .url-list li { margin-bottom: 3px; word-break: break-all; }
-
-          .warning-box { background: #fff7ed; border: 1px solid #ffedd5; padding: 20px; margin-top: 40px; border-radius: 8px; }
-          .warning-title { color: #9a3412; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
-          .warning-text { font-size: 11px; color: #7c2d12; }
-          
-          .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; font-size: 9px; color: #475569; }
-          .footer a { color: #3b82f6; text-decoration: none; font-weight: bold; }
-          .footer-logo { width: 32px; height: 32px; object-fit: contain; }
+          .critical { background: #fef2f2; color: #ef4444; }
+          .explanation { font-size: 12px; color: #475569; margin-bottom: 10px; }
+          .fine { font-size: 12px; font-weight: bold; color: #ef4444; }
+          .url-list { font-family: monospace; font-size: 9px; color: #3b82f6; list-style: none; padding: 0; }
+          .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; font-size: 9px; }
+          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; font-size: 11px; }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="logo-container">
-            ${logoBase64 ? `<img src="${logoBase64}" class="logo-img" alt="Logo">` : ''}
-            <div>
-              <div class="logo-text">HUMANGO BOT</div>
-              <div style="font-size: 10px; color: #3b82f6; font-weight: bold;">Compliance & Security Systems</div>
-            </div>
+            ${logoBase64 ? `<img src="${logoBase64}" class="logo-img">` : ''}
+            <div class="logo-text">HUMANGO BOT</div>
           </div>
           <div class="company-info">
-            <strong>HUMANGO LIMITED</strong><br>
-            182-184 High Street North, London<br>
-            England, E6 2JA<br>
-            Company No: 16750477
+            <strong>HUMANGO LIMITED</strong><br>London, England, E6 2JA
           </div>
         </div>
-
         <div class="title-section">
           <div class="title">Official Compliance Audit Report</div>
-          <div style="margin-top: 10px;">
-            Audit Target: <span class="domain-badge">${domain}</span>
-          </div>
-          <div style="font-size: 10px; color: #94a3b8; margin-top: 5px;">
-            Report Date: ${new Date().toLocaleDateString('en-US')} | ID: HB-${Math.floor(Math.random() * 900000 + 100000)}
-          </div>
+          <div style="margin-top:10px">Audit Target: <span class="domain-badge">${domain}</span></div>
         </div>
-
-        <div class="summary-card">
-          <div class="summary-title">Audit Summary</div>
-          <div style="font-size: 13px; color: #475569;">
-            During the automated compliance audit of the domain <strong>${domain}</strong>, 
-            <strong>${violations.length}</strong> violations were identified across <strong>${groupedArray.length}</strong> categories.
-          </div>
-        </div>
-
-        ${groupedArray.map((item: any) => `
+        ${groupedArray.map(item => `
           <div class="violation-item">
             <div class="violation-header">
-              <span class="violation-type">${item.type}</span>
-              <span class="violation-count">Incidents: ${item.urls.length}</span>
+              <span class="violation-type">${item.issue_type}</span>
+              <span style="font-size:10px; color:#64748b">Verified Incident</span>
             </div>
             <div class="violation-body">
               <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
-              <div class="explanation-text">${item.explanation}</div>
-              <div class="law-note">Legal Ground: ${item.law}</div>
-              <div class="fine-text">Potential Fine: ${item.fine}</div>
-              
-              <div class="url-list-title">Affected Pages (${item.urls.length}):</div>
-              <ul class="url-list">
-                ${item.urls.slice(0, 15).map((url: string) => `<li>${url}</li>`).join('')}
-                ${item.urls.length > 15 ? `<li>... and ${item.urls.length - 15} more pages</li>` : ''}
-              </ul>
+              <div class="explanation">${item.explanation}</div>
+              <div style="font-size:10px; color:#94a3b8; margin-bottom:5px">Legal Ground: ${item.law_name}</div>
+              <div class="fine">Potential Fine: ${item.fine_amount}</div>
+              <div style="margin-top:10px; font-weight:bold; font-size:10px">Affected Pages (${item.urls.length}):</div>
+              <ul class="url-list">${item.urls.slice(0, 10).map(u => `<li>${u}</li>`).join('')}${item.urls.length > 10 ? '<li>... and more</li>' : ''}</ul>
             </div>
           </div>
         `).join('')}
-
-        <div class="warning-box">
-          <div class="warning-title">⚠️ Legal Notice</div>
-          <div class="warning-text">
-            The identified issues carry administrative liability under GDPR and local EU regulations. 
-            This report serves as an official notification. 
-            Corrective actions should be implemented immediately to prevent sanctions from regulatory authorities. 
-            HUMANGO specialists are available to perform a follow-up audit after remediation is complete.
-          </div>
-        </div>
-
         <div class="footer">
           <div>
-            &copy; ${new Date().getFullYear()} Global Infrastructure Group | HUMANGO Compliance<br>
-            Verification: bot.humango.app | Support: <a href="mailto:abuse@humango.app">abuse@humango.app</a>
+            &copy; ${new Date().getFullYear()} Humango Compliance Systems<br>
+            Direct Verification Support: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
           </div>
-          <div class="logo-container">
-            ${logoBase64 ? `<img src="${logoBase64}" class="footer-logo" alt="Logo">` : ''}
-          </div>
+          ${logoBase64 ? `<img src="${logoBase64}" style="width:32px; height:32px">` : ''}
         </div>
       </body>
       </html>
     `;
 
-    browser = await puppeteer.launch({
-      executablePath: CHROME_PATH,
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-    });
-
-    if (!browser) throw new Error('Failed to launch browser for PDF');
-
+    browser = await puppeteer.launch({ executablePath: CHROME_PATH, headless: 'new', args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    
-    const pdfBuffer = await page.pdf({ 
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
-    });
-    
-    return new NextResponse(pdfBuffer, {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename=Humango_Audit_${domain}_${new Date().toISOString().split('T')[0]}.pdf`,
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-      },
-    });
-
-  } catch (error: any) {
-    console.error('[PDF Export Error]', error);
-    return NextResponse.json({ error: 'Failed to generate PDF report' }, { status: 500 });
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+    return new NextResponse(pdfBuffer, { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename=Humango_Audit_${domain}.pdf` } });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
   } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (e) {
-        console.error('Error closing browser in PDF API:', e);
-      }
-    }
+    if (browser) await browser.close();
   }
 }
