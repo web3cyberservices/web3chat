@@ -3,8 +3,8 @@ import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, Category, VerificationMethod } from '@/types';
 
 /**
- * ПРЯМАЯ ИНСТРУКЦИЯ: ЖЕСТКИЙ МАППИНГ ШТРАФОВ
- * ЭТОТ ОБЪЕКТ УБИВАЕТ NULL И "CALCULATING..." В ОТЧЕТАХ
+ * AUTHORITATIVE LIABILITY DATABASE
+ * Eliminates 'null' and 'Calculating...' from all reports.
  */
 const LIABILITY_DATABASE: Record<string, string> = {
     'PRIVACY': 'Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).',
@@ -19,7 +19,7 @@ const LIABILITY_DATABASE: Record<string, string> = {
  */
 const MANDATORY_CLUSTERS = {
   CONTROLLER: {
-    keywords: [/data controller/i, /verantwortlicher/i, /responsable du traitement/i, /titular del tratamiento/i, /identity of the controller/i, /legal disclosure/i, /registered office/i],
+    keywords: [/data controller/i, /verantwortlicher/i, /responsable du traitement/i, /identity of the controller/i, /legal disclosure/i, /registered office/i],
     law: "Art. 13(1)(a) GDPR",
     name: "Controller Identity",
     remediation: "Include the full legal name of your entity, registered physical address, and a direct contact email."
@@ -45,7 +45,7 @@ const MANDATORY_CLUSTERS = {
 };
 
 /**
- * Determines if a site specifically requires an Impressum (Legal Notice) 
+ * Determines if a site specifically requires an Impressum (Legal Notice)
  * based on regional laws (primarily DACH region).
  */
 function requiresImpressum(url: string, html: string): boolean {
@@ -68,7 +68,7 @@ export function normalizeUrl(url: string, base: string): string | null {
   try {
     const absolute = new URL(url, base);
     absolute.hash = '';
-    absolute.search = ''; 
+    absolute.search = '';
     let pathname = absolute.pathname.toLowerCase();
     if (pathname.length > 1 && pathname.endsWith('/')) {
       pathname = pathname.slice(0, -1);
@@ -80,8 +80,8 @@ export function normalizeUrl(url: string, base: string): string | null {
   }
 }
 
-export function parseHtmlContent(html: string, url: string, headers: any = {}, screenshot?: string, isPuppeteer: boolean = false): { 
-  violations: Violation[], 
+export function parseHtmlContent(html: string, url: string, headers: any = {}, screenshot?: string, isPuppeteer: boolean = false): {
+  violations: Violation[],
   discoveredLinks: string[],
   meta: { hasCMP: boolean, legal_links: Record<string, string | null> },
   compliance_report: ComplianceReport
@@ -93,7 +93,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const violations: Violation[] = [];
   const auditText = html.substring(0, 150000).toLowerCase();
 
-  // NAV-SCOUT: SEARCH FOR LINKS (Smart Pattern Discovery)
+  // NAV-SCOUT: SMART PATTERN DISCOVERY (Scan text AND href)
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href')?.toLowerCase() || '';
@@ -102,9 +102,9 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const normalized = normalizeUrl(href, url);
     if (!normalized) return;
 
-    // Pattern Matching: prioritize href logic to stop false Missing reports
+    // Pattern Matching Logic (Hardened to prevent false "Missing" reports)
     const isPrivacy = /privacy|datenschutz|protection/i.test(text) || /privacy|datenschutz/i.test(href);
-    const isImpressum = /impressum|legal-notice|legal-disclosure/i.test(text) || /impressum|legal-notice/i.test(href);
+    const isImpressum = /impressum|legal-notice|legal-disclosure/i.test(text) || /impressum|legal-notice|legal-disclosure/i.test(href);
     const isTerms = /terms|agb|tos|usage/i.test(text) || /agb|tos|terms/i.test(href);
     const isCookies = /cookie|cookies/i.test(text) || /cookie/i.test(href);
 
@@ -144,6 +144,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     } else {
       // Document found -> Run Lex-Analyzer for mandatory clusters
       Object.entries(MANDATORY_CLUSTERS).forEach(([clusterKey, cluster]) => {
+        // Skip irrelevant checks for non-privacy docs
         if (doc.key === 'impressum' && clusterKey !== 'CONTROLLER') return;
         if (doc.key === 'cookies' || doc.key === 'terms') return;
 
@@ -155,7 +156,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             issue_type: `Incomplete ${doc.name}: Missing ${cluster.name}`,
             severity: 'high',
             evidence_html: foundUrl,
-            description: `Legal document found at ${foundUrl}, but mandatory section [${cluster.name}] is missing.`,
+            description: `Violation of ${cluster.law}. Legal document found at ${foundUrl}, but mandatory section [${cluster.name}] is missing.`,
             law_name: cluster.law,
             potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
             explanation: `${cluster.law} mandates explicit disclosure of ${cluster.name}.`,
