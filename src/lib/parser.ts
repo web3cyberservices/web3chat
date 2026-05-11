@@ -20,25 +20,25 @@ const LIABILITY_DATABASE: Record<string, string> = {
 const MANDATORY_CLUSTERS = {
   CONTROLLER: {
     keywords: [/data controller/i, /verantwortlicher/i, /responsable du traitement/i, /titular del tratamiento/i, /identity of the controller/i, /legal disclosure/i, /registered office/i],
-    law: "GDPR Article 13(1)(a)",
+    law: "Art. 13(1)(a) GDPR",
     name: "Controller Identity",
     remediation: "Include the full legal name of your entity, registered physical address, and a direct contact email."
   },
   RIGHTS: {
     keywords: [/right to access/i, /right to erasure/i, /right to object/i, /auskunftsrecht/i, /löschungsrecht/i, /widerrufsrecht/i, /data subject rights/i, /your rights/i],
-    law: "GDPR Article 13(2)(b)",
+    law: "Art. 13(2)(b) GDPR",
     name: "Data Subject Rights",
     remediation: "Explain that users have the right to request access, correction, or deletion of their personal data."
   },
   RETENTION: {
     keywords: [/retention period/i, /speicherdauer/i, /durée de conservation/i, /plazo de conservación/i, /storage period/i, /how long we keep/i],
-    law: "GDPR Article 13(2)(a)",
+    law: "Art. 13(2)(a) GDPR",
     name: "Retention Periods",
     remediation: "Specify criteria or exact timeframes for how long user data is stored."
   },
   DPO: {
     keywords: [/data protection officer/i, /datenschutzbeaustragter/i, /délégué à la protection des données/i, /DPO contact/i, /privacy officer/i],
-    law: "GDPR Article 13(1)(b)",
+    law: "Art. 13(1)(b) GDPR",
     name: "DPO Contact Details",
     remediation: "Provide professional contact details for privacy inquiries."
   }
@@ -46,20 +46,15 @@ const MANDATORY_CLUSTERS = {
 
 /**
  * Determines if a site specifically requires an Impressum (Legal Notice) 
- * based on regional laws (primarily DACH region: DE, AT, CH, LI).
+ * based on regional laws (primarily DACH region).
  */
 function requiresImpressum(url: string, html: string): boolean {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    
-    // DACH TLDs always require an Impressum
     const dachTlds = ['.de', '.at', '.ch', '.li'];
     if (dachTlds.some(tld => hostname.endsWith(tld))) return true;
-
-    // Check for German language markers in content (meta lang or common keywords)
     const isGermanLanguage = /lang="de"/i.test(html) || /datenschutz|impressum|kontakt/i.test(html);
     if (isGermanLanguage) return true;
-
     return false;
   } catch (e) {
     return false;
@@ -68,7 +63,6 @@ function requiresImpressum(url: string, html: string): boolean {
 
 /**
  * Authoritative URL Normalizer
- * Standardizes URLs and removes trailing slashes/fragments/query params to prevent duplicates.
  */
 export function normalizeUrl(url: string, base: string): string | null {
   try {
@@ -97,11 +91,9 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   
   const links: Record<string, string | null> = { impressum: null, privacy: null, terms: null, cookies: null };
   const violations: Violation[] = [];
-  
-  // Analyze first 100KB for cluster matching to save RAM
-  const auditText = html.substring(0, 102400).toLowerCase();
+  const auditText = html.substring(0, 150000).toLowerCase();
 
-  // NAV-SCOUT: SEARCH FOR LINKS (patterns + text)
+  // NAV-SCOUT: SEARCH FOR LINKS (Smart Pattern Discovery)
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href')?.toLowerCase() || '';
@@ -110,10 +102,10 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const normalized = normalizeUrl(href, url);
     if (!normalized) return;
 
-    // Semantic Mapping: Match by text OR URL pattern (Blind-Pugh Fix)
-    const isPrivacy = /privacy|datenschutz|privacy-policy|protection/i.test(text) || /privacy|datenschutz|privacy-policy/i.test(href);
-    const isImpressum = /impressum|legal-notice|legal-disclosure|legal/i.test(text) || /impressum|legal-notice|legal/i.test(href);
-    const isTerms = /terms|agb|tos|conditions|usage/i.test(text) || /agb|tos|terms/i.test(href);
+    // Pattern Matching: prioritize href logic to stop false Missing reports
+    const isPrivacy = /privacy|datenschutz|protection/i.test(text) || /privacy|datenschutz/i.test(href);
+    const isImpressum = /impressum|legal-notice|legal-disclosure/i.test(text) || /impressum|legal-notice/i.test(href);
+    const isTerms = /terms|agb|tos|usage/i.test(text) || /agb|tos|terms/i.test(href);
     const isCookies = /cookie|cookies/i.test(text) || /cookie/i.test(href);
 
     if (!links.privacy && isPrivacy) links.privacy = normalized;
@@ -125,37 +117,33 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const mandatoryDocsConfig = [
     { key: 'privacy', name: 'Privacy Policy', law: 'Art. 13 GDPR', category: 'PRIVACY', required: true },
     { key: 'cookies', name: 'Cookie Policy', law: 'ePrivacy Directive', category: 'COOKIES', required: true },
-    { key: 'terms', name: 'Terms of Service (AGB)', law: 'BGB / TMG', category: 'TERMS', required: true },
-    { key: 'impressum', name: 'Legal Notice (Impressum)', law: '§ 5 TMG / Art. 13 GDPR', category: 'IMPRESSUM', required: requiresImpressum(url, html) }
+    { key: 'terms', name: 'Terms of Service', law: 'Consumer Law', category: 'TERMS', required: true },
+    { key: 'impressum', name: 'Legal Notice (Impressum)', law: '§ 5 TMG', category: 'IMPRESSUM', required: requiresImpressum(url, html) }
   ];
 
   const missingClusters: string[] = [];
 
   mandatoryDocsConfig.forEach(doc => {
-    // Only process if the document is required for this region
     if (!doc.required) return;
-
     const foundUrl = links[doc.key as keyof typeof links];
     
     if (!foundUrl) {
-      // Status: MISSING (Only if zero links or patterns detected)
       violations.push({
         category: doc.category as Category,
         report_type: 'SaaS',
         issue_type: `Missing ${doc.name}`,
         severity: 'critical',
         evidence_html: url,
-        description: `The NAV-SCOUT engine scanned the domain structure but could not detect an accessible link or URL pattern for the mandatory ${doc.name}.`,
+        description: `NAV-SCOUT scanned domain structure but found zero links matching ${doc.name} patterns.`,
         law_name: doc.law,
         potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
-        explanation: `Under ${doc.law}, website operators targeting this jurisdiction must provide a clearly visible and easily accessible ${doc.name}.`,
-        recommendation: `Critical Corrective Action: Create a ${doc.name} and insert a visible link in the website footer.`,
+        explanation: `Under ${doc.law}, website operators must provide a clearly visible ${doc.name}.`,
+        recommendation: `Mandatory Remediation: Create a ${doc.name} and insert a visible link in your footer.`,
         verification_method
       });
     } else {
-      // Status: INCOMPLETE (If document exists but lacks clusters)
+      // Document found -> Run Lex-Analyzer for mandatory clusters
       Object.entries(MANDATORY_CLUSTERS).forEach(([clusterKey, cluster]) => {
-        // Only check specific documents for specific clusters
         if (doc.key === 'impressum' && clusterKey !== 'CONTROLLER') return;
         if (doc.key === 'cookies' || doc.key === 'terms') return;
 
@@ -167,11 +155,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             issue_type: `Incomplete ${doc.name}: Missing ${cluster.name}`,
             severity: 'high',
             evidence_html: foundUrl,
-            description: `Legal document detected at ${foundUrl}, but mandatory section [${cluster.name}] is missing.`,
+            description: `Legal document found at ${foundUrl}, but mandatory section [${cluster.name}] is missing.`,
             law_name: cluster.law,
             potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
-            explanation: `${cluster.law} mandates the explicit disclosure of ${cluster.name} within the legal document.`,
-            recommendation: `Corrective Action Required: You must append the following information to satisfy ${cluster.law}: ${cluster.remediation}`,
+            explanation: `${cluster.law} mandates explicit disclosure of ${cluster.name}.`,
+            recommendation: `Corrective Action Required: Append details about ${cluster.name} to satisfy ${cluster.law}: ${cluster.remediation}`,
             verification_method
           });
         }
@@ -179,7 +167,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     }
   });
 
-  const hasCMP = [/cookiebot/i, /onetrust/i, /usercentrics/i, /sourcepoint/i, /cmp/i].some(s => s.test(auditText));
+  const hasCMP = [/cookiebot/i, /onetrust/i, /usercentrics/i, /cmp/i].some(s => s.test(auditText));
 
   return {
     violations,
@@ -197,7 +185,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         has_vat_id: /de[0-9]{9}/i.test(auditText),
         has_contact_info: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(auditText),
         has_mandatory_terms: true,
-        content_truncated: html.length > 102400,
+        content_truncated: html.length > 150000,
         missing_clusters: Array.from(new Set(missingClusters))
       },
       cmp_detect: {
