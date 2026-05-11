@@ -23,14 +23,19 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       return { url: seedUrl, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason };
     }
 
-    // High-Performance Scrape (Fetch -> Puppeteer)
+    // High-Performance Scrape (Fetch -> Puppeteer fallback)
     const scrape = await scrapeUrl(seedUrl);
     if (scrape.status === 'fail') {
       return { url: seedUrl, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: 'Failed to retrieve content' };
     }
 
-    // Advanced Parse (NAV-SCOUT & LEX-ANALYZER)
-    const { violations, discoveredLinks, meta } = parseHtmlContent(scrape.html, seedUrl, scrape.rawHeaders, scrape.screenshot);
+    // Advanced Parse (NAV-SCOUT & LEX-ANALYZER & CMP-DETECT)
+    const { violations, discoveredLinks, meta, compliance_report } = parseHtmlContent(
+      scrape.html, 
+      seedUrl, 
+      scrape.rawHeaders, 
+      scrape.screenshot
+    );
 
     // SSL & Security Checks
     if (!seedUrl.startsWith('https:')) {
@@ -52,10 +57,11 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
     const domain = new URL(seedUrl).hostname;
     await saveAuditLog(domain, 200, null);
     
-    if (violations.length > 0) {
-      await saveAuditResults(domain, seedUrl, violations, scrape.method === 'puppeteer' ? 'deep' : 'basic');
-      await saveBotEvent('SUCCESS', `Audit finished: ${domain} | Method: ${scrape.method} | Issues: ${violations.length}`);
-    }
+    // Save to database
+    await saveAuditResults(domain, seedUrl, violations, scrape.method === 'puppeteer' ? 'deep' : 'basic');
+    
+    // Log success
+    await saveBotEvent('SUCCESS', `Audit finished: ${domain} | Compliance Score: ${compliance_report.score}% | Issues: ${violations.length}`);
 
     return {
       url: seedUrl,
@@ -63,6 +69,7 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       status: 'success',
       issuesFound: violations.length,
       violations,
+      compliance_report,
       scanType: scrape.method === 'puppeteer' ? 'deep' : 'basic',
       discoveredLinks,
       meta: {

@@ -19,12 +19,32 @@ export interface Violation {
   report_type: ReportType;
 }
 
+export interface ComplianceReport {
+  score: number;
+  nav_scout: {
+    found_links: string[];
+    missing_critical: string[];
+    discovery_score: number;
+  };
+  lex_analyzer: {
+    has_vat_id: boolean;
+    has_contact_info: boolean;
+    has_mandatory_terms: boolean;
+    content_truncated: boolean;
+  };
+  cmp_detect: {
+    detected_provider: string | null;
+    is_active: boolean;
+  };
+}
+
 export interface CrawlResult {
   url: string;
   timestamp: string;
   status: 'success' | 'failed' | 'blocked' | 'skipped';
   issuesFound: number;
   violations?: Violation[];
+  compliance_report?: ComplianceReport;
   scanType: ScanType;
   error?: string;
   reason?: string;
