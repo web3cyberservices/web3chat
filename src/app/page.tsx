@@ -27,7 +27,11 @@ import {
   Loader2,
   AlertTriangle,
   Download,
-  CheckCircle2
+  CheckCircle2,
+  Info,
+  ShieldAlert,
+  FileSearch,
+  Check
 } from "lucide-react";
 
 export default function Home() {
@@ -79,6 +83,7 @@ export default function Home() {
   };
 
   const domain = scanResult?.url ? new URL(scanResult.url).hostname : '';
+  const report = scanResult?.compliance_report;
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-50 font-body overflow-x-hidden flex flex-col">
@@ -124,10 +129,10 @@ export default function Home() {
                 Automated Auditing
               </Badge>
               <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight text-white">
-                Compliance & Security <br />Report Generator
+                Compliance & Security <br />Audit Portal
               </h1>
               <p className="text-lg text-slate-400 max-w-xl leading-relaxed">
-                Enter your website and email to receive a comprehensive <span className="text-white font-medium">GDPR & Technical Audit</span> PDF report within seconds.
+                Enter your website to receive an authenticated <span className="text-white font-medium">GDPR & Technical Audit</span> report. Results are displayed instantly.
               </p>
             </div>
 
@@ -173,71 +178,129 @@ export default function Home() {
                       ) : (
                         <Zap className="w-4 h-4" />
                       )}
-                      {isScanning ? 'Scanning...' : 'Scan Now'}
+                      {isScanning ? 'Auditing...' : 'Run Audit'}
                     </Button>
                   </div>
                 </div>
               </form>
               <p className="mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
-                <ShieldCheck className="w-3 h-3 text-primary" /> Reports are delivered as authenticated PDF attachments
+                <ShieldCheck className="w-3 h-3 text-primary" /> Reports use authoritative GDPR Art. 83 liability estimates
               </p>
             </div>
 
-            {/* SCAN RESULTS DISPLAY */}
+            {/* LIVE SCAN RESULTS DISPLAY */}
             {scanResult && scanResult.status === 'success' && (
-              <Card className="bg-white/[0.03] border-white/10 animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
-                <div className="bg-emerald-500/5 border-b border-emerald-500/10 p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-emerald-500">Audit Successful</span>
-                  </div>
-                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">Report Sent</Badge>
-                </div>
-                <CardContent className="p-8 space-y-6">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-white">Full Report Dispatched</h3>
-                      <p className="text-sm text-slate-400">
-                        A detailed analysis of <span className="text-primary font-mono">{domain}</span> has been sent to <span className="text-white font-medium">{scanResult.recipient}</span>.
-                      </p>
+              <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                <Card className="bg-white/[0.03] border-white/10 overflow-hidden shadow-2xl">
+                  <div className={`p-4 flex items-center justify-between border-b border-white/5 ${report?.verdict === 'COMPLIANT' ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`}>
+                    <div className="flex items-center gap-3">
+                      {report?.verdict === 'COMPLIANT' ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      ) : (
+                        <ShieldAlert className="w-5 h-5 text-rose-500" />
+                      )}
+                      <div className="flex flex-col">
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${report?.verdict === 'COMPLIANT' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          Audit Verdict: {report?.verdict}
+                        </span>
+                        <span className="text-[9px] text-slate-500 uppercase font-mono">{domain}</span>
+                      </div>
                     </div>
-                    <div className="flex gap-3">
-                      <Button variant="outline" className="border-white/10 hover:bg-white/5 text-xs font-bold uppercase tracking-widest gap-2 h-12 px-6" asChild>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="bg-white/5 border-white/10 text-[10px] font-mono">
+                        Score: {report?.score}/100
+                      </Badge>
+                      <Button size="sm" variant="outline" className="h-8 border-white/10 hover:bg-white/5 text-[9px] font-bold uppercase tracking-widest gap-2" asChild>
                         <a href={`/api/admin/report-pdf?domain=${domain}`} target="_blank">
-                          <Download className="w-4 h-4" /> Download PDF
+                          <Download className="w-3 h-3" /> PDF Report
                         </a>
                       </Button>
                     </div>
                   </div>
+                  
+                  <CardContent className="p-8">
+                    <div className="grid md:grid-cols-2 gap-10">
+                      {/* Left Column: Navigation Scout */}
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                            <FileSearch className="w-4 h-4 text-primary" /> NAV-SCOUT Findings
+                          </h4>
+                          <p className="text-[10px] text-slate-500 leading-relaxed uppercase font-bold tracking-tight">Discovery of Mandatory Legal Infrastructure</p>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          {['Privacy Policy', 'Legal Notice (Impressum)', 'Terms of Service', 'Cookie Policy'].map((docName, idx) => {
+                            const isMissing = report?.nav_scout?.missing_critical?.includes(docName);
+                            return (
+                              <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                                <span className="text-xs text-slate-300 font-medium">{docName}</span>
+                                {isMissing ? (
+                                  <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/20 text-[9px] font-bold">MISSING</Badge>
+                                ) : (
+                                  <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] font-bold">DETECTED</Badge>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5">
-                    <div className="space-y-1">
-                      <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Violations</p>
-                      <p className="text-lg font-bold text-amber-500">{scanResult.issuesFound}</p>
+                      {/* Right Column: Lex Analyzer */}
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                            <Terminal className="w-4 h-4 text-primary" /> LEX-ANALYZER Content Audit
+                          </h4>
+                          <p className="text-[10px] text-slate-500 leading-relaxed uppercase font-bold tracking-tight">Validation of Mandatory Legal Clusters</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            { label: 'Retention Period', status: !report?.lex_analyzer?.missing_clusters?.includes('RETENTION') },
+                            { label: 'Controller Identity', status: !report?.lex_analyzer?.missing_clusters?.includes('CONTROLLER') },
+                            { label: 'DPO Contact', status: !report?.lex_analyzer?.missing_clusters?.includes('DPO') },
+                            { label: 'VAT ID Compliance', status: report?.lex_analyzer?.has_vat_id },
+                            { label: 'User Rights (Art. 13)', status: !report?.lex_analyzer?.missing_clusters?.includes('RIGHTS') },
+                            { label: 'CMP Active', status: report?.cmp_detect?.is_active }
+                          ].map((item, i) => (
+                            <div key={i} className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
+                              {item.status ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                              ) : (
+                                <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                              )}
+                              <span className="text-[10px] text-slate-400 font-medium truncate">{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">SSL Security</p>
-                      <p className="text-lg font-bold text-emerald-500">Active</p>
+
+                    <div className="mt-8 pt-8 border-t border-white/5">
+                      <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-4">
+                        <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs text-white font-bold mb-1 uppercase tracking-tight">Audit Methodology: {scanResult.meta?.verification_method}</p>
+                          <p className="text-[10px] text-slate-400 leading-relaxed">
+                            The scan detected <span className="text-white font-bold">{scanResult.issuesFound}</span> unique legal vulnerabilities. 
+                            Potential administrative liability is estimated based on <span className="text-primary font-bold">GDPR Article 83</span>.
+                            A complete PDF report has been dispatched to your email address.
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Scan Type</p>
-                      <p className="text-lg font-bold text-white uppercase">{scanResult.scanType}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Compliance</p>
-                      <p className="text-lg font-bold text-primary">RFC 9309</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {[
-                { icon: ShieldCheck, title: "Official Certification", desc: "Our reports provide technical evidence of compliance for regulatory audits." },
-                { icon: FileText, title: "PDF Export", desc: "Receive structured PDF reports with legal justifications and potential fine estimates." },
-                { icon: Scale, title: "GDPR Focus", desc: "Detailed breakdown of Art. 13/14 requirements and missing documentation." },
-                { icon: Globe, title: "Universal Check", desc: "Auditing of SSL, CSP, and HSTS headers alongside content integrity." },
+                { icon: ShieldCheck, title: "NAV-SCOUT Engine", desc: "Structural navigation analysis identifying mandatory legal documents and their visibility." },
+                { icon: FileText, title: "LEX-ANALYZER Module", desc: "Semantic legal cluster verification for VAT IDs, retention policies, and DPO contacts." },
+                { icon: Scale, title: "Art. 83 Liability", desc: "Authoritative liability mapping based on the latest EU regulatory fine frameworks." },
+                { icon: Globe, title: "Stateless Agent", desc: "Auditing performed by HumangoBot/1.0 under strict RFC 9309 compliance protocols." },
               ].map((item, i) => (
                 <Card key={i} className="bg-white/[0.02] border-white/5 p-6 hover:bg-white/[0.04] transition-all">
                   <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center mb-4">
@@ -254,12 +317,12 @@ export default function Home() {
             <Card className="bg-white/[0.03] border-white/10 backdrop-blur-xl shadow-2xl overflow-hidden">
               <CardHeader className="bg-white/[0.02] border-b border-white/5">
                 <CardTitle className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Terminal className="w-4 h-4 text-primary" /> Network Intelligence
+                  <Terminal className="w-4 h-4 text-primary" /> Audit Network Intelligence
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="space-y-3">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Audit Agent</label>
+                  <label className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">User-Agent Proxy</label>
                   <div className="p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 break-all leading-relaxed">
                     HumangoBot/1.0 (+https://bot.humango.app)
                   </div>
@@ -267,7 +330,7 @@ export default function Home() {
                 
                 <div className="grid grid-cols-1 gap-4">
                   <div className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Reporting Origin</label>
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Static Exit Node</label>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-mono text-xs text-slate-200">
                         <Globe className="w-3.5 h-3.5 text-primary" />
@@ -278,21 +341,21 @@ export default function Home() {
                   </div>
 
                   <div className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Compliance Status</label>
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Transparency Adherence</label>
                     <div className="flex items-center gap-2 font-mono text-xs text-slate-200">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>RFC 9309 ADHERENT</span>
+                      <span>RFC 9309 & GDPR ART. 6(1)(F)</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-4 bg-primary/10 rounded-xl border border-primary/20">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold uppercase text-primary">Audit Capacity</span>
-                    <span className="text-[10px] font-bold text-white">High Volume</span>
+                    <span className="text-[10px] font-bold uppercase text-primary">System Capacity</span>
+                    <span className="text-[10px] font-bold text-white">Active Node</span>
                   </div>
                   <div className="w-full bg-primary/20 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-primary h-full w-[85%]" />
+                    <div className="bg-primary h-full w-[92%]" />
                   </div>
                 </div>
               </CardContent>
@@ -300,14 +363,14 @@ export default function Home() {
 
             <Card className="bg-gradient-to-br from-indigo-500/10 to-primary/10 border-primary/20 p-6 space-y-4">
               <h3 className="text-sm font-bold flex items-center gap-2 text-white">
-                <Mail className="w-4 h-4 text-primary" /> Enterprise Solutions
+                <ShieldAlert className="w-4 h-4 text-primary" /> Enforcement Ready
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Need bulk auditing for multiple domains or recurring monthly reports? Contact our Enterprise Compliance team.
+                Our reports provide technical evidence of missing mandatory legal disclosures required by regulatory authorities.
               </p>
-              <Button className="w-full bg-primary font-bold h-11 text-xs gap-2 rounded-xl" asChild>
+              <Button className="w-full bg-primary font-bold h-11 text-xs gap-2 rounded-xl shadow-xl shadow-primary/20" asChild>
                 <a href="mailto:abuse@humango.app">
-                  Contact Sales
+                  Enterprise Compliance
                 </a>
               </Button>
             </Card>
@@ -319,12 +382,12 @@ export default function Home() {
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[9px] text-slate-500 uppercase tracking-[0.25em] font-bold">
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-4 h-4 text-primary opacity-80" />
-            <span>Humango Compliance • Policy v2.7</span>
+            <span>Humango Compliance Engine • v2.9 Semantic Audit</span>
           </div>
           <div className="flex gap-8 items-center">
-            <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Statement</Link>
-            <Link href="/legal/rfc9309" className="hover:text-white transition-colors">RFC 9309 Compliance</Link>
-            <Link href="/admin" className="text-slate-700 hover:text-white transition-colors">Admin Access</Link>
+            <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/legal/rfc9309" className="hover:text-white transition-colors">RFC 9309 Standards</Link>
+            <Link href="/admin" className="text-slate-800 hover:text-white transition-colors">Admin Terminal</Link>
           </div>
         </div>
       </footer>

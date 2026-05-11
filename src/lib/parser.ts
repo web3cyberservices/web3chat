@@ -5,6 +5,7 @@ import { Violation, ComplianceReport, Category, VerificationMethod } from '@/typ
 /**
  * Authoritative Liability Knowledge Base
  * This mapping eliminates "null" or "calculating" values in reports.
+ * References: Art. 83 GDPR, ePrivacy Directive, TMG §5.
  */
 const LIABILITY_DATABASE: Record<string, string> = {
     'PRIVACY': 'Administrative fines up to €20,000,000 or 4% of global turnover (Art. 83 GDPR).',
@@ -14,27 +15,30 @@ const LIABILITY_DATABASE: Record<string, string> = {
     'DEFAULT': 'Administrative fines under GDPR Art. 83.'
 };
 
+/**
+ * Mandatory Legal Clusters for Semantic Analysis
+ */
 const MANDATORY_CLUSTERS = {
   CONTROLLER: {
-    keywords: [/data controller/i, /verantwortlicher/i, /responsable du traitement/i, /titular del tratamiento/i, /identity of the controller/i, /legal disclosure/i],
+    keywords: [/data controller/i, /verantwortlicher/i, /responsable du traitement/i, /titular del tratamiento/i, /identity of the controller/i, /legal disclosure/i, /registered office/i],
     law: "GDPR Article 13(1)(a)",
     name: "Controller Identity",
     remediation: "Include the full legal name of your entity, registered physical address, and a direct contact email."
   },
   RIGHTS: {
-    keywords: [/right to access/i, /right to erasure/i, /right to object/i, /auskunftsrecht/i, /löschungsrecht/i, /widerrufsrecht/i, /data subject rights/i],
+    keywords: [/right to access/i, /right to erasure/i, /right to object/i, /auskunftsrecht/i, /löschungsrecht/i, /widerrufsrecht/i, /data subject rights/i, /your rights/i],
     law: "GDPR Article 13(2)(b)",
     name: "Data Subject Rights",
     remediation: "Explain that users have the right to request access, correction, or deletion of their personal data."
   },
   RETENTION: {
-    keywords: [/retention period/i, /speicherdauer/i, /durée de conservation/i, /plazo de conservación/i, /storage period/i],
+    keywords: [/retention period/i, /speicherdauer/i, /durée de conservation/i, /plazo de conservación/i, /storage period/i, /how long we keep/i],
     law: "GDPR Article 13(2)(a)",
     name: "Retention Periods",
     remediation: "Specify criteria or exact timeframes for how long user data is stored."
   },
   DPO: {
-    keywords: [/data protection officer/i, /datenschutzbeauftragter/i, /délégué à la protection des données/i, /DPO contact/i],
+    keywords: [/data protection officer/i, /datenschutzbeauftragter/i, /délégué à la protection des données/i, /DPO contact/i, /privacy officer/i],
     law: "GDPR Article 13(1)(b)",
     name: "DPO Contact Details",
     remediation: "Provide professional contact details for privacy inquiries."
@@ -42,8 +46,8 @@ const MANDATORY_CLUSTERS = {
 };
 
 /**
- * Robust URL Normalizer & Deduplicator
- * Strips trailing slashes, query params, and fragments to prevent "costera.tech" parasitic duplicates.
+ * Authoritative URL Normalizer
+ * Standardizes URLs to lowercase and removes trailing slashes/fragments.
  */
 export function normalizeUrl(url: string, base: string): string | null {
   try {
@@ -72,9 +76,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   
   const links: Record<string, string | null> = { impressum: null, privacy: null, terms: null, cookies: null };
   const violations: Violation[] = [];
-  const lowerHtml = html.substring(0, 100000).toLowerCase();
+  
+  // Analyze first 100KB for cluster matching to save RAM
+  const auditText = html.substring(0, 102400).toLowerCase();
 
-  // Smart Discovery: Search by text AND URL patterns
+  // NAV-SCOUT: Pattern-based Link Discovery
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href')?.toLowerCase() || '';
@@ -83,6 +89,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const normalized = normalizeUrl(href, url);
     if (!normalized) return;
 
+    // Semantic Mapping: Match by text OR URL pattern
     const isPrivacy = /privacy|datenschutz|privacy-policy/i.test(text) || /privacy|datenschutz/i.test(href);
     const isImpressum = /impressum|legal-notice|legal-disclosure/i.test(text) || /impressum|legal-notice/i.test(href);
     const isTerms = /terms|agb|tos|conditions/i.test(text) || /agb|tos|terms-of-service/i.test(href);
@@ -101,42 +108,47 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     { key: 'cookies', name: 'Cookie Policy', law: 'ePrivacy Directive', category: 'COOKIES' }
   ];
 
+  const missingClusters: string[] = [];
+
   mandatoryDocs.forEach(doc => {
     const foundUrl = links[doc.key as keyof typeof links];
     
     if (!foundUrl) {
-      // Status: MISSING
+      // Status: MISSING (Navigational Failure)
       violations.push({
         category: doc.category as Category,
         report_type: 'SaaS',
         issue_type: `Missing ${doc.name}`,
         severity: 'critical',
         evidence_html: url,
-        description: `NAV-SCOUT engine scanned the domain but could not detect an accessible link to the ${doc.name}.`,
+        description: `The NAV-SCOUT engine scanned the domain structure but could not detect an accessible link to the mandatory ${doc.name}.`,
         law_name: doc.law,
         potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
-        explanation: `Under ${doc.law}, website operators must provide a clearly visible ${doc.name}.`,
-        recommendation: `Action Required: Create a ${doc.name} and add a link to it in your website footer.`,
+        explanation: `Under ${doc.law}, website operators must provide a clearly visible and easily accessible ${doc.name}.`,
+        recommendation: `Critical Corrective Action: Create a ${doc.name} and insert a visible link in the website footer.`,
         verification_method
       });
     } else {
-      // Status: INCOMPLETE (Content Validation)
+      // Status: INCOMPLETE (LEX-ANALYZER Cluster Check)
       Object.entries(MANDATORY_CLUSTERS).forEach(([clusterKey, cluster]) => {
+        // Only check Impressum for Controller Identity, Privacy for everything
         if (doc.key === 'impressum' && clusterKey !== 'CONTROLLER') return;
         if (doc.key === 'cookies') return;
+        if (doc.key === 'terms') return;
 
-        if (!cluster.keywords.some(k => k.test(lowerHtml))) {
+        if (!cluster.keywords.some(k => k.test(auditText))) {
+          missingClusters.push(clusterKey);
           violations.push({
             category: doc.category as Category,
             report_type: 'SaaS',
             issue_type: `Incomplete ${doc.name}`,
             severity: 'high',
             evidence_html: foundUrl,
-            description: `Document found at ${foundUrl}, but mandatory section [${cluster.name}] is missing from the text content.`,
+            description: `Document detected at ${foundUrl}, but the mandatory section [${cluster.name}] is semantically missing.`,
             law_name: cluster.law,
             potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
-            explanation: `${cluster.law} mandates the disclosure of ${cluster.name}.`,
-            recommendation: `Corrective Action Required: You must add the following section: ${cluster.remediation}`,
+            explanation: `${cluster.law} mandates the explicit disclosure of ${cluster.name} within the legal document.`,
+            recommendation: `Corrective Action Required: You must append the following information: ${cluster.remediation}`,
             verification_method
           });
         }
@@ -144,7 +156,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     }
   });
 
-  const hasCMP = [/cookiebot/i, /onetrust/i, /usercentrics/i, /sourcepoint/i].some(s => s.test(lowerHtml));
+  const hasCMP = [/cookiebot/i, /onetrust/i, /usercentrics/i, /sourcepoint/i, /cmp/i].some(s => s.test(auditText));
 
   return {
     violations,
@@ -159,11 +171,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         discovery_score: Object.values(links).filter(Boolean).length * 25
       },
       lex_analyzer: {
-        has_vat_id: /de[0-9]{9}/i.test(lowerHtml),
-        has_contact_info: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(lowerHtml),
+        has_vat_id: /de[0-9]{9}/i.test(auditText),
+        has_contact_info: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(auditText),
         has_mandatory_terms: true,
-        content_truncated: html.length > 100000,
-        missing_clusters: [] 
+        content_truncated: html.length > 102400,
+        missing_clusters: Array.from(new Set(missingClusters))
       },
       cmp_detect: {
         detected_provider: hasCMP ? 'Active CMP Detected' : null,
