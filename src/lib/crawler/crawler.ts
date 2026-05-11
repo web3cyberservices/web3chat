@@ -14,11 +14,10 @@ const urlSchema = z.string().url();
 async function checkResources() {
   const memory = process.memoryUsage();
   const heapUsedMB = Math.round(memory.heapUsed / 1024 / 1024);
-  if (heapUsedMB > 1024) { 
+  // Simple check for high memory
+  if (heapUsedMB > 1200) { 
     if (global.gc) {
       global.gc();
-    } else {
-      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
   return heapUsedMB;
@@ -35,80 +34,64 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       return { url: seedUrl, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason: 'Invalid URL' };
     }
 
-    // Normalize URL for deduplication
-    const normalizedSeed = normalizeUrl(seedUrl, seedUrl) || seedUrl;
+    const initialNormalized = normalizeUrl(seedUrl, seedUrl) || seedUrl;
 
-    const { allowed, reason } = await isUrlAllowed(normalizedSeed);
+    const { allowed, reason } = await isUrlAllowed(initialNormalized);
     if (!allowed) {
-      return { url: normalizedSeed, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason };
+      return { url: initialNormalized, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason };
     }
 
-    const scrape = await scrapeUrl(normalizedSeed);
+    const scrape = await scrapeUrl(initialNormalized);
     if (scrape.status === 'fail') {
       const errorMsg = scrape.rawHeaders?.['x-waf-block'] ? 'WAF_BLOCK: Manual review required' : 'Failed to retrieve content';
-      return { url: normalizedSeed, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: errorMsg };
+      return { url: initialNormalized, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: errorMsg };
     }
 
     const isDeep = scrape.method === 'puppeteer';
     const verification_method: VerificationMethod = isDeep ? 'Dynamic Emulation' : 'Static Analysis';
 
-    const { violations, discoveredLinks, meta, compliance_report } = parseHtmlContent(
+    const { violations, meta, compliance_report } = parseHtmlContent(
       scrape.html, 
-      normalizedSeed, 
+      initialNormalized, 
       scrape.rawHeaders, 
       scrape.screenshot,
       isDeep
     );
 
-    // SSL & Protocol Triage
-    if (!normalizedSeed.startsWith('https:')) {
-      violations.push({
-        category: 'Security',
-        report_type: 'Manual',
-        issue_type: 'Insecure Connection (HTTP)',
-        severity: 'critical',
-        evidence_html: normalizedSeed,
-        description: 'The website transmits data over unencrypted HTTP. This exposes all user data to sniffing.',
-        law_name: 'GDPR Art. 32',
-        potential_fine: "Administrative fines up to €20,000,000 (Art. 83 GDPR).",
-        explanation: 'Security of processing is mandatory. Lack of SSL is a direct violation of Art. 32 GDPR.',
-        recommendation: 'Deploy an SSL certificate and force HTTPS redirection.',
-        verification_method,
-        affected_urls: [normalizedSeed]
-      });
-    }
-
-    // Final Deduplication by Issue Type and Evidence URL
+    // Filter and Deduplicate Violations
     const uniqueViolationsMap = new Map();
     violations.forEach(v => {
+      // Normalize affected URL
+      const normalizedEvidence = normalizeUrl(v.evidence_html, initialNormalized) || v.evidence_html;
+      v.evidence_html = normalizedEvidence;
+      
       const key = `${v.issue_type}_${v.evidence_html}`;
       if (!uniqueViolationsMap.has(key)) {
         uniqueViolationsMap.set(key, v);
       }
     });
-    const finalViolations = Array.from(uniqueViolationsMap.values());
 
-    const domain = new URL(normalizedSeed).hostname;
-    await saveAuditLog(domain, 200, null);
-    await saveAuditResults(domain, normalizedSeed, finalViolations, isDeep ? 'deep' : 'basic');
+    const finalViolations = Array.from(uniqueViolationsMap.values());
+    const domain = new URL(initialNormalized).hostname;
     
-    const ramEnd = await checkResources();
+    await saveAuditLog(domain, 200, null);
+    await saveAuditResults(domain, initialNormalized, finalViolations, isDeep ? 'deep' : 'basic');
+    
     const total_ms = Math.round(performance.now() - startTime);
 
-    await saveBotEvent('SUCCESS', `Audit finished: ${domain} | Verdict: ${compliance_report.verdict} | Issues: ${finalViolations.length}`);
+    await saveBotEvent('SUCCESS', `Audit finished: ${domain} | Verdict: ${compliance_report.verdict} | Unique Issues: ${finalViolations.length}`);
 
     return {
-      url: normalizedSeed,
+      url: initialNormalized,
       timestamp,
       status: 'success',
       issuesFound: finalViolations.length,
       violations: finalViolations,
       compliance_report,
       scanType: isDeep ? 'deep' : 'basic',
-      discoveredLinks,
       meta: {
         duration_ms: total_ms,
-        memory_usage_mb: ramEnd,
+        memory_usage_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
         method: scrape.method,
         verification_method,
         hasCMP: meta.hasCMP,
@@ -116,9 +99,7 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       }
     };
   } catch (error: any) {
-    const errorType = error.message.includes('TIMEOUT') ? 'ERR_CONNECTION_TIMED_OUT' : 
-                     error.message.includes('CERT') ? 'ERR_CERT_INVALID' : 'CRITICAL_ERROR';
-    await saveBotEvent('ERROR', `Audit Crash [${seedUrl}]: ${errorType} - ${error.message}`);
-    return { url: seedUrl, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', error: errorType, reason: error.message };
+    await saveBotEvent('ERROR', `Audit Crash [${seedUrl}]: ${error.message}`);
+    return { url: seedUrl, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: error.message };
   }
 }

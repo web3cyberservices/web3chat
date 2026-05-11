@@ -16,8 +16,9 @@ export async function GET(request: Request) {
   let browser: any = null;
   try {
     const res = await pool.query(`
-      SELECT page_url, issue_type, severity, explanation, fine_amount, law_name, created_at, recommendation, snippet
-      FROM site_violations WHERE domain = $1 ORDER BY created_at DESC
+      SELECT DISTINCT ON (issue_type, page_url) 
+        page_url, issue_type, severity, explanation, fine_amount, law_name, created_at, recommendation, snippet, verification_method
+      FROM site_violations WHERE domain = $1 ORDER BY issue_type, page_url, created_at DESC
     `, [domain]);
 
     const violations = res.rows;
@@ -40,9 +41,8 @@ export async function GET(request: Request) {
           .logo-container { display: flex; align-items: center; gap: 15px; }
           .logo-img { width: 48px; height: 48px; object-fit: contain; }
           .logo-text { font-size: 24px; font-weight: bold; color: #0f172a; }
-          .company-info { font-size: 10px; color: #64748b; text-align: right; }
           .title-section { margin-bottom: 30px; }
-          .title { font-size: 20px; font-weight: bold; color: #0f172a; border-left: 4px solid #3b82f6; padding-left: 15px; }
+          .title { font-size: 22px; font-weight: bold; color: #0f172a; border-left: 4px solid #3b82f6; padding-left: 15px; }
           .domain-badge { background: #eff6ff; color: #3b82f6; padding: 4px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
           .violation-item { border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 25px; page-break-inside: avoid; overflow: hidden; }
           .violation-header { background: #f8fafc; padding: 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
@@ -52,26 +52,24 @@ export async function GET(request: Request) {
           .critical { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
           .high { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
           .label { font-size: 10px; font-weight: bold; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
-          .explanation { font-size: 12px; color: #334155; margin-bottom: 15px; }
           .fine { font-size: 12px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ef4444; }
-          .evidence-box { background: #f1f5f9; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 10px; color: #475569; border-left: 3px solid #94a3b8; margin-bottom: 15px; }
-          .remediation { background: #ecfdf5; border: 1px solid #d1fae5; padding: 15px; border-radius: 8px; color: #065f46; font-size: 11px; }
+          .evidence-box { background: #f1f5f9; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 10px; color: #475569; margin-bottom: 15px; }
           .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; }
-          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; font-size: 13px; border-bottom: 2px solid #3b82f6; }
+          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; font-size: 13px; }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="logo-container">
             ${logoBase64 ? `<img src="${logoBase64}" class="logo-img">` : ''}
-            <div class="logo-text">HUMANGO BOT</div>
+            <div class="logo-text">Humango Compliance</div>
           </div>
-          <div class="company-info">
-            <strong>HUMANGO LIMITED</strong><br>London, England, E6 2JA
+          <div style="text-align:right; font-size:10px; color:#64748b">
+            Official Audit Report<br>Generated on ${new Date().toLocaleDateString('en-GB')}
           </div>
         </div>
         <div class="title-section">
-          <div class="title">Official Compliance & Vulnerability Audit</div>
+          <div class="title">Compliance & Vulnerability Assessment</div>
           <div style="margin-top:15px">Audit Target: <span class="domain-badge">${domain}</span></div>
         </div>
 
@@ -79,29 +77,26 @@ export async function GET(request: Request) {
           <div class="violation-item">
             <div class="violation-header">
               <span class="violation-type">${item.issue_type}</span>
-              <span style="font-size:10px; color:#64748b">Module: NAV-SCOUT / LEX-ANALYZER</span>
+              <span style="font-size:9px; color:#64748b">Verification: ${item.verification_method || 'SaaS Module'}</span>
             </div>
             <div class="violation-body">
               <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
               
               <span class="label">Diagnostic Explanation</span>
-              <div class="explanation">${item.explanation}</div>
+              <div style="font-size:12px; margin-bottom:15px">${item.explanation}</div>
               
               <span class="label">Legal Ground</span>
-              <div style="font-size:11px; font-weight:bold; color:#0f172a; margin-bottom:15px">${item.law_name}</div>
+              <div style="font-size:11px; font-weight:bold; margin-bottom:15px">${item.law_name}</div>
               
-              <span class="label">Financial Liability Estimate</span>
-              <div class="fine">${item.fine_amount || "Calculating..."}</div>
+              <span class="label">Administrative Liability Range</span>
+              <div class="fine">${item.fine_amount}</div>
               
-              ${item.snippet ? `
-                <span class="label">Technical Evidence</span>
-                <div class="evidence-box">${item.snippet}</div>
-              ` : ''}
+              <span class="label">Affected Resource</span>
+              <div style="font-size:11px; color:#64748b; margin-bottom:15px">${item.page_url}</div>
 
               <span class="label">Corrective Action Required</span>
-              <div class="remediation">
-                <strong>Remediation:</strong> ${item.recommendation}<br>
-                <div style="margin-top:8px; font-style:italic">Implementation of this fix is mandatory to satisfy the automated detection requirements of the cited legal article.</div>
+              <div style="background:#ecfdf5; border:1px solid #d1fae5; padding:15px; border-radius:8px; color:#065f46; font-size:11px">
+                <strong>Mandatory Remediation:</strong> ${item.recommendation}
               </div>
             </div>
           </div>
@@ -109,10 +104,10 @@ export async function GET(request: Request) {
 
         <div class="footer">
           <div>
-            &copy; ${new Date().getFullYear()} Humango Compliance Systems<br>
-            Legal Verification Support: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
+            &copy; ${new Date().getFullYear()} Humango Limited • London • E6 2JA<br>
+            Verification Support: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
           </div>
-          ${logoBase64 ? `<img src="${logoBase64}" style="width:40px; height:40px">` : ''}
+          ${logoBase64 ? `<img src="${logoBase64}" style="width:32px; height:32px">` : ''}
         </div>
       </body>
       </html>
@@ -122,7 +117,12 @@ export async function GET(request: Request) {
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-    return new NextResponse(pdfBuffer, { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename=Humango_Audit_${domain}.pdf` } });
+    return new NextResponse(pdfBuffer, { 
+      headers: { 
+        'Content-Type': 'application/pdf', 
+        'Content-Disposition': `attachment; filename=Humango_Audit_${domain}.pdf` 
+      } 
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
   } finally {
