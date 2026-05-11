@@ -43,16 +43,20 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
+    // We use both fine_amount and potential_fine columns for backwards compatibility,
+    // but fine_amount is the primary one used by the UI.
     const query = `
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
         evidence_html, snippet, description, explanation, law_name, recommendation, 
-        scan_type, report_type, created_at, potential_fine
+        scan_type, report_type, created_at, fine_amount, potential_fine
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15, $15)
     `;
 
     for (const v of violations) {
+      const fine = v.potential_fine || '€1,000 - €20,000,000';
+      
       await client.query(query, [
         sanitize(domain),
         sanitize(url),
@@ -62,16 +66,16 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.severity,
         sanitize(v.evidence_html),
         sanitize(v.snippet || v.description),
-        sanitize(v.description), // Factual engine finding
-        sanitize(v.explanation), // Legal risk explanation
+        sanitize(v.description), 
+        sanitize(v.explanation), 
         sanitize(v.law_name),
         sanitize(v.recommendation),
         scanType,
         v.report_type,
-        v.potential_fine
+        fine
       ]);
       
-      await saveBotEvent('SUCCESS', `[INCIDENT ${v.report_type}] ${domain} | ${v.issue_type} | Fine: ${v.potential_fine}`);
+      await saveBotEvent('SUCCESS', `[INCIDENT ${v.report_type}] ${domain} | ${v.issue_type} | Fine: ${fine}`);
     }
     
     await client.query('COMMIT');
@@ -204,7 +208,7 @@ export async function getViolations(limit = 100) {
         created_at as date, 
         description as summary,
         explanation as description,
-        fine_amount,
+        COALESCE(fine_amount, potential_fine) as fine_amount,
         law_name,
         page_url as url,
         evidence_html,

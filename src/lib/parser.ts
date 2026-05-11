@@ -44,8 +44,8 @@ function getLegalDetail(docType: string, domain: string) {
   const details: Record<string, any> = {
     privacy: {
       law: 'GDPR Art. 13 / 14',
-      risk: 'Risk: Failure to provide transparent data processing information violates Art. 12 GDPR. Supervisory authorities can impose fines up to €20 million or 4% of global turnover.',
-      fine: 'Up to €20m / 4% turnover',
+      risk: 'Risk: Failure to provide transparent data processing information violates Art. 12 GDPR. Supervisory authorities can impose significant administrative fines.',
+      fine: '€10,000 - €20,000,000 (Up to 4% turnover)',
       recommendation: 'Create a dedicated Privacy Policy page and link it clearly in the footer.'
     },
     terms: {
@@ -53,7 +53,7 @@ function getLegalDetail(docType: string, domain: string) {
       risk: isDE 
         ? 'Risk: Under § 305 BGB, customers must have a reasonable opportunity to view Terms (AGB) before a contract is formed. Missing AGB leads to legal warnings and invalid contract terms.'
         : 'Risk: Missing Terms of Service leaves the business unprotected regarding liability and usage rights, violating transparency requirements for e-commerce.',
-      fine: isDE ? 'Legal warnings (€1,000+) + court costs' : 'Up to €10m / 2% turnover',
+      fine: isDE ? '€1,500 - €50,000 (Legal warnings + court costs)' : '€5,000 - €10,000,000',
       recommendation: 'Link your Terms & Conditions (AGB) in the global footer or during the checkout flow.'
     },
     impressum: {
@@ -61,13 +61,13 @@ function getLegalDetail(docType: string, domain: string) {
       risk: isDE
         ? 'Risk: § 5 TMG requires every commercial website to provide an "easily recognizable, directly accessible, and permanently available" imprint. Missing it is a high-risk violation targeted by competitors.'
         : 'Risk: Professional entities must provide clear identification and contact details to ensure legal transparency in the EU.',
-      fine: isDE ? 'Up to €50,000 + legal warnings' : 'Varies by EU state',
+      fine: isDE ? '€500 - €50,000 (Per violation + legal warning costs)' : '€1,000 - €25,000',
       recommendation: 'Create an Imprint/Impressum page with your full legal name, physical address, and official contact email.'
     },
     cookies: {
       law: 'ePrivacy Directive / GDPR Art. 7',
       risk: 'Risk: Storing trackers without a clear Cookie Policy violates the consent requirements of the ePrivacy Directive. This is a primary target for DPA audits.',
-      fine: 'Up to €20m',
+      fine: '€5,000 - €20,000,000 (Varies by user reach)',
       recommendation: 'Deploy a Cookie Policy explaining each tracker and its specific purpose.'
     }
   };
@@ -111,7 +111,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       evidence_html: url,
       description: 'The website is running over unencrypted HTTP protocol.',
       law_name: 'GDPR Art. 32 (Security of Processing)',
-      potential_fine: 'Up to €20m',
+      potential_fine: '€2,500 - €20,000,000',
       explanation: 'Risk: Lack of encryption endangers user data and is a direct violation of Art. 32 GDPR, which mandates technical measures to protect personal data.',
       recommendation: 'Install an SSL certificate and force redirect all traffic to HTTPS.'
     });
@@ -164,7 +164,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         evidence_html: url,
         description: `Xevon engine analyzed the text. Link found, but the document is in ${docLang.toUpperCase()} while the site interface is in ${siteLang.toUpperCase()}.`,
         law_name: 'GDPR Art. 12 (Transparency)',
-        potential_fine: 'Up to €20m',
+        potential_fine: '€2,500 - €250,000',
         explanation: 'Risk: Art. 12 GDPR requires information to be provided in an intelligible and easily accessible form for the target audience.',
         recommendation: 'Translate your legal documents into all languages supported by your website interface.'
       });
@@ -185,7 +185,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         snippet: `Missing sections: ${missingBlocks.join(', ')}`,
         description: `Xevon engine analyzed the text. Document found, but mandatory sections (${missingBlocks.join(', ')}) are missing from the content.`,
         law_name: 'GDPR Art. 13/14',
-        potential_fine: 'Up to €20m / 4% turnover',
+        potential_fine: '€5,000 - €20,000,000',
         explanation: 'Risk: Omitting required information like retention periods or data subject rights is a primary cause for regulatory fines.',
         recommendation: 'Update the legal document to include specific sections for data categories and user rights.'
       });

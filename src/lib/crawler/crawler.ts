@@ -58,7 +58,7 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       }
     }
 
-    // Передаем скриншот в парсер для использования в качестве доказательства (GDPR/Impressum)
+    // Pass screenshot to parser for evidence
     const { violations, discoveredLinks } = parseHtmlContent(html, seedUrl, rawHeaders, screenshot);
     
     // Dynamic Cookie Audit
@@ -71,15 +71,16 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       if (suspicious.length > 0) {
         violations.push({
           category: 'GDPR',
-          issue_type: 'Нарушение конфиденциальности (динамические трекеры)',
+          report_type: 'SaaS',
+          issue_type: 'Privacy Violation (Dynamic Trackers)',
           severity: 'high',
           evidence_html: screenshot ? `data:image/jpeg;base64,${screenshot}` : 'Detected cookies',
           snippet: 'Detected via headless browser rendering.',
           description: 'Detected tracking cookies set without consent.',
           law_name: 'EU GDPR / ePrivacy Directive',
-          potential_fine: 'до €20 млн или 4% оборота',
-          explanation: 'Обнаружены динамические трекеры и куки, которые устанавливаются автоматически при загрузке страницы без получения согласия пользователя.',
-          recommendation: 'Настройте CMP для блокировки скриптов до момента получения согласия.'
+          potential_fine: '€10,000 - €20,000,000',
+          explanation: 'Xevon engine detected dynamic trackers and cookies that are set automatically upon page load without obtaining valid user consent.',
+          recommendation: 'Configure your CMP to block scripts until explicit consent is provided.'
         });
       }
     }
