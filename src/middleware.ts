@@ -4,20 +4,23 @@ import type { NextRequest } from 'next/server';
 
 /**
  * Middleware for path management and API protection.
- * Updated to allow public access to PDF reports generated for users.
+ * Updated to ensure /api/admin/report-pdf is strictly public for audit users.
  */
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
   
   // 1. Admin API Protection
-  // We exclude /api/admin/report-pdf from authentication because users 
-  // need to download their reports after a public scan.
-  if (url.pathname.startsWith('/api/admin') && !url.pathname.includes('/report-pdf')) {
+  // We explicitly permit /api/admin/report-pdf so public users can download their results.
+  // All other /api/admin/* routes require 'admin_authenticated' cookie.
+  const isReportPdf = url.pathname === '/api/admin/report-pdf';
+  const isAdminPath = url.pathname.startsWith('/api/admin');
+  
+  if (isAdminPath && !isReportPdf) {
     const isAdmin = request.cookies.get('admin_authenticated')?.value === 'true';
     
     if (!isAdmin) {
       return NextResponse.json(
-        { success: false, message: 'Unauthorized access' },
+        { success: false, message: 'Unauthorized terminal access' },
         { status: 401 }
       );
     }

@@ -3,9 +3,8 @@ import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, Category, VerificationMethod } from '@/types';
 
 /**
- * Authoritative Liability Knowledge Base
- * This mapping eliminates "null" or "calculating" values in reports.
- * References: Art. 83 GDPR, ePrivacy Directive, TMG §5.
+ * Authoritative Liability Knowledge Base (Hard-Reset Logic)
+ * Eliminates "null" or "calculating" values in reports.
  */
 const LIABILITY_DATABASE: Record<string, string> = {
     'PRIVACY': 'Administrative fines up to €20,000,000 or 4% of global turnover (Art. 83 GDPR).',
@@ -47,7 +46,7 @@ const MANDATORY_CLUSTERS = {
 
 /**
  * Authoritative URL Normalizer
- * Standardizes URLs to lowercase and removes trailing slashes/fragments.
+ * Standardizes URLs and removes trailing slashes/fragments to prevent duplicates.
  */
 export function normalizeUrl(url: string, base: string): string | null {
   try {
@@ -80,7 +79,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   // Analyze first 100KB for cluster matching to save RAM
   const auditText = html.substring(0, 102400).toLowerCase();
 
-  // NAV-SCOUT: Pattern-based Link Discovery
+  // NAV-SCOUT: Hardened Link Discovery (URL Patterns + Text)
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href')?.toLowerCase() || '';
@@ -89,7 +88,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const normalized = normalizeUrl(href, url);
     if (!normalized) return;
 
-    // Semantic Mapping: Match by text OR URL pattern
+    // Semantic Mapping: Match by text OR URL pattern (prevents "Blind-Pugh" errors)
     const isPrivacy = /privacy|datenschutz|privacy-policy/i.test(text) || /privacy|datenschutz/i.test(href);
     const isImpressum = /impressum|legal-notice|legal-disclosure/i.test(text) || /impressum|legal-notice/i.test(href);
     const isTerms = /terms|agb|tos|conditions/i.test(text) || /agb|tos|terms-of-service/i.test(href);
@@ -130,25 +129,25 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       });
     } else {
       // Status: INCOMPLETE (LEX-ANALYZER Cluster Check)
+      // If document is found, we check mandatory sections instead of reporting it as missing.
       Object.entries(MANDATORY_CLUSTERS).forEach(([clusterKey, cluster]) => {
-        // Only check Impressum for Controller Identity, Privacy for everything
+        // Semantic Filter: Only check relevant clusters for each document type
         if (doc.key === 'impressum' && clusterKey !== 'CONTROLLER') return;
-        if (doc.key === 'cookies') return;
-        if (doc.key === 'terms') return;
+        if (doc.key === 'cookies' || doc.key === 'terms') return;
 
         if (!cluster.keywords.some(k => k.test(auditText))) {
           missingClusters.push(clusterKey);
           violations.push({
             category: doc.category as Category,
             report_type: 'SaaS',
-            issue_type: `Incomplete ${doc.name}`,
+            issue_type: `Incomplete ${doc.name}: Missing ${cluster.name}`,
             severity: 'high',
             evidence_html: foundUrl,
             description: `Document detected at ${foundUrl}, but the mandatory section [${cluster.name}] is semantically missing.`,
             law_name: cluster.law,
             potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
             explanation: `${cluster.law} mandates the explicit disclosure of ${cluster.name} within the legal document.`,
-            recommendation: `Corrective Action Required: You must append the following information: ${cluster.remediation}`,
+            recommendation: `Corrective Action: You must append the following information to satisfy ${cluster.law}: ${cluster.remediation}`,
             verification_method
           });
         }

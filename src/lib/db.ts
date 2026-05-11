@@ -24,8 +24,8 @@ function sanitize(text: string | null | undefined): string {
 }
 
 /**
- * Robust URL Normalizer
- * Standardizes URLs to prevent duplicates (e.g., site.com/ vs site.com)
+ * Robust URL Normalizer (Hardened for Deduplication)
+ * Standardizes URLs to prevent duplicates like site.com/ and site.com.
  */
 export function normalizeUrl(url: string): string {
   try {
@@ -66,6 +66,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     const cleanUrl = normalizeUrl(url);
 
     // Group and deduplicate findings by type and page_url
+    // Ensures variants of the same domain are consolidated.
     const uniqueViolations = new Map();
     violations.forEach(v => {
       const affectedUrl = normalizeUrl(v.evidence_html || url);
