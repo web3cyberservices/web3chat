@@ -110,8 +110,8 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const normalized = normalizeUrl(href, url);
     if (!normalized) return;
 
-    // Semantic Mapping: Match by text OR URL pattern
-    const isPrivacy = /privacy|datenschutz|privacy-policy|protection/i.test(text) || /privacy|datenschutz/i.test(href);
+    // Semantic Mapping: Match by text OR URL pattern (Blind-Pugh Fix)
+    const isPrivacy = /privacy|datenschutz|privacy-policy|protection/i.test(text) || /privacy|datenschutz|privacy-policy/i.test(href);
     const isImpressum = /impressum|legal-notice|legal-disclosure|legal/i.test(text) || /impressum|legal-notice|legal/i.test(href);
     const isTerms = /terms|agb|tos|conditions|usage/i.test(text) || /agb|tos|terms/i.test(href);
     const isCookies = /cookie|cookies/i.test(text) || /cookie/i.test(href);
@@ -138,14 +138,14 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const foundUrl = links[doc.key as keyof typeof links];
     
     if (!foundUrl) {
-      // Status: MISSING (Only if zero links detected)
+      // Status: MISSING (Only if zero links or patterns detected)
       violations.push({
         category: doc.category as Category,
         report_type: 'SaaS',
         issue_type: `Missing ${doc.name}`,
         severity: 'critical',
         evidence_html: url,
-        description: `The NAV-SCOUT engine scanned the domain structure but could not detect an accessible link to the mandatory ${doc.name}.`,
+        description: `The NAV-SCOUT engine scanned the domain structure but could not detect an accessible link or URL pattern for the mandatory ${doc.name}.`,
         law_name: doc.law,
         potential_fine: LIABILITY_DATABASE[doc.category] || LIABILITY_DATABASE.DEFAULT,
         explanation: `Under ${doc.law}, website operators targeting this jurisdiction must provide a clearly visible and easily accessible ${doc.name}.`,

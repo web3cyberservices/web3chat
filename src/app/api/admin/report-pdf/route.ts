@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     const hasSnippet = existingCols.includes('snippet');
     const hasLawName = existingCols.includes('law_name');
 
-    // Build resilient query
+    // Build resilient query using DISTINCT ON to avoid duplicates
     const res = await pool.query(`
       SELECT DISTINCT ON (issue_type, page_url) 
         page_url, 
