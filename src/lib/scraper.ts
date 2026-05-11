@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer';
 import * as cheerio from 'cheerio';
 import { logger } from './logger';
 
-const REQUEST_TIMEOUT = 10000; // 10s Speed Phase
+const REQUEST_TIMEOUT = 10000;
 const CHROME_PATH = '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome';
 
 export interface ScrapeResult {
@@ -20,9 +20,6 @@ export interface ScrapeResult {
   memory_usage_mb: number;
 }
 
-/**
- * Phase "BRUTEFORCE": Headless Chrome for complex SPAs or blocked sites.
- */
 async function bruteForceScrape(url: string): Promise<Partial<ScrapeResult>> {
   logger.info(`Phase BRUTEFORCE: Launching Puppeteer for ${url}`);
   let browser: any = null;
@@ -36,14 +33,13 @@ async function bruteForceScrape(url: string): Promise<Partial<ScrapeResult>> {
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
-        '--disable-gpu',
-        '--js-flags="--max-old-space-size=1024"'
+        '--disable-gpu'
       ]
     });
 
     const page = await browser.newPage();
     
-    // Resource Optimization: Block non-essential assets to save bandwidth/RAM
+    // Memory Optimization: Intercept and block heavy assets
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const type = req.resourceType();
@@ -57,25 +53,23 @@ async function bruteForceScrape(url: string): Promise<Partial<ScrapeResult>> {
     await page.setUserAgent(settings.userAgent);
     await page.setExtraHTTPHeaders({
       'DNT': '1',
-      'Sec-GPC': '1',
-      'X-Compliance-Portal': 'https://bot.humango.app'
+      'Sec-GPC': '1'
     });
 
-    // Ahmad Requirement: Strict 30s timeout
-    const response = await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+    // Iris Feedback: Wait for networkidle2 to ensure all JS fragments are rendered
+    const response = await page.goto(url, { waitUntil: 'networkidle2', timeout: 35000 });
     
-    // Detect WAF / Block
     if (response && [403, 429].includes(response.status())) {
       return { status: 'fail', method: 'puppeteer', rawHeaders: { 'x-waf-block': 'true' } };
     }
 
     const html = await page.content();
     const cookies = await page.cookies();
-    const screenshot = await page.screenshot({ encoding: 'base64', type: 'jpeg', quality: 40 });
+    const screenshot = await page.screenshot({ encoding: 'base64', type: 'jpeg', quality: 30 });
 
     return { html, cookies, screenshot: screenshot as string, method: 'puppeteer', status: 'success' };
   } catch (err: any) {
-    logger.error(`Bruteforce Phase failed: ${err.message}`);
+    logger.error(`Bruteforce Phase failed for ${url}: ${err.message}`);
     return { status: 'fail', method: 'puppeteer' };
   } finally {
     if (browser) {
@@ -84,9 +78,6 @@ async function bruteForceScrape(url: string): Promise<Partial<ScrapeResult>> {
   }
 }
 
-/**
- * Master Scraper Coordinator: Speed -> Surgery -> Bruteforce
- */
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   const startTime = Date.now();
   const startMemory = process.memoryUsage().heapUsed;
@@ -99,13 +90,12 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   let cookies: any[] = [];
 
   try {
-    // PHASE 1: SPEED (Fetch)
+    // PHASE 1: SPEED (Native Fetch)
     const response = await fetch(url, {
       headers: {
         'User-Agent': settings.userAgent,
         'DNT': '1',
-        'Sec-GPC': '1',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        'Sec-GPC': '1'
       },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT)
     });
@@ -116,32 +106,22 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
       html = await response.text();
       const $ = cheerio.load(html);
       
-      // PHASE 2: SURGERY (Cheerio Heuristics)
-      const isSPA = $('#app').length > 0 || $('#root').length > 0 || bodyIsEmpty($);
-      const hasLegalLinks = $('a').toArray().some(a => {
-        const text = $(a).text().toLowerCase();
-        return ['impressum', 'privacy', 'datenschutz', 'legal'].some(kw => text.includes(kw));
-      });
-
-      // Escalation Trigger
-      if (isSPA || !hasLegalLinks) {
+      const isSPA = $('#app').length > 0 || $('#root').length > 0 || $('body').text().trim().length < 300;
+      
+      if (isSPA) {
         const brute = await bruteForceScrape(url);
         if (brute.status === 'success') {
           html = brute.html!;
           screenshot = brute.screenshot;
           cookies = brute.cookies || [];
           method = 'puppeteer';
-        } else {
-          status = 'fail';
         }
       }
     } else if ([403, 429].includes(response.status)) {
-      // Escalation Trigger: WAF or Rate Limit
       const brute = await bruteForceScrape(url);
       if (brute.status === 'success') {
         html = brute.html!;
         screenshot = brute.screenshot;
-        cookies = brute.cookies || [];
         method = 'puppeteer';
       } else {
         status = 'fail';
@@ -151,12 +131,10 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
       status = 'fail';
     }
   } catch (err: any) {
-    logger.warn(`Speed Phase failed: ${err.message}. Escalating to Bruteforce.`);
     const brute = await bruteForceScrape(url);
     if (brute.status === 'success') {
       html = brute.html!;
       screenshot = brute.screenshot;
-      cookies = brute.cookies || [];
       method = 'puppeteer';
     } else {
       status = 'fail';
@@ -173,9 +151,4 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     duration_ms: Date.now() - startTime,
     memory_usage_mb: Math.round((process.memoryUsage().heapUsed - startMemory) / 1024 / 1024)
   };
-}
-
-function bodyIsEmpty($: cheerio.CheerioAPI): boolean {
-  const bodyText = $('body').text().trim();
-  return bodyText.length < 200 && $('script').length > 0;
 }

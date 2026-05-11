@@ -53,11 +53,11 @@ export async function GET(request: Request) {
           .high { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
           .label { font-size: 10px; font-weight: bold; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
           .explanation { font-size: 12px; color: #334155; margin-bottom: 15px; }
-          .fine { font-size: 12px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 10px; border-radius: 6px; margin-bottom: 15px; }
+          .fine { font-size: 12px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ef4444; }
           .evidence-box { background: #f1f5f9; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 10px; color: #475569; border-left: 3px solid #94a3b8; margin-bottom: 15px; }
           .remediation { background: #ecfdf5; border: 1px solid #d1fae5; padding: 15px; border-radius: 8px; color: #065f46; font-size: 11px; }
           .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; }
-          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; font-size: 12px; }
+          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; font-size: 13px; border-bottom: 2px solid #3b82f6; }
         </style>
       </head>
       <body>
@@ -91,17 +91,17 @@ export async function GET(request: Request) {
               <div style="font-size:11px; font-weight:bold; color:#0f172a; margin-bottom:15px">${item.law_name}</div>
               
               <span class="label">Financial Liability Estimate</span>
-              <div class="fine">${item.fine_amount}</div>
+              <div class="fine">${item.fine_amount || "Calculating..."}</div>
               
               ${item.snippet ? `
-                <span class="label">Technical Evidence (Snippet)</span>
+                <span class="label">Technical Evidence</span>
                 <div class="evidence-box">${item.snippet}</div>
               ` : ''}
 
-              <span class="label">Actionable Remediation</span>
+              <span class="label">Corrective Action Required</span>
               <div class="remediation">
-                <strong>Requirement:</strong> ${item.recommendation}<br>
-                <div style="margin-top:5px; font-style:italic">Implementation of this fix will resolve the automated detection flag for this category.</div>
+                <strong>Remediation:</strong> ${item.recommendation}<br>
+                <div style="margin-top:8px; font-style:italic">Implementation of this fix is mandatory to satisfy the automated detection requirements of the cited legal article.</div>
               </div>
             </div>
           </div>
@@ -110,9 +110,9 @@ export async function GET(request: Request) {
         <div class="footer">
           <div>
             &copy; ${new Date().getFullYear()} Humango Compliance Systems<br>
-            Direct Verification Support: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
+            Legal Verification Support: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
           </div>
-          ${logoBase64 ? `<img src="${logoBase64}" style="width:32px; height:32px">` : ''}
+          ${logoBase64 ? `<img src="${logoBase64}" style="width:40px; height:40px">` : ''}
         </div>
       </body>
       </html>

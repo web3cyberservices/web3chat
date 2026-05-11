@@ -2,7 +2,7 @@
 'use server';
 
 import { scrapeUrl } from '@/lib/scraper';
-import { parseHtmlContent } from '@/lib/parser';
+import { parseHtmlContent, normalizeUrl } from '@/lib/parser';
 import { isUrlAllowed } from '@/config/robots-rules';
 import { saveAuditLog, saveBotEvent, saveAuditResults } from '@/lib/db';
 import { CrawlResult, Violation, VerificationMethod } from '@/types';
@@ -35,15 +35,18 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
       return { url: seedUrl, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason: 'Invalid URL' };
     }
 
-    const { allowed, reason } = await isUrlAllowed(seedUrl);
+    // Normalize URL for deduplication
+    const normalizedSeed = normalizeUrl(seedUrl, seedUrl) || seedUrl;
+
+    const { allowed, reason } = await isUrlAllowed(normalizedSeed);
     if (!allowed) {
-      return { url: seedUrl, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason };
+      return { url: normalizedSeed, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason };
     }
 
-    const scrape = await scrapeUrl(seedUrl);
+    const scrape = await scrapeUrl(normalizedSeed);
     if (scrape.status === 'fail') {
       const errorMsg = scrape.rawHeaders?.['x-waf-block'] ? 'WAF_BLOCK: Manual review required' : 'Failed to retrieve content';
-      return { url: seedUrl, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: errorMsg };
+      return { url: normalizedSeed, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: errorMsg };
     }
 
     const isDeep = scrape.method === 'puppeteer';
@@ -51,51 +54,55 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
 
     const { violations, discoveredLinks, meta, compliance_report } = parseHtmlContent(
       scrape.html, 
-      seedUrl, 
+      normalizedSeed, 
       scrape.rawHeaders, 
       scrape.screenshot,
       isDeep
     );
 
-    // SSL Security Triage
-    if (!seedUrl.startsWith('https:')) {
+    // SSL & Protocol Triage
+    if (!normalizedSeed.startsWith('https:')) {
       violations.push({
         category: 'Security',
         report_type: 'Manual',
         issue_type: 'Insecure Connection (HTTP)',
         severity: 'critical',
-        evidence_html: seedUrl,
+        evidence_html: normalizedSeed,
         description: 'The website transmits data over unencrypted HTTP. This exposes all user data to sniffing.',
         law_name: 'GDPR Art. 32',
-        potential_fine: '€10,000 - €20,000,000',
+        potential_fine: "Administrative fines up to €20,000,000 (Art. 83 GDPR).",
         explanation: 'Security of processing is mandatory. Lack of SSL is a direct violation of Art. 32 GDPR.',
         recommendation: 'Deploy an SSL certificate and force HTTPS redirection.',
         verification_method,
-        affected_urls: [seedUrl]
+        affected_urls: [normalizedSeed]
       });
     }
 
-    // Sanity Check Update
-    if (compliance_report.verdict === 'COMPLIANT' && violations.length > 0) {
-      // If we have manual violations (like SSL), it's not fully compliant
-      compliance_report.verdict = 'RISKY';
-    }
+    // Final Deduplication by Issue Type and Evidence URL
+    const uniqueViolationsMap = new Map();
+    violations.forEach(v => {
+      const key = `${v.issue_type}_${v.evidence_html}`;
+      if (!uniqueViolationsMap.has(key)) {
+        uniqueViolationsMap.set(key, v);
+      }
+    });
+    const finalViolations = Array.from(uniqueViolationsMap.values());
 
-    const domain = new URL(seedUrl).hostname;
+    const domain = new URL(normalizedSeed).hostname;
     await saveAuditLog(domain, 200, null);
-    await saveAuditResults(domain, seedUrl, violations, isDeep ? 'deep' : 'basic');
+    await saveAuditResults(domain, normalizedSeed, finalViolations, isDeep ? 'deep' : 'basic');
     
     const ramEnd = await checkResources();
     const total_ms = Math.round(performance.now() - startTime);
 
-    await saveBotEvent('SUCCESS', `Audit finished: ${domain} | Verdict: ${compliance_report.verdict} | RAM: ${ramEnd}MB`);
+    await saveBotEvent('SUCCESS', `Audit finished: ${domain} | Verdict: ${compliance_report.verdict} | Issues: ${finalViolations.length}`);
 
     return {
-      url: seedUrl,
+      url: normalizedSeed,
       timestamp,
       status: 'success',
-      issuesFound: violations.length,
-      violations,
+      issuesFound: finalViolations.length,
+      violations: finalViolations,
       compliance_report,
       scanType: isDeep ? 'deep' : 'basic',
       discoveredLinks,

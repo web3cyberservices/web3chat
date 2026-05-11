@@ -1,13 +1,6 @@
 
 import * as cheerio from 'cheerio';
-import { Violation, ComplianceReport, Category } from '@/types';
-
-const LEGAL_PATTERNS = {
-  impressum: [/impressum/i, /legal notice/i, /mentions l[eé]gales/i, /aviso legal/i, /note legali/i, /legal disclosure/i],
-  privacy: [/privacy/i, /datenschutz/i, /confidentialit[eé]/i, /privacidad/i, /data protection/i, /privacy-policy/i],
-  terms: [/terms/i, /tos/i, /conditions/i, /bedingungen/i, /condiciones/i, /agb/i, /terms-of-service/i],
-  cookies: [/cookie/i, /galletas/i, /biscotti/i, /cookie policy/i, /cookie-richtlinie/i]
-};
+import { Violation, ComplianceReport, Category, VerificationMethod } from '@/types';
 
 const MANDATORY_CLUSTERS = {
   CONTROLLER: {
@@ -17,13 +10,13 @@ const MANDATORY_CLUSTERS = {
     remediation: "Include the full legal name of your entity, registered physical address, and a direct contact email in the first section of your policy."
   },
   RIGHTS: {
-    keywords: [/right to access/i, /right to erasure/i, /right to object/i, /auskunftsrecht/i, /l[öo]schungsrecht/i, /widerrufsrecht/i, /data subject rights/i],
+    keywords: [/right to access/i, /right to erasure/i, /right to object/i, /auskunftsrecht/i, /löschungsrecht/i, /widerrufsrecht/i, /data subject rights/i],
     law: "GDPR Article 13(2)(b)",
     desc: "Information on data subject rights (access, rectification, erasure).",
     remediation: "Add a dedicated section explaining that users have the right to request access, correction, or deletion of their personal data."
   },
   RETENTION: {
-    keywords: [/retention period/i, /speicherdauer/i, /dur[eé]e de conservation/i, /plazo de conservaci[oó]n/i, /storage period/i],
+    keywords: [/retention period/i, /speicherdauer/i, /durée de conservation/i, /plazo de conservación/i, /storage period/i],
     law: "GDPR Article 13(2)(a)",
     desc: "The period for which the personal data will be stored.",
     remediation: "Specify clear criteria or exact timeframes for how long user data is stored (e.g., 'Marketing data is kept for 24 months')."
@@ -36,13 +29,17 @@ const MANDATORY_CLUSTERS = {
   }
 };
 
-const FINE_LOOKUP: Record<string, string> = {
-  Legal_Content: "€10,000 - €20,000,000 or 4% of annual global turnover (GDPR Art. 83).",
-  Security: "€5,000 - €10,000,000 or 2% of annual global turnover (GDPR Art. 83).",
-  Privacy: "€10,000 - €20,000,000 or 4% of annual global turnover (GDPR Art. 83)."
+const FINE_GDPR_CRITICAL = "Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).";
+const FINE_GDPR_HIGH = "Administrative fines up to €10,000,000 or 2% of global annual turnover (Art. 83 GDPR).";
+
+const LEGAL_PATTERNS = {
+  impressum: [/impressum/i, /legal notice/i, /mentions légales/i, /aviso legal/i, /note legali/i, /legal disclosure/i],
+  privacy: [/privacy/i, /datenschutz/i, /confidentialité/i, /privacidad/i, /data protection/i, /privacy-policy/i],
+  terms: [/terms/i, /tos/i, /conditions/i, /bedingungen/i, /condiciones/i, /agb/i, /terms-of-service/i],
+  cookies: [/cookie/i, /galletas/i, /biscotti/i, /cookie policy/i, /cookie-richtlinie/i]
 };
 
-function normalizeUrl(url: string, base: string): string | null {
+export function normalizeUrl(url: string, base: string): string | null {
   try {
     const absolute = new URL(url, base);
     absolute.hash = '';
@@ -58,65 +55,6 @@ function normalizeUrl(url: string, base: string): string | null {
   }
 }
 
-function navScout($: cheerio.CheerioAPI, baseUrl: string) {
-  const links: Record<string, string | null> = { impressum: null, privacy: null, terms: null, cookies: null };
-  const missing_critical: string[] = [];
-  let score = 0;
-
-  $('a').each((_, el) => {
-    const text = $(el).text().trim().toLowerCase();
-    const href = $(el).attr('href')?.toLowerCase() || '';
-    if (!href || href.startsWith('javascript:')) return;
-
-    const normalized = normalizeUrl(href, baseUrl);
-    if (!normalized) return;
-
-    if (!links.impressum && LEGAL_PATTERNS.impressum.some(p => p.test(text) || p.test(href))) {
-      links.impressum = normalized; score += 40;
-    }
-    if (!links.privacy && LEGAL_PATTERNS.privacy.some(p => p.test(text) || p.test(href))) {
-      links.privacy = normalized; score += 30;
-    }
-    if (!links.terms && LEGAL_PATTERNS.terms.some(p => p.test(text) || p.test(href))) {
-      links.terms = normalized; score += 15;
-    }
-    if (!links.cookies && LEGAL_PATTERNS.cookies.some(p => p.test(text) || p.test(href))) {
-      links.cookies = normalized; score += 15;
-    }
-  });
-
-  if (!links.impressum) missing_critical.push('Impressum / Legal Notice');
-  if (!links.privacy) missing_critical.push('Privacy Policy');
-
-  return { links, missing_critical, discovery_score: Math.min(score, 100) };
-}
-
-function lexAnalyzer(html: string) {
-  const text = html.substring(0, 102400).toLowerCase();
-  const missing_clusters: string[] = [];
-  
-  Object.entries(MANDATORY_CLUSTERS).forEach(([key, cluster]) => {
-    if (!cluster.keywords.some(k => k.test(text))) {
-      missing_clusters.push(key);
-    }
-  });
-
-  const has_vat_id = /de[0-9]{9}/i.test(text);
-  const has_email = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text);
-  const has_phone = /\+?[0-9\s-]{8,20}/i.test(text);
-
-  let score = 100 - (missing_clusters.length * 20);
-  if (!has_email && !has_phone) score -= 20;
-
-  return {
-    score: Math.max(score, 0),
-    has_vat_id,
-    has_contact_info: has_email && has_phone,
-    missing_clusters,
-    content_truncated: html.length > 102400
-  };
-}
-
 export function parseHtmlContent(html: string, url: string, headers: any = {}, screenshot?: string, isPuppeteer: boolean = false): { 
   violations: Violation[], 
   discoveredLinks: string[],
@@ -124,80 +62,101 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   compliance_report: ComplianceReport
 } {
   const $ = cheerio.load(html);
-  const verification_method = isPuppeteer ? 'Dynamic Emulation' : 'Static Analysis';
+  const verification_method: VerificationMethod = isPuppeteer ? 'Dynamic Emulation' : 'Static Analysis';
   
-  const nav = navScout($, url);
-  const lex = lexAnalyzer(html);
+  const links: Record<string, string | null> = { impressum: null, privacy: null, terms: null, cookies: null };
   const violations: Violation[] = [];
+  const lowerHtml = html.substring(0, 100000).toLowerCase();
 
-  // 1. Missing Documents (NAV-SCOUT)
-  nav.missing_critical.forEach(missing => {
-    const isImpressum = missing.includes('Impressum');
-    violations.push({
-      category: (isImpressum ? 'Legal_Content' : 'Privacy') as Category,
-      report_type: 'SaaS',
-      issue_type: `Missing ${missing}`,
-      severity: 'critical',
-      evidence_html: url,
-      description: `NAV-SCOUT engine scanned the navigation and footer but failed to detect a dedicated link to ${missing}.`,
-      law_name: isImpressum ? '§ 5 TMG / Art. 13 GDPR' : 'Art. 13 GDPR',
-      potential_fine: FINE_LOOKUP[isImpressum ? 'Legal_Content' : 'Privacy'],
-      explanation: 'Mandatory legal information must be easily recognizable, directly accessible, and permanently available.',
-      recommendation: `Implement a footer link explicitly labeled "${missing}" pointing to a compliant document.`,
-      verification_method
-    });
+  // 1. NAV-SCOUT Phase: Identify Links
+  $('a').each((_, el) => {
+    const text = $(el).text().trim().toLowerCase();
+    const href = $(el).attr('href')?.toLowerCase() || '';
+    if (!href || href.startsWith('javascript:')) return;
+
+    const normalized = normalizeUrl(href, url);
+    if (!normalized) return;
+
+    if (!links.impressum && LEGAL_PATTERNS.impressum.some(p => p.test(text) || p.test(href))) links.impressum = normalized;
+    if (!links.privacy && LEGAL_PATTERNS.privacy.some(p => p.test(text) || p.test(href))) links.privacy = normalized;
+    if (!links.terms && LEGAL_PATTERNS.terms.some(p => p.test(text) || p.test(href))) links.terms = normalized;
+    if (!links.cookies && LEGAL_PATTERNS.cookies.some(p => p.test(text) || p.test(href))) links.cookies = normalized;
   });
 
-  // 2. Incomplete Documents (LEX-ANALYZER)
-  // We only run this if the link WAS found, otherwise it's just 'Missing'
-  if (nav.links.privacy || nav.links.impressum) {
-    lex.missing_clusters.forEach(clusterKey => {
-      const cluster = MANDATORY_CLUSTERS[clusterKey as keyof typeof MANDATORY_CLUSTERS];
-      const targetDoc = clusterKey === 'CONTROLLER' && nav.links.impressum ? 'Legal Notice' : 'Privacy Policy';
-      const targetUrl = (clusterKey === 'CONTROLLER' ? nav.links.impressum : nav.links.privacy) || url;
+  // 2. Report Phase: Missing vs Incomplete
+  const mandatoryDocs = [
+    { key: 'impressum', name: 'Legal Notice / Impressum', law: '§ 5 TMG / Art. 13 GDPR' },
+    { key: 'privacy', name: 'Privacy Policy', law: 'Art. 13 GDPR' }
+  ];
 
+  mandatoryDocs.forEach(doc => {
+    const foundUrl = links[doc.key as keyof typeof links];
+    if (!foundUrl) {
       violations.push({
-        category: 'Privacy',
+        category: 'Legal_Content',
         report_type: 'SaaS',
-        issue_type: `Incomplete Document: Missing ${clusterKey}`,
-        severity: 'high',
-        evidence_html: targetUrl,
-        snippet: html.substring(0, 500) + '...', 
-        description: `LEX-ANALYZER identified the ${targetDoc} but detected a critical omission of the ${cluster.desc}`,
-        law_name: cluster.law,
-        potential_fine: FINE_LOOKUP.Privacy,
-        explanation: `Transparency according to Art. 13 GDPR requires specific disclosures. Your document is missing the ${clusterKey} section.`,
-        recommendation: cluster.remediation,
+        issue_type: `Missing ${doc.name}`,
+        severity: 'critical',
+        evidence_html: url,
+        description: `NAV-SCOUT engine scanned the navigation and footer but failed to detect a dedicated link to the ${doc.name}.`,
+        law_name: doc.law,
+        potential_fine: FINE_GDPR_CRITICAL,
+        explanation: 'Mandatory legal information must be easily recognizable, directly accessible, and permanently available.',
+        recommendation: `Implement a footer link explicitly labeled "${doc.name}" pointing to a compliant document.`,
         verification_method
       });
-    });
-  }
+    } else {
+      // LEX-ANALYZER Phase: Check existing document for clusters
+      Object.entries(MANDATORY_CLUSTERS).forEach(([clusterKey, cluster]) => {
+        // Skip DPO check for Legal Notice
+        if (doc.key === 'impressum' && clusterKey !== 'CONTROLLER') return;
 
-  const score = Math.round((nav.discovery_score + lex.score) / 2);
-  const verdict = (nav.missing_critical.length === 0 && lex.missing_clusters.length === 0) ? 'COMPLIANT' : 'RISKY';
+        if (!cluster.keywords.some(k => k.test(lowerHtml))) {
+          violations.push({
+            category: 'Privacy',
+            report_type: 'SaaS',
+            issue_type: `Incomplete ${doc.name}: Missing ${clusterKey}`,
+            severity: 'high',
+            evidence_html: foundUrl,
+            snippet: html.substring(0, 300) + '...',
+            description: `LEX-ANALYZER identified the ${doc.name} at ${foundUrl} but detected a critical omission of the ${cluster.desc}`,
+            law_name: cluster.law,
+            potential_fine: FINE_GDPR_HIGH,
+            explanation: `Transparency requirements under Art. 13 GDPR mandate the inclusion of specific disclosures. Your document is missing the ${clusterKey} section.`,
+            recommendation: cluster.remediation,
+            verification_method
+          });
+        }
+      });
+    }
+  });
 
-  return { 
-    violations, 
-    discoveredLinks: [], 
-    meta: { hasCMP: false, legal_links: nav.links },
+  // 3. CMP-DETECT Phase
+  const cmpSignatures = [/cookiebot/i, /onetrust/i, /usercentrics/i, /sourcepoint/i, /cookie-law-info/i];
+  const hasCMP = cmpSignatures.some(s => s.test(lowerHtml));
+
+  return {
+    violations,
+    discoveredLinks: [],
+    meta: { hasCMP, legal_links: links },
     compliance_report: {
-      score,
-      verdict,
+      score: 100 - (violations.length * 15),
+      verdict: violations.some(v => v.severity === 'critical') ? 'RISKY' : (violations.length > 0 ? 'RISKY' : 'COMPLIANT'),
       nav_scout: {
-        found_links: Object.values(nav.links).filter(Boolean) as string[],
-        missing_critical: nav.missing_critical,
-        discovery_score: nav.discovery_score
+        found_links: Object.values(links).filter(Boolean) as string[],
+        missing_critical: mandatoryDocs.filter(d => !links[d.key as keyof typeof links]).map(d => d.name),
+        discovery_score: Object.values(links).filter(Boolean).length * 25
       },
       lex_analyzer: {
-        has_vat_id: lex.has_vat_id,
-        has_contact_info: lex.has_contact_info,
+        has_vat_id: /de[0-9]{9}/i.test(lowerHtml),
+        has_contact_info: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(lowerHtml),
         has_mandatory_terms: true,
-        content_truncated: lex.content_truncated,
-        missing_clusters: lex.missing_clusters
+        content_truncated: html.length > 100000,
+        missing_clusters: [] // Calculated per document above
       },
       cmp_detect: {
-        detected_provider: null,
-        is_active: false
+        detected_provider: hasCMP ? 'Generic CMP Detected' : null,
+        is_active: hasCMP
       }
     }
   };
