@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No violations found for this domain' }, { status: 404 });
     }
 
-    // Группировка нарушений по типу для суммаризации
+    // Group violations by type for summary
     const grouped = violations.reduce((acc: any, curr: any) => {
       const type = curr.issue_type;
       if (!acc[type]) {
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
     const groupedArray = Object.values(grouped);
 
-    // Загрузка логотипа
+    // Load logo
     let logoBase64 = '';
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.png');
@@ -102,8 +102,9 @@ export async function GET(request: Request) {
           .warning-title { color: #9a3412; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
           .warning-text { font-size: 11px; color: #7c2d12; }
           
-          .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8; }
-          .qr-placeholder { width: 60px; height: 60px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; text-align: center; }
+          .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; font-size: 9px; color: #475569; }
+          .footer a { color: #3b82f6; text-decoration: none; font-weight: bold; }
+          .footer-logo { width: 32px; height: 32px; object-fit: contain; }
         </style>
       </head>
       <body>
@@ -124,20 +125,20 @@ export async function GET(request: Request) {
         </div>
 
         <div class="title-section">
-          <div class="title">Официальный отчет о выявленных нарушениях</div>
+          <div class="title">Official Compliance Audit Report</div>
           <div style="margin-top: 10px;">
-            Объект аудита: <span class="domain-badge">${domain}</span>
+            Audit Target: <span class="domain-badge">${domain}</span>
           </div>
           <div style="font-size: 10px; color: #94a3b8; margin-top: 5px;">
-            Дата формирования: ${new Date().toLocaleDateString('ru-RU')} | ID: HB-${Math.floor(Math.random() * 900000 + 100000)}
+            Report Date: ${new Date().toLocaleDateString('en-US')} | ID: HB-${Math.floor(Math.random() * 900000 + 100000)}
           </div>
         </div>
 
         <div class="summary-card">
-          <div class="summary-title">Результаты сканирования</div>
+          <div class="summary-title">Audit Summary</div>
           <div style="font-size: 13px; color: #475569;">
-            В ходе автоматизированного аудита на домене <strong>${domain}</strong> было обнаружено 
-            <strong>${violations.length}</strong> нарушений, распределенных по <strong>${groupedArray.length}</strong> категориям.
+            During the automated compliance audit of the domain <strong>${domain}</strong>, 
+            <strong>${violations.length}</strong> violations were identified across <strong>${groupedArray.length}</strong> categories.
           </div>
         </div>
 
@@ -145,40 +146,40 @@ export async function GET(request: Request) {
           <div class="violation-item">
             <div class="violation-header">
               <span class="violation-type">${item.type}</span>
-              <span class="violation-count">Инцидентов: ${item.urls.length}</span>
+              <span class="violation-count">Incidents: ${item.urls.length}</span>
             </div>
             <div class="violation-body">
               <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
               <div class="explanation-text">${item.explanation}</div>
-              <div class="law-note">Правовое основание: ${item.law}</div>
-              <div class="fine-text">Возможный штраф: ${item.fine}</div>
+              <div class="law-note">Legal Ground: ${item.law}</div>
+              <div class="fine-text">Potential Fine: ${item.fine}</div>
               
-              <div class="url-list-title">Список целевых страниц (${item.urls.length}):</div>
+              <div class="url-list-title">Affected Pages (${item.urls.length}):</div>
               <ul class="url-list">
                 ${item.urls.slice(0, 15).map((url: string) => `<li>${url}</li>`).join('')}
-                ${item.urls.length > 15 ? `<li>... и еще ${item.urls.length - 15} страниц</li>` : ''}
+                ${item.urls.length > 15 ? `<li>... and ${item.urls.length - 15} more pages</li>` : ''}
               </ul>
             </div>
           </div>
         `).join('')}
 
         <div class="warning-box">
-          <div class="warning-title">⚠️ Юридическое уведомление</div>
+          <div class="warning-title">⚠️ Legal Notice</div>
           <div class="warning-text">
-            Выявленные ошибки влекут за собой административную ответственность согласно регламентам GDPR и локальному законодательству ЕС. 
-            Данный отчет носит официальный уведомительный характер. 
-            Вам необходимо устранить данные нарушения в кратчайшие сроки для предотвращения санкций со стороны надзорных органов. 
-            Специалисты HUMANGO готовы провести повторный аудит после внесения правок.
+            The identified issues carry administrative liability under GDPR and local EU regulations. 
+            This report serves as an official notification. 
+            Corrective actions should be implemented immediately to prevent sanctions from regulatory authorities. 
+            HUMANGO specialists are available to perform a follow-up audit after remediation is complete.
           </div>
         </div>
 
         <div class="footer">
           <div>
             &copy; ${new Date().getFullYear()} Global Infrastructure Group | HUMANGO Compliance<br>
-            Verification: bot.humango.app | Support: abuse@humango.app
+            Verification: bot.humango.app | Support: <a href="mailto:abuse@humango.app">abuse@humango.app</a>
           </div>
-          <div class="qr-placeholder">
-            <span style="font-size: 8px;">DIGITAL<br>SIGNATURE</span>
+          <div class="logo-container">
+            ${logoBase64 ? `<img src="${logoBase64}" class="footer-logo" alt="Logo">` : ''}
           </div>
         </div>
       </body>
