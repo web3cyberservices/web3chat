@@ -22,11 +22,13 @@ export async function GET(request: Request) {
     const hasFine = cols.includes('fine_amount');
     const hasRec = cols.includes('recommendation');
     const hasMethod = cols.includes('verification_method');
+    const hasExp = cols.includes('explanation');
 
-    // Fetch all violations for grouping
+    // Fetch all violations for grouping to prevent report spam
     const res = await pool.query(`
       SELECT 
-        issue_type, page_url, severity, explanation, 
+        issue_type, page_url, severity, 
+        ${hasExp ? 'explanation' : 'description as explanation'}, 
         ${hasFine ? 'fine_amount' : "'' as fine_amount"}, 
         ${hasLaw ? 'law_name' : "'GDPR' as law_name"}, 
         ${hasRec ? 'recommendation' : "'Remediation required' as recommendation"},
@@ -38,7 +40,7 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
-    // IRIS FIX: Deduplicate and Group by issue_type to prevent 14-page reports
+    // IRIS FIX: Deduplicate and Group by issue_type to prevent multi-page reports
     const groupedViolations: Record<string, any> = {};
     res.rows.forEach(row => {
       const key = row.issue_type;
@@ -52,8 +54,8 @@ export async function GET(request: Request) {
       }
     });
 
-    // LIMIT TO TOP 5 TO PREVENT ERROR 500
-    const violations = Object.values(groupedViolations).slice(0, 5);
+    // LIMIT TO TOP 5 GROUPED VIOLATIONS TO PREVENT 500 ERROR / TIMEOUT
+    const finalViolations = Object.values(groupedViolations).slice(0, 5);
 
     let logoBase64 = '';
     try {
@@ -67,24 +69,24 @@ export async function GET(request: Request) {
       <head>
         <meta charset="utf-8">
         <style>
-          body { font-family: 'Helvetica', sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; }
+          body { font-family: 'Helvetica', sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; background: #ffffff; }
           .header { border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
           .logo-text { font-size: 24px; font-weight: bold; color: #0f172a; }
           .title-section { margin-bottom: 30px; }
           .title { font-size: 22px; font-weight: bold; color: #0f172a; border-left: 4px solid #3b82f6; padding-left: 15px; }
           .domain-badge { background: #eff6ff; color: #3b82f6; padding: 4px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
-          .violation-item { border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 25px; page-break-inside: avoid; }
+          .violation-item { border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 25px; page-break-inside: avoid; background: #ffffff; overflow: hidden; }
           .violation-header { background: #f8fafc; padding: 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-          .violation-type { font-weight: bold; font-size: 14px; color: #0f172a; }
+          .violation-type { font-weight: bold; font-size: 14px; color: #0f172a; text-transform: uppercase; }
           .violation-body { padding: 20px; }
           .severity-badge { font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; display: inline-block; margin-bottom: 12px; }
           .critical { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
           .high { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
           .label { font-size: 10px; font-weight: bold; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
           .fine { font-size: 12px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ef4444; }
-          .resource-list { font-size: 10px; color: #64748b; background: #f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-family: monospace; word-break: break-all; }
+          .resource-list { font-size: 10px; color: #64748b; background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-family: 'Courier New', monospace; word-break: break-all; }
           .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b; }
-          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; }
+          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; border-bottom: 1px solid #3b82f6; }
         </style>
       </head>
       <body>
@@ -94,7 +96,7 @@ export async function GET(request: Request) {
             <div class="logo-text">Humango Compliance</div>
           </div>
           <div style="text-align:right; font-size:10px; color:#64748b">
-            Official Audit Report<br>Generated: ${new Date().toLocaleDateString('en-GB')}
+            Official Audit Intelligence Report<br>Generated: ${new Date().toLocaleDateString('en-GB')}
           </div>
         </div>
 
@@ -103,7 +105,7 @@ export async function GET(request: Request) {
           <div style="margin-top:15px">Audit Target: <span class="domain-badge">${domain}</span></div>
         </div>
 
-        ${violations.map(item => `
+        ${finalViolations.map(item => `
           <div class="violation-item">
             <div class="violation-header">
               <span class="violation-type">${item.issue_type}</span>
@@ -115,20 +117,20 @@ export async function GET(request: Request) {
               <span class="label">Diagnostic Explanation</span>
               <div style="font-size:12px; margin-bottom:15px">${item.explanation}</div>
               
-              <span class="label">Legal Basis</span>
-              <div style="font-size:11px; font-weight:bold; margin-bottom:15px">${item.law_name}</div>
+              <span class="label">Legal Framework & Statutory Basis</span>
+              <div style="font-size:11px; font-weight:bold; margin-bottom:15px; color:#0f172a">${item.law_name}</div>
               
-              <span class="label">Potential Administrative Liability (Art. 83 GDPR)</span>
+              <span class="label">Administrative Liability (Art. 83 GDPR)</span>
               <div class="fine">${item.fine_amount || 'Up to €20,000,000 or 4% of annual global turnover.'}</div>
               
-              <span class="label">Affected Resource(s)</span>
+              <span class="label">Targeted Resource(s)</span>
               <div class="resource-list">
                 ${Array.from(item.affected_urls).join('<br>')}
               </div>
 
-              <span class="label">Corrective Action Template</span>
+              <span class="label">Remediation Blueprint</span>
               <div style="background:#ecfdf5; border:1px solid #d1fae5; padding:15px; border-radius:8px; color:#065f46; font-size:11px">
-                <strong>Remediation:</strong> ${item.recommendation}
+                <strong>Corrective Action:</strong> ${item.recommendation}
               </div>
             </div>
           </div>
@@ -136,8 +138,8 @@ export async function GET(request: Request) {
 
         <div class="footer">
           <div>
-            &copy; ${new Date().getFullYear()} Humango Limited • London • E6 2JA<br>
-            Verification: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
+            &copy; ${new Date().getFullYear()} Humango Limited • 182-184 High Street North, London, E6 2JA<br>
+            Verification & Legal Inquiries: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
           </div>
           ${logoBase64 ? `<img src="${logoBase64}" style="width:30px; opacity:0.3">` : ''}
         </div>
@@ -166,7 +168,7 @@ export async function GET(request: Request) {
       } 
     });
   } catch (error: any) {
-    console.error('[PDF Error]', error);
+    console.error('[PDF Generation Error]', error);
     return NextResponse.json({ error: 'Failed to generate report', message: error.message }, { status: 500 });
   } finally {
     if (browser) await browser.close();
