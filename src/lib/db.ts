@@ -23,9 +23,21 @@ function sanitize(text: string | null | undefined): string {
   return DOMPurify.sanitize(text);
 }
 
-// Helper to normalize and deduplicate
-function normalizeAndDeduplicateUrls(urls: string[]): string[] {
-  return [...new Set(urls.map(u => u.toLowerCase().trim().replace(/\/$/, "")))];
+// 3. ДЕДУПЛИКАЦИЯ URL (Убирает повторы costera.tech)
+function normalizeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    u.search = '';
+    let pathname = u.pathname.toLowerCase();
+    if (pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1);
+    }
+    u.pathname = pathname;
+    return u.href;
+  } catch (e) {
+    return url.toLowerCase().replace(/\/$/, "");
+  }
 }
 
 export async function testConnection() {
@@ -46,6 +58,20 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    
+    // Normalizing audit base URL
+    const cleanUrl = normalizeUrl(url);
+
+    // Group and deduplicate findings by type and page_url
+    const uniqueViolations = new Map();
+    violations.forEach(v => {
+      const affectedUrl = normalizeUrl(v.evidence_html || url);
+      const key = `${v.issue_type}_${affectedUrl}`;
+      if (!uniqueViolations.has(key)) {
+        uniqueViolations.set(key, { ...v, evidence_html: affectedUrl });
+      }
+    });
+
     const query = `
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
@@ -55,23 +81,17 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15)
     `;
 
-    // Normalizing audit base URL
-    const cleanUrl = url.toLowerCase().replace(/\/$/, "");
-
-    for (const v of violations) {
+    for (const v of uniqueViolations.values()) {
       const fine = v.potential_fine || v.fine_amount || "Administrative fines under GDPR Art. 83.";
-      
-      // Normalize affected URL
-      let affectedUrl = v.evidence_html.toLowerCase().trim().replace(/\/$/, "");
       
       await client.query(query, [
         sanitize(domain),
         sanitize(cleanUrl),
-        sanitize(affectedUrl),
+        sanitize(v.evidence_html),
         v.category,
         v.issue_type,
         v.severity,
-        sanitize(affectedUrl),
+        sanitize(v.evidence_html),
         sanitize(v.snippet || ''),
         sanitize(v.description), 
         sanitize(v.explanation), 
@@ -166,7 +186,7 @@ export async function getQueueSize(): Promise<number> {
 
 export async function addToQueue(url: string, depth: number = 0, priority: number = 0) {
   try {
-    const normalized = url.toLowerCase().trim().replace(/\/$/, "");
+    const normalized = normalizeUrl(url);
     await pool.query(
       "INSERT INTO scan_queue (url, status, depth, priority) VALUES ($1, 'pending', $2, $3) ON CONFLICT (url) DO NOTHING", 
       [normalized, depth, priority]

@@ -55,7 +55,7 @@ export async function GET(request: Request) {
           .fine { font-size: 12px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ef4444; }
           .evidence-box { background: #f1f5f9; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 10px; color: #475569; margin-bottom: 15px; }
           .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b; }
-          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; font-size: 12px; background: #eff6ff; padding: 4px 8px; border-radius: 4px; }
+          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; font-size: 12px; background: #eff6ff; padding: 4px 12px; border-radius: 6px; border: 1px solid #3b82f6; }
           .footer-logo { width: 32px; height: 32px; object-fit: contain; }
         </style>
       </head>

@@ -46,6 +46,13 @@ const LEGAL_PATTERNS = {
   cookies: [/cookie/i, /galletas/i, /biscotti/i, /cookie policy/i, /cookie-richtlinie/i]
 };
 
+const URL_PATTERNS = {
+  impressum: [/impressum/i, /legal-notice/i, /legal/i],
+  privacy: [/privacy/i, /datenschutz/i, /privacy-policy/i],
+  terms: [/terms/i, /agb/i, /tos/i, /conditions/i],
+  cookies: [/cookie/i, /cookies/i]
+};
+
 // 3. ДЕДУПЛИКАЦИЯ URL (Убирает повторы)
 export function normalizeUrl(url: string, base: string): string | null {
   try {
@@ -77,7 +84,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const violations: Violation[] = [];
   const lowerHtml = html.substring(0, 100000).toLowerCase(); // LEX-ANALYZER limit: 100KB
 
-  // 2. УМНЫЙ ПОИСК ССЫЛОК (Убирает "Missing Document", если ссылка есть)
+  // 2. УМНЫЙ ПОИСК ССЫЛОК (Убирает "Missing Document", если ссылка есть по паттерну)
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href')?.toLowerCase() || '';
@@ -86,12 +93,13 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     const normalized = normalizeUrl(href, url);
     if (!normalized) return;
 
-    const check = (patterns: RegExp[]) => patterns.some(p => p.test(text) || p.test(href));
+    const checkText = (patterns: RegExp[]) => patterns.some(p => p.test(text));
+    const checkHref = (patterns: RegExp[]) => patterns.some(p => p.test(href));
 
-    if (!links.impressum && check(LEGAL_PATTERNS.impressum)) links.impressum = normalized;
-    if (!links.privacy && check(LEGAL_PATTERNS.privacy)) links.privacy = normalized;
-    if (!links.terms && check(LEGAL_PATTERNS.terms)) links.terms = normalized;
-    if (!links.cookies && check(LEGAL_PATTERNS.cookies)) links.cookies = normalized;
+    if (!links.impressum && (checkText(LEGAL_PATTERNS.impressum) || checkHref(URL_PATTERNS.impressum))) links.impressum = normalized;
+    if (!links.privacy && (checkText(LEGAL_PATTERNS.privacy) || checkHref(URL_PATTERNS.privacy))) links.privacy = normalized;
+    if (!links.terms && (checkText(LEGAL_PATTERNS.terms) || checkHref(URL_PATTERNS.terms))) links.terms = normalized;
+    if (!links.cookies && (checkText(LEGAL_PATTERNS.cookies) || checkHref(URL_PATTERNS.cookies))) links.cookies = normalized;
   });
 
   const mandatoryDocs = [
