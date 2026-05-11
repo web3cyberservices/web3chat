@@ -16,6 +16,7 @@ export interface Violation {
   law_name: string;        
   potential_fine: string;  
   recommendation?: string;
+  actionable_template?: string; // New: Template for the client to use
   scan_type?: ScanType;
   report_type: ReportType;
   affected_urls?: string[];
@@ -35,6 +36,7 @@ export interface ComplianceReport {
     has_contact_info: boolean;
     has_mandatory_terms: boolean;
     content_truncated: boolean;
+    missing_clusters: string[];
   };
   cmp_detect: {
     detected_provider: string | null;

@@ -1,31 +1,47 @@
 
 import * as cheerio from 'cheerio';
-import { Violation, ComplianceReport } from '@/types';
+import { Violation, ComplianceReport, Category } from '@/types';
 
 const LEGAL_PATTERNS = {
-  impressum: [/impressum/i, /legal notice/i, /mentions l[eé]gales/i, /aviso legal/i, /note legali/i, /legal disclosure/i, /impressum/i],
-  privacy: [/privacy/i, /datenschutz/i, /confidentialit[eé]/i, /privacidad/i, /politika privatnosti/i, /data protection/i, /privacy-policy/i],
-  terms: [/terms/i, /tos/i, /conditions/i, /bedingungen/i, /condiciones/i, /agb/i, /nutzungsbedingungen/i, /terms-of-service/i],
+  impressum: [/impressum/i, /legal notice/i, /mentions l[eé]gales/i, /aviso legal/i, /note legali/i, /legal disclosure/i],
+  privacy: [/privacy/i, /datenschutz/i, /confidentialit[eé]/i, /privacidad/i, /data protection/i, /privacy-policy/i],
+  terms: [/terms/i, /tos/i, /conditions/i, /bedingungen/i, /condiciones/i, /agb/i, /terms-of-service/i],
   cookies: [/cookie/i, /galletas/i, /biscotti/i, /cookie policy/i, /cookie-richtlinie/i]
 };
 
-const FINE_LOOKUP = {
-  LEGAL_CONTENT: "Up to €20,000,000 or 4% of annual global turnover (GDPR Art. 83).",
-  SECURITY: "Up to €10,000,000 or 2% of annual global turnover (GDPR Art. 83).",
-  COOKIES: "Up to €10,000,000 or 2% of annual global turnover (ePrivacy Directive).",
-  PRIVACY: "Up to €20,000,000 or 4% of annual global turnover (GDPR Art. 83)."
+const MANDATORY_CLUSTERS = {
+  CONTROLLER: {
+    keywords: [/data controller/i, /verantwortlicher/i, /responsable du traitement/i, /titular del tratamiento/i],
+    law: "GDPR Article 13(1)(a)",
+    desc: "Identity and contact details of the controller.",
+    remediation: "Ensure your legal text explicitly names the legal entity responsible for data processing, including a physical address and contact email."
+  },
+  RIGHTS: {
+    keywords: [/right to access/i, /right to erasure/i, /right to object/i, /auskunftsrecht/i, /l[öo]schungsrecht/i, /widerrufsrecht/i],
+    law: "GDPR Article 13(2)(b)",
+    desc: "Information on data subject rights (access, rectification, erasure).",
+    remediation: "Add a section titled 'Your Rights' listing the right to access, rectification, erasure, and restriction of processing."
+  },
+  RETENTION: {
+    keywords: [/retention period/i, /speicherdauer/i, /dur[eé]e de conservation/i, /plazo de conservaci[oó]n/i],
+    law: "GDPR Article 13(2)(a)",
+    desc: "The period for which the personal data will be stored.",
+    remediation: "Clearly state how long each category of data is stored (e.g., 'Marketing data is kept for 2 years or until consent is withdrawn')."
+  },
+  DPO: {
+    keywords: [/data protection officer/i, /datenschutzbeauftragter/i, /délégué à la protection des données/i],
+    law: "GDPR Article 13(1)(b)",
+    desc: "Contact details of the Data Protection Officer (if applicable).",
+    remediation: "If your company is required to have a DPO, their contact details must be reachable directly from this document."
+  }
 };
 
-const CMP_SIGNATURES = {
-  'OneTrust': /ot-sdk-column|onetrust-consent-sdk/i,
-  'Cookiebot': /cookiebot/i,
-  'Usercentrics': /usercentrics/i,
-  'Sourcepoint': /sourcepoint/i
+const FINE_LOOKUP: Record<string, string> = {
+  Legal_Content: "Up to €20,000,000 or 4% of annual global turnover (GDPR Art. 83).",
+  Security: "Up to €10,000,000 or 2% of annual global turnover (GDPR Art. 83).",
+  Privacy: "Up to €20,000,000 or 4% of annual global turnover (GDPR Art. 83)."
 };
 
-/**
- * URL Normalizer: Strips query params, fragments, and trailing slashes for deduplication.
- */
 function normalizeUrl(url: string, base: string): string | null {
   try {
     const absolute = new URL(url, base);
@@ -42,9 +58,6 @@ function normalizeUrl(url: string, base: string): string | null {
   }
 }
 
-/**
- * NAV-SCOUT: Navigation & Link Discovery Module
- */
 function navScout($: cheerio.CheerioAPI, baseUrl: string) {
   const links: Record<string, string | null> = { impressum: null, privacy: null, terms: null, cookies: null };
   const missing_critical: string[] = [];
@@ -58,7 +71,6 @@ function navScout($: cheerio.CheerioAPI, baseUrl: string) {
     const normalized = normalizeUrl(href, baseUrl);
     if (!normalized) return;
 
-    // Smart Semantic Mapping with enhanced regex
     if (!links.impressum && LEGAL_PATTERNS.impressum.some(p => p.test(text) || p.test(href))) {
       links.impressum = normalized; score += 40;
     }
@@ -76,51 +88,33 @@ function navScout($: cheerio.CheerioAPI, baseUrl: string) {
   if (!links.impressum) missing_critical.push('Impressum / Legal Notice');
   if (!links.privacy) missing_critical.push('Privacy Policy');
 
-  return {
-    links,
-    missing_critical,
-    discovery_score: Math.min(score, 100)
-  };
+  return { links, missing_critical, discovery_score: Math.min(score, 100) };
 }
 
-/**
- * LEX-ANALYZER: Semantic Legal Analysis
- */
 function lexAnalyzer(html: string) {
   const text = html.substring(0, 102400).toLowerCase();
+  const missing_clusters: string[] = [];
+  
+  Object.entries(MANDATORY_CLUSTERS).forEach(([key, cluster]) => {
+    if (!cluster.keywords.some(k => k.test(text))) {
+      missing_clusters.push(key);
+    }
+  });
+
   const has_vat_id = /de[0-9]{9}/i.test(text);
   const has_email = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text);
   const has_phone = /\+?[0-9\s-]{8,20}/i.test(text);
-  const has_mandatory_terms = /haftungsausschluss|streitbeilegung|disclaimer|jurisdiction/i.test(text);
 
-  let score = 0;
-  if (has_vat_id) score += 30;
-  if (has_email && has_phone) score += 30;
-  if (has_mandatory_terms) score += 40;
+  let score = 100 - (missing_clusters.length * 20);
+  if (!has_email && !has_phone) score -= 20;
 
   return {
-    score,
+    score: Math.max(score, 0),
     has_vat_id,
     has_contact_info: has_email && has_phone,
-    has_mandatory_terms,
+    missing_clusters,
     content_truncated: html.length > 102400
   };
-}
-
-/**
- * CMP-DETECT: Consent Management Platform Detection
- */
-function cmpDetect(html: string) {
-  let detectedProvider: string | null = null;
-  let isActive = false;
-  for (const [provider, pattern] of Object.entries(CMP_SIGNATURES)) {
-    if (pattern.test(html)) {
-      detectedProvider = provider;
-      isActive = true;
-      break;
-    }
-  }
-  return { detectedProvider, isActive };
 }
 
 export function parseHtmlContent(html: string, url: string, headers: any = {}, screenshot?: string, isPuppeteer: boolean = false): { 
@@ -134,80 +128,72 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const domain = targetUrl.hostname.toLowerCase();
   const verification_method = isPuppeteer ? 'Dynamic Emulation' : 'Static Analysis';
   
-  // Link Discovery with Deduplication (using normalizeUrl)
-  const linkSet = new Set<string>();
-  $('a[href]').each((_, el) => {
-    const href = $(el).attr('href');
-    if (!href || href.startsWith('javascript:') || href.startsWith('mailto:')) return;
-    const normalized = normalizeUrl(href, url);
-    if (normalized && new URL(normalized).hostname === domain) {
-      linkSet.add(normalized);
-    }
-  });
-
   const nav = navScout($, url);
   const lex = lexAnalyzer(html);
-  const cmp = cmpDetect(html);
+  const violations: Violation[] = [];
 
-  const raw_violations: Violation[] = [];
-
+  // 1. Structural Violations (NAV-SCOUT)
   if (nav.missing_critical.length > 0) {
     nav.missing_critical.forEach(missing => {
       const isImpressum = missing.includes('Impressum');
-      raw_violations.push({
-        category: isImpressum ? 'Legal_Content' : 'Privacy',
+      violations.push({
+        category: (isImpressum ? 'Legal_Content' : 'Privacy') as Category,
         report_type: 'SaaS',
         issue_type: `Missing ${missing}`,
         severity: 'critical',
         evidence_html: url,
-        description: `NAV-SCOUT engine scanned the footer and did not detect a visible link to ${missing}. This is a critical transparency violation.`,
-        law_name: isImpressum ? '§5 TMG (Germany)' : 'GDPR Art. 13/14',
-        potential_fine: isImpressum ? FINE_LOOKUP.LEGAL_CONTENT : FINE_LOOKUP.PRIVACY,
-        explanation: 'Mandatory legal disclosures must be "easily recognizable, directly accessible, and permanently available".',
-        recommendation: `Add a clearly labeled "${missing}" link to your website footer.`,
+        description: `NAV-SCOUT engine scanned the footer and root navigation but failed to find a dedicated link to ${missing}.`,
+        law_name: isImpressum ? '§5 TMG (Germany) / Art. 13 GDPR' : 'GDPR Article 13',
+        potential_fine: FINE_LOOKUP[isImpressum ? 'Legal_Content' : 'Privacy'],
+        explanation: 'Mandatory legal disclosures must be "easily recognizable, directly accessible, and permanently available" at all times.',
+        recommendation: `Implement a footer link explicitly labeled "${missing}" pointing to a dedicated compliance page.`,
         verification_method
       });
     });
   }
 
+  // 2. Content-Specific Violations (LEX-ANALYZER)
+  lex.missing_clusters.forEach(clusterKey => {
+    const cluster = MANDATORY_CLUSTERS[clusterKey as keyof typeof MANDATORY_CLUSTERS];
+    violations.push({
+      category: 'Privacy',
+      report_type: 'SaaS',
+      issue_type: `Incomplete Document: Missing ${clusterKey}`,
+      severity: 'high',
+      evidence_html: nav.links.privacy || url,
+      snippet: html.substring(0, 500) + '...', // First 500 chars as context
+      description: `LEX-ANALYZER detected the legal document but identified a critical omission of the ${cluster.desc}`,
+      law_name: cluster.law,
+      potential_fine: FINE_LOOKUP.Privacy,
+      explanation: `Transparency is a core pillar of GDPR. Failure to disclose ${clusterKey} prevents users from understanding how their data is processed.`,
+      recommendation: cluster.remediation,
+      verification_method
+    });
+  });
+
   if (nav.links.impressum && !lex.has_vat_id && domain.endsWith('.de')) {
-    raw_violations.push({
+    violations.push({
       category: 'Legal_Content',
       report_type: 'SaaS',
-      issue_type: 'Missing VAT ID',
+      issue_type: 'Missing VAT Identification',
       severity: 'medium',
       evidence_html: nav.links.impressum,
-      description: 'LEX-ANALYZER scanned the Impressum but failed to find a valid VAT ID (USt-IdNr).',
+      description: 'LEX-ANALYZER failed to find a valid VAT ID (USt-IdNr) in the Impressum.',
       law_name: '§5 Abs. 1 Nr. 6 TMG',
-      potential_fine: "Up to €50,000 (Administrative penalty).",
-      explanation: 'Companies in Germany must disclose their VAT ID in the Impressum if applicable.',
-      recommendation: 'Update your Impressum with the correct VAT ID.',
+      potential_fine: "Up to €50,000 administrative penalty.",
+      explanation: 'Companies operating in Germany must disclose their VAT ID if assigned.',
+      recommendation: 'Ensure your USt-IdNr is clearly listed in the Impressum.',
       verification_method
     });
   }
 
-  // Deduplication & Grouping Logic
-  const grouped = raw_violations.reduce((acc: Record<string, Violation>, curr) => {
-    const key = `${curr.issue_type}_${curr.category}`;
-    if (!acc[key]) {
-      acc[key] = { ...curr, affected_urls: [curr.evidence_html] };
-    } else {
-      const normalizedCurrent = normalizeUrl(curr.evidence_html, url) || curr.evidence_html;
-      if (!acc[key].affected_urls?.some(u => (normalizeUrl(u, url) || u) === normalizedCurrent)) {
-        acc[key].affected_urls?.push(curr.evidence_html);
-      }
-    }
-    return acc;
-  }, {});
-
-  const violations = Object.values(grouped);
   const score = Math.round((nav.discovery_score + lex.score) / 2);
-  const verdict = (nav.missing_critical.length === 0 && score > 70) ? 'COMPLIANT' : 'RISKY';
+  const verdict = (nav.missing_critical.length === 0 && lex.missing_clusters.length === 0) ? 'COMPLIANT' : 'RISKY';
 
   return { 
     violations, 
-    discoveredLinks: Array.from(linkSet).slice(0, 50),
-    meta: { hasCMP: cmp.isActive, legal_links: nav.links },
+    discoveredLinks: [], 
+    meta: { hasCMP: false, legal_links: nav.links },
     compliance_report: {
       score,
       verdict,
@@ -219,21 +205,14 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       lex_analyzer: {
         has_vat_id: lex.has_vat_id,
         has_contact_info: lex.has_contact_info,
-        has_mandatory_terms: lex.has_mandatory_terms,
-        content_truncated: lex.content_truncated
+        has_mandatory_terms: true,
+        content_truncated: lex.content_truncated,
+        missing_clusters: lex.missing_clusters
       },
       cmp_detect: {
-        detected_provider: cmp.detectedProvider,
-        is_active: cmp.isActive
+        detected_provider: null,
+        is_active: false
       }
     }
   };
-}
-
-export function shouldRunDeepScan(html: string): boolean {
-  const $ = cheerio.load(html);
-  const isSPA = $('#app').length > 0 || $('#root').length > 0 || $('body').children().length < 5;
-  const hasCMP = /onetrust|cookiebot|usercentrics/i.test(html);
-  const bodyEmpty = $('body').text().trim().length < 200;
-  return isSPA || hasCMP || bodyEmpty;
 }

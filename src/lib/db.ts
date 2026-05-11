@@ -45,22 +45,13 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
         evidence_html, snippet, description, explanation, law_name, recommendation, 
-        scan_type, report_type, created_at, fine_amount, potential_fine
+        scan_type, report_type, created_at, fine_amount
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15, $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15)
     `;
 
     for (const v of violations) {
-      // Logic: Ensure fine_amount is never null. Fallback to a calculated value if not provided.
-      let fine = v.fine_amount || v.potential_fine;
-      if (!fine || fine === 'null' || fine === 'undefined') {
-        if (v.category === 'Legal_Content' || v.category === 'Privacy') {
-           fine = "Up to €20,000,000 or 4% of annual global turnover (GDPR Art. 83).";
-        } else {
-           fine = "Up to €10,000,000 or 2% of annual global turnover (GDPR Art. 83).";
-        }
-      }
-
+      const fine = v.potential_fine || v.fine_amount || "Calculated by legal department.";
       const affectedUrls = v.affected_urls?.join(', ') || v.evidence_html;
       
       await client.query(query, [
@@ -71,7 +62,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html),
-        sanitize(v.snippet || v.description),
+        sanitize(v.snippet || ''),
         sanitize(v.description), 
         sanitize(v.explanation), 
         sanitize(v.law_name),
@@ -199,8 +190,7 @@ export async function getViolations(limit = 100) {
       SELECT 
         id, domain, issue_type as type, severity as level, created_at as date, 
         description as summary, explanation as description,
-        COALESCE(fine_amount, potential_fine) as fine_amount,
-        law_name, page_url as url, evidence_html, report_type
+        fine_amount, law_name, page_url as url, evidence_html, report_type, snippet
       FROM site_violations ORDER BY created_at DESC LIMIT $1
     `, [limit]);
     return res.rows || [];
