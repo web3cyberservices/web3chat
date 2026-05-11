@@ -117,7 +117,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     });
   }
 
-  // 3. Document Discovery (COSTERA Engine)
+  // 3. Document Discovery (NAV-SCOUT Engine)
   const docsFound: Record<string, string | null> = {};
   for (const key of Object.keys(LEGAL_KEYWORDS)) docsFound[key] = null;
 
@@ -143,7 +143,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         issue_type: `Missing Document: ${doc.toUpperCase()}`,
         severity: 'critical',
         evidence_html: url,
-        description: `Costera engine proscanned the footer and did not detect a link to ${doc.toUpperCase()}. This is a transparency violation under ${detail.law}.`,
+        description: `NAV-SCOUT engine proscanned the footer and did not detect a link to ${doc.toUpperCase()}. This is a transparency violation under ${detail.law}.`,
         law_name: detail.law,
         potential_fine: detail.fine,
         explanation: detail.risk,
@@ -152,7 +152,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     }
   });
 
-  // 4. Content Audit (XEVON Engine)
+  // 4. Content Audit (LEX-ANALYZER Engine)
   if (bodyText.length > 500) {
     const docLang = detectLanguage(bodyText);
     if (docLang !== siteLang) {
@@ -162,7 +162,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         issue_type: 'Language Mismatch',
         severity: 'medium',
         evidence_html: url,
-        description: `Xevon engine analyzed the text. Link found, but the document is in ${docLang.toUpperCase()} while the site interface is in ${siteLang.toUpperCase()}.`,
+        description: `LEX-ANALYZER engine analyzed the text. Link found, but the document is in ${docLang.toUpperCase()} while the site interface is in ${siteLang.toUpperCase()}.`,
         law_name: 'GDPR Art. 12 (Transparency)',
         potential_fine: '€2,500 - €250,000',
         explanation: 'Risk: Art. 12 GDPR requires information to be provided in an intelligible and easily accessible form for the target audience.',
@@ -183,7 +183,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         severity: 'high',
         evidence_html: screenshot ? `data:image/jpeg;base64,${screenshot}` : url,
         snippet: `Missing sections: ${missingBlocks.join(', ')}`,
-        description: `Xevon engine analyzed the text. Document found, but mandatory sections (${missingBlocks.join(', ')}) are missing from the content.`,
+        description: `LEX-ANALYZER engine analyzed the text. Document found, but mandatory sections (${missingBlocks.join(', ')}) are missing from the content.`,
         law_name: 'GDPR Art. 13/14',
         potential_fine: '€5,000 - €20,000,000',
         explanation: 'Risk: Omitting required information like retention periods or data subject rights is a primary cause for regulatory fines.',

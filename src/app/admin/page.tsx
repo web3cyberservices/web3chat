@@ -15,7 +15,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { 
   Accordion,
@@ -36,19 +35,13 @@ import {
   LogOut, 
   Terminal as TerminalIcon, 
   AlertTriangle,
-  ShieldCheck,
   Zap,
   Download,
-  Bug,
-  Activity,
-  Clock,
-  ExternalLink,
-  FileText,
   Globe,
   Scale,
-  Camera,
   Layers,
-  Info
+  Info,
+  FileSpreadsheet
 } from "lucide-react";
 
 interface DetectedIssue {
@@ -153,6 +146,15 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      window.open('/api/admin/export', '_blank');
+      toast({ title: "Export Started", description: "Your CSV audit report is being downloaded." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Export Failed" });
+    }
+  };
+
   const groupedViolations = useMemo(() => {
     const groups: Record<string, DetectedIssue[]> = {};
     allViolations.forEach(issue => {
@@ -191,6 +193,9 @@ export default function AdminDashboard() {
         <nav className="flex-1 p-4 space-y-2">
           <Button variant="secondary" className="w-full justify-start gap-3 bg-primary/10 text-primary"><LayoutDashboard className="w-4 h-4" /> Dashboard</Button>
           <Button variant="ghost" onClick={fetchFullHistory} className="w-full justify-start gap-3 text-slate-400"><AlertTriangle className="w-4 h-4" /> All Violations</Button>
+          <Button variant="ghost" onClick={handleExportCSV} className="w-full justify-start gap-3 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
+            <FileSpreadsheet className="w-4 h-4" /> Export Report (Excel)
+          </Button>
         </nav>
         <div className="p-4 border-t border-white/5">
           <Button onClick={() => { setIsAuthenticated(false); document.cookie = "admin_authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"; }} variant="ghost" className="w-full justify-start gap-3 text-rose-400"><LogOut className="w-4 h-4" /> Logout</Button>
@@ -200,7 +205,7 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-primary border-primary/20">Dual-Report Engine v2.8</Badge>
+            <Badge variant="outline" className="text-primary border-primary/20">Enterprise Audit Engine v2.9</Badge>
             <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
               <Zap className={`w-3 h-3 ${isActive ? 'animate-pulse text-emerald-500' : ''}`} /> {isActive ? 'SCANNING' : 'IDLE'}
               {lastSync && <span className="ml-2">Sync: {lastSync}</span>}
@@ -232,14 +237,17 @@ export default function AdminDashboard() {
             <Card className="bg-white/[0.03] border-white/10">
               <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-4">
                 <CardTitle className="text-sm font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /> Recent Incidents</CardTitle>
-                <Button size="sm" variant="ghost" className="h-8 text-[10px]" onClick={fetchFullHistory}>History</Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" className="h-8 text-[10px]" onClick={handleExportCSV}>Export</Button>
+                  <Button size="sm" variant="ghost" className="h-8 text-[10px]" onClick={fetchFullHistory}>History</Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0 max-h-[450px] overflow-y-auto">
                 <Table>
                   <TableHeader className="bg-[#0b1120] sticky top-0 z-10">
                     <TableRow className="border-white/5">
                       <TableHead className="text-[9px]">DOMAIN</TableHead>
-                      <TableHead className="text-[9px]">MODULE</TableHead>
+                      <TableHead className="text-[9px]">DIAGNOSTICS</TableHead>
                       <TableHead className="text-[9px]">SEVERITY</TableHead>
                       <TableHead className="text-right text-[9px]">TIME</TableHead>
                     </TableRow>
@@ -250,7 +258,7 @@ export default function AdminDashboard() {
                         <TableCell className="text-xs font-medium">{issue.domain}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={`text-[8px] ${issue.report_type === 'SaaS' ? 'border-blue-500 text-blue-500 bg-blue-500/5' : 'border-purple-500 text-purple-500 bg-purple-500/5'}`}>
-                            {issue.report_type === 'SaaS' ? 'COSTERA/XEVON' : 'MANUAL'}
+                            {issue.report_type === 'SaaS' ? 'NAV-SCOUT/LEX-ANALYZER' : 'MANUAL'}
                           </Badge>
                         </TableCell>
                         <TableCell><Badge variant="outline" className={`text-[8px] ${issue.level === 'critical' ? 'text-rose-500' : 'text-amber-500'}`}>{issue.level}</Badge></TableCell>
@@ -284,7 +292,7 @@ export default function AdminDashboard() {
       <Dialog open={showIssuesDialog} onOpenChange={setShowIssuesDialog}>
         <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="p-6 border-b border-white/5">
-            <DialogTitle className="flex items-center gap-2"><Layers className="text-primary" /> Diagnostic History (COSTERA/XEVON/MANUAL)</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Layers className="text-primary" /> Comprehensive Diagnostic History</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
              <Accordion type="single" collapsible className="w-full space-y-3">
@@ -297,7 +305,7 @@ export default function AdminDashboard() {
                           <div>
                             <span className="font-bold text-base">{domain}</span>
                             <div className="flex gap-2 mt-0.5">
-                              <Badge className="bg-blue-500/10 text-blue-400 text-[8px]">{issues.filter(i => i.report_type === 'SaaS').length} SaaS Module</Badge>
+                              <Badge className="bg-blue-500/10 text-blue-400 text-[8px]">{issues.filter(i => i.report_type === 'SaaS').length} Automated Module</Badge>
                               <Badge className="bg-purple-500/10 text-purple-400 text-[8px]">{issues.filter(i => i.report_type === 'Manual').length} Manual Module</Badge>
                             </div>
                           </div>
@@ -310,7 +318,7 @@ export default function AdminDashboard() {
                           <div key={issue.id} className="relative pl-6 border-l-2 border-primary/20 py-2">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="text-[8px]">{issue.report_type === 'SaaS' ? 'Automated' : 'Manual'}</Badge>
+                                <Badge variant="secondary" className="text-[8px]">{issue.report_type === 'SaaS' ? 'NAV-SCOUT / LEX-ANALYZER' : 'Manual Intervention Required'}</Badge>
                                 <span className="text-xs font-bold text-white uppercase">{issue.type}</span>
                                 <Badge className={issue.level === 'critical' ? 'bg-rose-500' : 'bg-amber-500'} text-xs>{issue.level}</Badge>
                               </div>
@@ -323,7 +331,7 @@ export default function AdminDashboard() {
                                   <p className="text-xs text-slate-300">{issue.description}</p>
                                 </div>
                                 <div>
-                                  <p className="text-[9px] text-emerald-500 font-bold mb-1 uppercase tracking-widest"><Scale className="w-3 h-3 inline mr-1" /> Legal Justification:</p>
+                                  <p className="text-[9px] text-emerald-500 font-bold mb-1 uppercase tracking-widest"><Scale className="w-3 h-3 inline mr-1" /> Legal Ground:</p>
                                   <p className="text-xs text-slate-400 italic">"{issue.summary}"</p>
                                   <p className="text-[9px] text-slate-500 mt-2 font-mono">Reference: {issue.law_name}</p>
                                 </div>
