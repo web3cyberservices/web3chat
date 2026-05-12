@@ -142,31 +142,41 @@ export default function Home() {
                 <div className="relative group">
                   <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative flex flex-col md:flex-row gap-3 bg-white/[0.03] border border-white/10 p-3 rounded-2xl backdrop-blur-xl focus-within:border-primary/50 transition-all">
-                    <div className="flex-1 flex items-center bg-white/5 rounded-xl border border-white/5">
-                      <div className="pl-4 pr-2">
-                        <Globe className="w-4 h-4 text-slate-500" />
+                    <div className="flex-1 flex flex-col bg-white/5 rounded-xl border border-white/5">
+                      <label htmlFor="target-url" className="sr-only">Target Website URL</label>
+                      <div className="flex items-center w-full">
+                        <div className="pl-4 pr-2">
+                          <Globe className="w-4 h-4 text-slate-500" />
+                        </div>
+                        <Input 
+                          id="target-url"
+                          name="target-url"
+                          type="url" 
+                          placeholder="https://your-website.com" 
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          className="bg-transparent border-none focus-visible:ring-0 text-white placeholder:text-slate-600 h-11 text-sm"
+                          required
+                        />
                       </div>
-                      <Input 
-                        type="url" 
-                        placeholder="https://your-website.com" 
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        className="bg-transparent border-none focus-visible:ring-0 text-white placeholder:text-slate-600 h-11 text-sm"
-                        required
-                      />
                     </div>
-                    <div className="flex-1 flex items-center bg-white/5 rounded-xl border border-white/5">
-                      <div className="pl-4 pr-2">
-                        <Mail className="w-4 h-4 text-slate-500" />
+                    <div className="flex-1 flex flex-col bg-white/5 rounded-xl border border-white/5">
+                      <label htmlFor="recipient-email" className="sr-only">Report Recipient Email</label>
+                      <div className="flex items-center w-full">
+                        <div className="pl-4 pr-2">
+                          <Mail className="w-4 h-4 text-slate-500" />
+                        </div>
+                        <Input 
+                          id="recipient-email"
+                          name="recipient-email"
+                          type="email" 
+                          placeholder="your@email.com" 
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="bg-transparent border-none focus-visible:ring-0 text-white placeholder:text-slate-600 h-11 text-sm"
+                          required
+                        />
                       </div>
-                      <Input 
-                        type="email" 
-                        placeholder="your@email.com" 
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="bg-transparent border-none focus-visible:ring-0 text-white placeholder:text-slate-600 h-11 text-sm"
-                        required
-                      />
                     </div>
                     <Button 
                       type="submit" 

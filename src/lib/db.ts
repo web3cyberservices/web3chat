@@ -23,9 +23,13 @@ function sanitize(text: string | null | undefined): string {
   return DOMPurify.sanitize(text);
 }
 
-export function normalizeUrl(url: string): string {
+/**
+ * Normalizes a URL for consistent storage and comparison.
+ * Supports an optional base URL for resolving relative paths.
+ */
+export function normalizeUrl(url: string, base?: string): string {
   try {
-    const u = new URL(url);
+    const u = base ? new URL(url, base) : new URL(url);
     u.hash = '';
     u.search = '';
     let pathname = u.pathname.toLowerCase();
@@ -36,6 +40,7 @@ export function normalizeUrl(url: string): string {
     u.pathname = pathname;
     return u.href.toLowerCase();
   } catch (e) {
+    // Fallback for invalid URLs or non-standard formats
     return url.toLowerCase().replace(/\/$/, "").split('?')[0].split('#')[0];
   }
 }
@@ -58,7 +63,6 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     await client.query('BEGIN');
     
     // STRICT DEDUPLICATION AT STORAGE LEVEL
-    // Prevents duplicate entries for the same issue_type on the same page
     const uniqueViolations = new Map();
     violations.forEach(v => {
       const affectedUrl = normalizeUrl(v.evidence_html || url);

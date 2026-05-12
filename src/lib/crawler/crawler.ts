@@ -1,8 +1,8 @@
 
 import { scrapeUrl } from '@/lib/scraper';
-import { parseHtmlContent, normalizeUrl } from '@/lib/parser';
+import { parseHtmlContent } from '@/lib/parser';
 import { isUrlAllowed } from '@/config/robots-rules';
-import { saveAuditLog, saveBotEvent, saveAuditResults } from '@/lib/db';
+import { saveAuditLog, saveBotEvent, saveAuditResults, normalizeUrl } from '@/lib/db';
 import { CrawlResult, Violation, VerificationMethod } from '@/types';
 import { z } from 'zod';
 import { performance } from 'perf_hooks';
@@ -12,7 +12,6 @@ const urlSchema = z.string().url();
 async function checkResources() {
   const memory = process.memoryUsage();
   const heapUsedMB = Math.round(memory.heapUsed / 1024 / 1024);
-  // Simple check for high memory
   if (heapUsedMB > 1200) { 
     if (global.gc) {
       global.gc();
@@ -29,14 +28,14 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
     await checkResources();
     const validation = urlSchema.safeParse(seedUrl);
     if (!validation.success) {
-      return { url: seedUrl, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason: 'Invalid URL' };
+      return { url: seedUrl, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: 'Invalid URL format' };
     }
 
-    const initialNormalized = normalizeUrl(seedUrl, seedUrl) || seedUrl;
+    const initialNormalized = normalizeUrl(seedUrl) || seedUrl;
 
-    const { allowed, reason } = await isUrlAllowed(initialNormalized);
-    if (!allowed) {
-      return { url: initialNormalized, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason };
+    const robotsCheck = await isUrlAllowed(initialNormalized);
+    if (!robotsCheck.allowed) {
+      return { url: initialNormalized, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason: robotsCheck.reason };
     }
 
     const scrape = await scrapeUrl(initialNormalized);
@@ -59,7 +58,7 @@ export async function runCrawlTask(seedUrl: string): Promise<CrawlResult> {
     // Filter and Deduplicate Violations
     const uniqueViolationsMap = new Map();
     violations.forEach(v => {
-      // Normalize affected URL
+      // Normalize affected URL relative to the scanned page
       const normalizedEvidence = normalizeUrl(v.evidence_html, initialNormalized) || v.evidence_html;
       v.evidence_html = normalizedEvidence;
       
