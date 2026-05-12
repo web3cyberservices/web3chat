@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
     }
 
-    // Hard Merge by Article Type to prevent duplicate pages
+    // HARD MERGE: Consolidated by Issue Type to prevent repetition
     const consolidated = new Map();
     res.rows.forEach(row => {
-      const key = `${row.category}_${row.issue_type}_${row.law_name}`;
+      const key = `${row.category}_${row.issue_type}`;
       if (!consolidated.has(key)) {
         consolidated.set(key, { ...row, urls: new Set([row.page_url]) });
       } else {
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
             <div class="logo-text">Humango Compliance Audit Engine</div>
           </div>
           <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
-            Professional Audit Node: ${domain}
+            Expert Node: ${domain}
           </div>
         </div>
 
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
     }
 
     browser = await puppeteer.launch({ 
-      executablePath: executablePath || undefined,
+      executable_path: executablePath || undefined,
       headless: 'new', 
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
     });
