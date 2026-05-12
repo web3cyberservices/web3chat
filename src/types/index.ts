@@ -12,11 +12,11 @@ export interface Violation {
   evidence_html: string; 
   snippet?: string;
   description: string;
-  business_impact?: string;
+  business_impact: string;
   explanation: string;
   law_name: string;        
   potential_fine: string;  
-  recommendation?: string;
+  recommendation: string;
   scan_type?: ScanType;
   report_type: ReportType;
   affected_urls?: string[];

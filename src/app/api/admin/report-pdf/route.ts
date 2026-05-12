@@ -7,7 +7,6 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
-// Potential chrome paths for different environments
 const CHROME_PATHS = [
   '/usr/bin/google-chrome',
   '/usr/bin/chromium-browser',
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
     }
 
-    // Expert Deduplication & Hard Merge by Article
+    // Hard Merge by Article Type to prevent duplicate pages
     const consolidated = new Map();
     res.rows.forEach(row => {
       const key = `${row.category}_${row.issue_type}_${row.law_name}`;
@@ -69,9 +68,7 @@ export async function GET(request: NextRequest) {
       if (fs.existsSync(logoPath)) {
         logoBase64 = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
       }
-    } catch (e) {
-      console.warn('[PDF] Logo load failed:', e);
-    }
+    } catch (e) {}
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -180,7 +177,7 @@ export async function GET(request: NextRequest) {
             <div class="impact-box">${v.business_impact || 'Lack of statutory compliance escalating regulatory scrutiny.'}</div>
 
             <span class="label">ADMINISTRATIVE LIABILITY</span>
-            <div style="color:#ef4444; font-weight:700; font-size:9px;">Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)</div>
+            <div style="color:#ef4444; font-weight:700; font-size:9px;">${v.fine_amount || 'Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)'}</div>
 
             <span class="label">TARGETED RESOURCE(S)</span>
             <ul class="url-list">
@@ -194,7 +191,6 @@ export async function GET(request: NextRequest) {
       `;
     }
 
-    // Robust puppeteer launch
     let executablePath = '';
     for (const p of CHROME_PATHS) {
       if (fs.existsSync(p)) {
