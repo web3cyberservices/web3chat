@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
     // SYSTEMIC FAILURE LOGIC (FOR EMPTY/MINIMALIST SITES)
-    const isMinimalist = res.rows.length > 5 && new Set(res.rows.map(r => r.page_url)).size < 2;
+    const uniquePages = new Set(res.rows.map(r => r.page_url)).size;
+    const isMinimalist = res.rows.length > 3 && uniquePages <= 1;
 
     const consolidated: Record<string, any> = {};
     res.rows.forEach(row => {
@@ -36,18 +37,12 @@ export async function GET(request: NextRequest) {
       const key = `${cat}_${law}`;
 
       if (!consolidated[key]) {
-        let displayDescription = row.description;
-        // Inject expert text for Section I
-        if (law.includes('13(1)(A)')) {
-          displayDescription = "The automated scan performed a semantic and structural analysis of the website's legal documents and metadata. The system failed to identify the official legal name of the data controller, a registered physical address, or a specific registration number. Under Art. 13(1)(a), this information is mandatory for establishing accountability.";
-        }
-
         consolidated[key] = {
           category: cat,
           law_name: law,
           severity: row.severity,
           issue_type: row.issue_type,
-          diagnostic_description: displayDescription,
+          diagnostic_description: row.description,
           recommendation: row.recommendation,
           affected_urls: new Set([row.page_url]),
           methods: new Set([row.verification_method])
@@ -65,7 +60,7 @@ export async function GET(request: NextRequest) {
       return s;
     });
 
-    // COMPACT SECTIONING
+    // CLUSTERED REPORTING ENGINE
     const coreLegal = sections.filter(s => s.category === 'PRIVACY' && (s.law_name.includes('13(1)(A)') || s.issue_type.includes('MISSING')));
     const processingAudit = sections.filter(s => s.category === 'LEGAL_GROUNDS' || s.law_name.includes('13(1)(C)'));
     const transparencyFramework = sections.filter(s => s.category === 'PRIVACY' && !s.law_name.includes('13(1)(A)') && !s.issue_type.includes('MISSING'));
@@ -113,13 +108,13 @@ export async function GET(request: NextRequest) {
             ${logoBase64 ? `<img src="${logoBase64}" style="width:25px; height:25px">` : ''}
             <div class="logo-text">Humango Compliance</div>
           </div>
-          <div style="text-align:right; font-size:7px; color:#64748b">Enterprise Audit v2.9<br>Target: ${domain}</div>
+          <div style="text-align:right; font-size:7px; color:#64748b">Pan-European Audit v3.0<br>Target: ${domain}</div>
         </div>
 
         <div class="title-section">
           <div class="title">Statutory Compliance Assessment</div>
           <div style="margin-top:5px">Validated Endpoint: <span class="domain-badge">${domain}</span></div>
-          ${isMinimalist ? '<div style="margin-top:5px; color:#ef4444; font-weight:bold; font-size:9px">SYSTEMIC COMPLIANCE FAILURE: MINIMALIST ENDPOINT WITHOUT TRANSPARENCY</div>' : ''}
+          ${isMinimalist ? '<div style="margin-top:10px; color:#ef4444; font-weight:bold; font-size:10px; border: 1px solid #ef4444; padding: 8px; border-radius: 4px; background: #fef2f2;">SYSTEMIC NON-COMPLIANCE: The system analyzed the endpoint and identified critical transparency failures. Under Art. 13 of GDPR, even minimalist sites must provide identity and data processing transparency.</div>' : ''}
         </div>
 
         <div class="section-header">I. Core Legal Infrastructure (Art. 13(1)(a))</div>
@@ -143,34 +138,34 @@ export async function GET(request: NextRequest) {
             </div>
           </div>
         `).join('')}
-        <div class="page-break"></div>
+        ${!isMinimalist ? '<div class="page-break"></div>' : ''}
 
         <div class="section-header">II. Audit of Processing Operations (Art. 13(1)(c))</div>
         <div class="violation-card">
-          <div class="violation-head"><span class="violation-title">PURPOSE-TO-BASIS CORRELATION TABLE</span></div>
+          <div class="violation-head"><span class="violation-title">PURPOSE-TO-BASIS CORRELATION AUDIT</span></div>
           <div class="violation-body">
             <span class="severity-badge CRITICAL">CRITICAL RISK</span>
             <div class="fine-box">Administrative Liability: €20,000,000 or 4% of global turnover</div>
             <span class="label">DIAGNOSTIC DESCRIPTION</span>
-            <div style="margin-bottom:8px; color: #334155;">The audit identified specific processing operations active on <b>${domain}</b>. The following activities lack an explicit statutory legal basis correlation as required by Art. 13(1)(c).</div>
+            <div style="margin-bottom:8px; color: #334155;">The system performed a semantic audit of active processing operations. Several identified activities lack an explicit statutory legal basis from Article 6, violating transparency mandates.</div>
             <table>
-              <thead><tr><th>Activity</th><th>Legal Basis (Art. 6)</th><th>Status</th><th>Remediation</th></tr></thead>
+              <thead><tr><th>Activity Detected</th><th>Missing Legal Basis</th><th>Status</th><th>Local Remediation</th></tr></thead>
               <tbody>
-                <tr><td>Analyzing usage / Cookies</td><td>Not Linked</td><td style="color:#ef4444; font-weight:bold;">FAILURE</td><td>Link to Art. 6(1)(f)</td></tr>
-                <tr><td>Fraud Prevention</td><td>Not Linked</td><td style="color:#ef4444; font-weight:bold;">FAILURE</td><td>Link to Art. 6(1)(f)</td></tr>
-                <tr><td>Marketing</td><td>Not Linked</td><td style="color:#ef4444; font-weight:bold;">FAILURE</td><td>Link to Art. 6(1)(a)</td></tr>
+                <tr><td>Analyzing Usage / Tracking</td><td>Art. 6(1)(f) / Art. 6(1)(a)</td><td style="color:#ef4444; font-weight:bold;">NON-COMPLIANT</td><td>Map to Legitimate Interest</td></tr>
+                <tr><td>Fraud Detection / Security</td><td>Art. 6(1)(f)</td><td style="color:#ef4444; font-weight:bold;">NON-COMPLIANT</td><td>Map to Statutory Security</td></tr>
+                <tr><td>Digital Marketing / Ads</td><td>Art. 6(1)(a)</td><td style="color:#ef4444; font-weight:bold;">NON-COMPLIANT</td><td>Map to Explicit Consent</td></tr>
               </tbody>
             </table>
             <span class="label">REMEDIATION BLUEPRINT</span>
             <div class="blueprint-box">Update the Privacy Policy text to include a dedicated transparency table mapping every detected processing activity to a specific sub-section of Article 6 GDPR.</div>
           </div>
         </div>
-        <div class="page-break"></div>
+        ${!isMinimalist ? '<div class="page-break"></div>' : ''}
 
-        <div class="section-header">III. Transparency Framework Cluster (Art. 13(2))</div>
+        <div class="section-header">III. Transparency Framework & Disclosures (Art. 13(2))</div>
         ${transparencyFramework.map(s => `
           <div class="violation-card">
-            <div class="violation-head"><span class="violation-title">MANDATORY DISCLOSURE CLUSTER</span></div>
+            <div class="violation-head"><span class="violation-title">MANDATORY DISCLOSURE FRAMEWORK</span></div>
             <div class="violation-body">
               <span class="severity-badge ${s.severity.toUpperCase()}">${s.severity} RISK</span>
               <span class="label">DIAGNOSTIC DESCRIPTION</span>
@@ -182,7 +177,7 @@ export async function GET(request: NextRequest) {
         `).join('')}
 
         <div style="position:fixed; bottom:20px; font-size:7px; color:#94a3b8; width:100%; text-align:center;">
-          &copy; ${new Date().getFullYear()} Humango Compliance • Policy v2.9 • Confidential Audit
+          &copy; ${new Date().getFullYear()} Humango Compliance • Policy v3.0 • Confidential Pan-European Audit
         </div>
       </body>
       </html>
@@ -205,7 +200,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(pdfBuffer, { 
       headers: { 
         'Content-Type': 'application/pdf', 
-        'Content-Disposition': `attachment; filename=Humango_Audit_${domain.replace(/\./g, '_')}.pdf` 
+        'Content-Disposition': `attachment; filename=Humango_PanEU_Audit_${domain.replace(/\./g, '_')}.pdf` 
       } 
     });
   } catch (error: any) {
