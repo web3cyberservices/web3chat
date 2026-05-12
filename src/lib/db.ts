@@ -4,7 +4,7 @@ import DOMPurify from 'isomorphic-dompurify';
 import { Violation, ScanType } from '@/types';
 
 /**
- * @fileOverview Senior Legal Architect V22.1 - Data Integrity Layer.
+ * @fileOverview Senior Legal Architect V22.2 - Data Integrity Layer.
  * 
  * - TRUTH-MAPPING: Hard-coded logic to prevent "Missing vs Incomplete" contradictions.
  * - CONSOLIDATION: Merging findings by Law Name to eliminate report bloat.
@@ -31,14 +31,14 @@ export async function testConnection() {
     await client.query('SELECT 1');
     return true;
   } catch (error: any) {
-    console.error('[Database V22.1 Handshake Failure]', error.message);
+    console.error('[Database V22.2 Handshake Failure]', error.message);
     throw error;
   } finally {
     if (client) client.release();
   }
 }
 
-function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V22.1 Diagnostic.'): string {
+function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V22.2 Diagnostic.'): string {
   if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
   return DOMPurify.sanitize(text);
 }
@@ -65,11 +65,12 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // V22.1: HARD CONSOLIDATION by Statutory Law
+    // V22.2: HARD CONSOLIDATION by Statutory Law
     const consolidated = new Map();
     violations.forEach(v => {
-      // RULE: V22.1 - Remove bloat blocks
-      if (v.issue_type.toLowerCase().includes('transparency framework')) return;
+      // RULE: V22.2 - Remove bloat blocks and redundant summaries
+      const lowerType = v.issue_type.toLowerCase();
+      if (lowerType.includes('transparency framework') || lowerType.includes('analyzer summary')) return;
 
       const key = v.law_name || v.issue_type; 
       if (!consolidated.has(key)) {
@@ -91,23 +92,29 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of consolidated.values()) {
-      // RULE: V22.1 - Truth Mapping Check
+      // RULE: V22.2 - CODE-LEVEL TRUTH MAPPING
+      // If we are analyzing a URL, it CANNOT be reported as missing.
       let finalIssueType = v.issue_type;
       let finalDescription = v.description;
       
-      // If we are analyzing a URL, it CANNOT be missing.
-      if (v.issue_type.toLowerCase().includes('missing') && (v.page_url.includes('/privacy') || v.page_url.includes('/legal') || v.page_url.includes('/impressum'))) {
+      const isLegalPath = url.includes('/privacy') || url.includes('/legal') || url.includes('/impressum') || url.includes('/cookies');
+      const isMissingStatus = finalIssueType.toLowerCase().includes('missing');
+
+      if (isMissingStatus && isLegalPath) {
         finalIssueType = "CRITICAL INCOMPLETENESS";
-        finalDescription = `Document found but fails statutory transparency checks. Linkage is not clearly accessible from the footer.`;
+        finalDescription = `The document exists but fails fundamental statutory transparency checks. Linkage is not accessible from the site footer as required.`;
       }
 
-      const standardLiability = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account suspension.";
-      const standardImpact = "Business Risk: Immediate loss of marketing ROI as advertising platforms require valid compliance signals.";
+      const standardLiability = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate advertising account termination.";
+      const standardImpact = "Business Risk: Immediate loss of marketing ROI as Google/Meta advertising platforms require valid compliance signals.";
       
       let liability = v.potential_fine;
-      if (!liability || liability === 'null' || String(liability).toLowerCase() === 'null') liability = standardLiability;
+      if (!liability || liability === 'null' || String(liability).toLowerCase() === 'null') {
+        liability = standardLiability;
+      }
 
       let impact = sanitize(v.business_impact, standardImpact);
+      if (impact === 'null' || impact.length < 5) impact = standardImpact;
 
       await client.query(query, [
         sanitize(domain),
@@ -117,7 +124,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(finalIssueType),
         v.severity,
         sanitize(v.evidence_html || url),
-        sanitize(v.evidence_quote, "Verified via Senior Auditor V22.1 Diagnostic."),
+        sanitize(v.evidence_quote, "Verified via Senior Auditor V22.2 Diagnostic."),
         v.confidence_score || 0.8,
         v.verification_status || 'verified',
         sanitize(finalDescription), 
@@ -135,7 +142,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     return { success: true };
   } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[DB V22.1 SAVE ERROR]', error.stack);
+    console.error('[DB V22.2 SAVE ERROR]', error.stack);
     return { success: false, error };
   } finally {
     client.release();

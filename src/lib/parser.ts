@@ -2,14 +2,14 @@ import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, VerificationMethod } from '@/types';
 
 /**
- * @fileOverview Senior Legal Architect V22.1 - Statutory Truth-Mapping.
+ * @fileOverview Senior Legal Architect V22.2 - Statutory Truth-Mapping.
  * 
- * - Rule: If a URL exists, it's NOT missing.
- * - Human-like language: Simple English for busy owners.
+ * - Rule: Human-Friendly definitions (DPO, Official Ownership).
+ * - Rule: Copy-pasteable HTML/Text solutions.
  */
 
 const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account suspension.";
-const LIABILITY_HIGH = "Administrative penalties up to €20,000,000 (Art. 83 GDPR). Vulnerable to competitor 'Abmahnung' notices.";
+const LIABILITY_HIGH = "Administrative penalties up to €20,000,000 (Art. 83 GDPR). High risk of competitor cease and desist (Abmahnung) notices.";
 
 interface JurisdictionProfile {
   name: string;
@@ -94,7 +94,9 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const violationMap = new Map<string, Violation>();
   const fullHtmlLower = html.toLowerCase();
 
-  // RULE: V22.1 - Truth-Mapping: If found, it is NOT missing.
+  // RULE: V22.2 - Identity Check (Human-Friendly)
+  const identityFound = profile.entitySuffixes.some(s => s.test(fullHtmlLower));
+  
   if (!links.privacy) {
     violationMap.set('Art. 13-Missing', {
       category: 'Privacy',
@@ -102,49 +104,47 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'MISSING PRIVACY INFRASTRUCTURE',
       severity: 'critical',
       evidence_html: url,
-      description: `The law requires you to show a Privacy Policy before collecting any user data. None was found in the footer.`,
-      business_impact: 'Risk: Immediate loss of marketing ROI as Google/Meta require valid compliance signals.',
+      description: `Statutory law requires you to display a Privacy Policy before any data collection begins. None was detected.`,
+      business_impact: 'Business Risk: Immediate loss of marketing ROI as Google/Meta advertising platforms require valid compliance signals.',
       law_name: profile.law,
       potential_fine: LIABILITY_CRITICAL,
-      explanation: 'You must inform users of site ownership and data usage before collection begins.',
-      recommendation: `INSERT THIS TEXT: Add this to your website footer: '<a href="/privacy">Privacy Policy</a>'`,
+      explanation: 'You must inform users of site ownership and data usage before collection starts.',
+      recommendation: `INSERT THIS HTML: '<a href="/privacy">Privacy Policy</a>' and add to your website footer.`,
       verification_method
     });
   } else {
-    // Check for specific gaps if document exists
+    // If document exists, check for specific gaps
     if (!/retention|storage|storing/i.test($('body').text())) {
        violationMap.set('Art. 13-Retention', {
         category: 'Privacy',
         report_type: 'SaaS',
-        issue_type: 'CRITICAL GAP: DATA STORAGE',
+        issue_type: 'CRITICAL GAP: DATA RETENTION',
         severity: 'high',
         evidence_html: links.privacy,
-        description: `The law requires you to clearly state how long you store user data. This is missing from your policy.`,
-        business_impact: 'Risk: Vulnerability to regulatory audits and Art. 17 erasure lawsuits.',
+        description: `Statutory law requires you to state exactly how long you store user data. This is missing from your policy.`,
+        business_impact: 'Business Risk: Direct vulnerability to regulatory audits and Art. 17 data erasure lawsuits.',
         law_name: 'Art. 13(2)(a) GDPR',
         potential_fine: LIABILITY_HIGH,
         explanation: 'You must state how long you keep user data or the criteria used to decide that timeframe.',
-        recommendation: `INSERT THIS TEXT: 'Data Retention: We store user data for 24 months from the last login or until you request deletion.'`,
+        recommendation: `INSERT THIS TEXT: 'Data Retention: We store user data for 24 months from the last login or until you request account deletion.'`,
         verification_method
       });
     }
   }
 
-  // RULE: Identity Check
-  const identityFound = profile.entitySuffixes.some(s => s.test(fullHtmlLower));
   if (!identityFound && !violationMap.has('Art. 13-Missing')) {
     violationMap.set('Art. 13(1)(a)', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'ANONYMOUS OWNER RISK',
+      issue_type: 'OFFICIAL COMPANY OWNERSHIP INFO',
       severity: 'high',
       evidence_html: url,
-      description: 'The law requires you to show your official company name and address for commercial accountability.',
-      business_impact: 'Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) suspension.',
+      description: 'The law requires you to display your registered company name and physical address for commercial accountability.',
+      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) account suspension.',
       law_name: 'Art. 13(1)(a) GDPR',
       potential_fine: LIABILITY_HIGH,
-      explanation: 'Statutory rules require a physical address and registered name for commercial transparency.',
-      recommendation: `INSERT THIS TEXT: 'Data Controller: [Company Name], Address: [Street, City], Email: support@${domain}'`,
+      explanation: 'Statutory rules require a physical address and registered name for all commercial entities.',
+      recommendation: `INSERT THIS TEXT: 'Data Controller: [Company Name], Address: [Street, City], Email: legal@${domain}'`,
       verification_method
     });
   }

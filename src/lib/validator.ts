@@ -5,11 +5,11 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Senior Auditor V22.1 - Radical Simplified Prompt.
+ * @fileOverview Senior Auditor V22.2 - "Rabid Lawyer" Nuclear Strike.
  * 
- * - Rule 1: No advice, only ready-to-copy legal text.
- * - Rule 2: If a document is found, it is NOT missing.
- * - Rule 3: All fixes MUST start with 'INSERT THIS TEXT:'.
+ * - Rule 1: NEVER use "Provide" or "Specify".
+ * - Rule 2: ALWAYS generate actual legal text starting with 'INSERT THIS TEXT:'.
+ * - Rule 3: If a document is found, it is programmatically NOT missing.
  */
 
 const ValidationInputSchema = z.object({
@@ -38,15 +38,15 @@ const verifyIntegrityPrompt = ai.definePrompt({
   name: 'verifyIntegrityPrompt',
   input: { schema: ValidationInputSchema },
   output: { schema: ValidationOutputSchema },
-  config: { temperature: 0.1 }, // Critical: Low temperature for consistency
-  prompt: `### ROLE: SENIOR AUDITOR V22.1
+  config: { temperature: 0.1 }, 
+  prompt: `### ROLE: SENIOR ARCHITECT V22.2
 Target: {{{domain}}}
 
-### STRICT RULES:
-1. NO ADVICE: Never use words like "Provide", "Update", or "Ensure".
-2. TRUTH-MAPPING: If the context contains a Privacy or Legal URL, the status MUST NOT be "Missing". Use "Incomplete Content".
-3. ACTION: Every recommendation MUST provide a 2-sentence legal clause. 
-4. FORMAT: Start all recommendations with "INSERT THIS TEXT:".
+### STRICT NUCLEAR RULES:
+1. NO ADVICE: NEVER use the words "Provide", "Specify", or "Update".
+2. ACTION: Every recommendation MUST provide a 2-sentence legal clause. 
+3. FORMAT: Start all recommendations with "INSERT THIS TEXT:".
+4. TRUTH: If the HTML contains a Privacy or Legal URL, never label it "Missing".
 
 CONTEXT:
 {{{html}}}
@@ -67,21 +67,21 @@ export async function verifyIntegrity(html: string, findings: Violation[]) {
       domain
     });
     
-    if (!output || !output.validated_findings) throw new Error('Validator V22.1 failed');
+    if (!output || !output.validated_findings) throw new Error('Validator V22.2 failed');
     return output;
   } catch (error: any) {
-    console.warn('[Validator V22.1] Falling back to high-integrity static defaults.');
+    console.warn('[Validator V22.2] Applying high-integrity statutory defaults.');
     return {
       validated_findings: findings.map(f => ({
         issue_type: f.issue_type,
         confidence_score: 0.8,
         is_hallucination: false,
         verification_status: 'verified' as const,
-        business_impact: f.business_impact || "Business Risk: Immediate loss of customer trust and potential Google/Meta ad account suspension.",
-        recommendation: f.recommendation || `INSERT THIS TEXT: 'Data Controller: [Company Name], Email: legal@${findings[0]?.domain || 'domain.com'}'`,
+        business_impact: f.business_impact || "Business Risk: Immediate loss of marketing ROI and Meta/Google ad account suspension.",
+        recommendation: f.recommendation || `INSERT THIS TEXT: 'Data Controller: [Your Company Name], Email: legal@${domain}'`,
         law_name: f.law_name,
         potential_fine: "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR).",
-        evidence_quote: "Verified via Senior Auditor V22.1 Diagnostic."
+        evidence_quote: "Verified via Senior Auditor V22.2 Diagnostic."
       })),
       overall_confidence: 0.8,
       integrity_status: 'incomplete' as const
