@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
     const res = await pool.query(`
       SELECT 
-        issue_type, page_url, severity, 
+        issue_type, page_url, severity, category,
         ${hasExp ? 'explanation' : 'description as explanation'}, 
         ${hasFine ? 'fine_amount' : "'' as fine_amount"}, 
         ${hasLaw ? 'law_name' : "'GDPR' as law_name"}, 
@@ -39,11 +39,8 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
-    // IRIS FIX: Absolute Deduplication by Issue Type
-    // This ensures that "Missing Controller" only appears ONCE, with all URLs listed below it.
     const groupedViolations: Record<string, any> = {};
     res.rows.forEach(row => {
-      // Normalize key to prevent slight string variations from creating new blocks
       const key = (row.issue_type || '').trim().toUpperCase();
       if (!groupedViolations[key]) {
         groupedViolations[key] = {
@@ -55,8 +52,9 @@ export async function GET(request: Request) {
       }
     });
 
-    // LIMIT TO TOP 5 GROUPED VIOLATIONS TO PREVENT TIMEOUTS
-    const finalViolations = Object.values(groupedViolations).slice(0, 5);
+    const finalViolations = Object.values(groupedViolations).slice(0, 10);
+    const legalGroundsIssues = finalViolations.filter(v => v.category === 'LEGAL_GROUNDS');
+    const coreViolations = finalViolations.filter(v => v.category !== 'LEGAL_GROUNDS');
 
     let logoBase64 = '';
     try {
@@ -75,6 +73,7 @@ export async function GET(request: Request) {
           .logo-text { font-size: 24px; font-weight: bold; color: #0f172a; }
           .title-section { margin-bottom: 30px; }
           .title { font-size: 22px; font-weight: bold; color: #0f172a; border-left: 4px solid #3b82f6; padding-left: 15px; }
+          .section-title { font-size: 16px; font-weight: bold; color: #3b82f6; margin-top: 40px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
           .domain-badge { background: #eff6ff; color: #3b82f6; padding: 4px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
           .violation-item { border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 25px; page-break-inside: avoid; background: #ffffff; overflow: hidden; }
           .violation-header { background: #f8fafc; padding: 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
@@ -83,6 +82,7 @@ export async function GET(request: Request) {
           .severity-badge { font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; display: inline-block; margin-bottom: 12px; }
           .critical { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
           .high { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
+          .low { background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
           .label { font-size: 10px; font-weight: bold; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
           .fine { font-size: 12px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ef4444; }
           .resource-list { font-size: 10px; color: #64748b; background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-family: 'Courier New', monospace; word-break: break-all; }
@@ -106,7 +106,8 @@ export async function GET(request: Request) {
           <div style="margin-top:15px">Audit Target: <span class="domain-badge">${domain}</span></div>
         </div>
 
-        ${finalViolations.map(item => `
+        <div class="section-title">Core Legal Infrastructure</div>
+        ${coreViolations.map(item => `
           <div class="violation-item">
             <div class="violation-header">
               <span class="violation-type">${item.issue_type}</span>
@@ -118,7 +119,7 @@ export async function GET(request: Request) {
               <span class="label">Diagnostic Explanation</span>
               <div style="font-size:12px; margin-bottom:15px">${item.explanation}</div>
               
-              <span class="label">Legal Framework & Statutory Basis</span>
+              <span class="label">Statutory Basis</span>
               <div style="font-size:11px; font-weight:bold; margin-bottom:15px; color:#0f172a">${item.law_name}</div>
               
               <span class="label">Administrative Liability (Art. 83 GDPR)</span>
@@ -137,9 +138,38 @@ export async function GET(request: Request) {
           </div>
         `).join('')}
 
+        ${legalGroundsIssues.length > 0 ? `
+          <div class="section-title">Processing Operations & Legal Grounds</div>
+          ${legalGroundsIssues.map(item => `
+            <div class="violation-item">
+              <div class="violation-header">
+                <span class="violation-type">${item.issue_type}</span>
+                <span style="font-size:9px; color:#64748b">${item.verification_method}</span>
+              </div>
+              <div class="violation-body">
+                <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
+                
+                <span class="label">Grounds Audit Result</span>
+                <div style="font-size:12px; margin-bottom:15px">${item.explanation}</div>
+                
+                <span class="label">Statutory Compliance (Art. 13(1)(c) / (d))</span>
+                <div style="font-size:11px; font-weight:bold; margin-bottom:15px; color:#0f172a">${item.law_name}</div>
+                
+                <span class="label">Liability Mapping</span>
+                <div class="fine">${item.fine_amount}</div>
+
+                <span class="label">Remediation Blueprint</span>
+                <div style="background:#fff7ed; border:1px solid #ffedd5; padding:15px; border-radius:8px; color:#9a3412; font-size:11px">
+                  <strong>Legal Alignment:</strong> ${item.recommendation}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        ` : ''}
+
         <div class="footer">
           <div>
-            &copy; ${new Date().getFullYear()} Humango Limited • 182-184 High Street North, London, E6 2JA<br>
+            &copy; ${new Date().getFullYear()} Humango Limited • London • Policy v1.6<br>
             Verification & Legal Inquiries: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
           </div>
           ${logoBase64 ? `<img src="${logoBase64}" style="width:30px; opacity:0.3">` : ''}
@@ -149,7 +179,7 @@ export async function GET(request: Request) {
     `;
 
     browser = await puppeteer.launch({ 
-      executablePath: CHROME_PATH, 
+      executable_Path: CHROME_PATH, 
       headless: 'new', 
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] 
     });
