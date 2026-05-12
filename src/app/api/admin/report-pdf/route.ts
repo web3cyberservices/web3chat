@@ -8,6 +8,7 @@ import DOMPurify from 'isomorphic-dompurify';
 
 export const dynamic = 'force-dynamic';
 
+// Strict validation for domain format to prevent injection
 const DomainSchema = z.string().min(3).max(255).regex(/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/);
 
 const CHROME_PATHS = [
@@ -22,12 +23,14 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const rawDomain = searchParams.get('domain');
   
+  // Security Gate 1: Strict Zod Validation
   const validation = DomainSchema.safeParse(rawDomain);
   if (!validation.success) {
     return NextResponse.json({ error: 'Valid domain required' }, { status: 400 });
   }
 
   const domain = validation.data;
+  // Security Gate 2: Secondary Sanitization
   const safeDomain = DOMPurify.sanitize(domain);
 
   let browser: any = null;
@@ -85,6 +88,7 @@ export async function GET(request: NextRequest) {
       if (fs.existsSync(logoPath)) logoBase64 = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
     } catch (e) {}
 
+    // Security Gate 3: Sanitized HTML Generation
     const htmlContent = `
       <!DOCTYPE html>
       <html>

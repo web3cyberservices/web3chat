@@ -2,9 +2,6 @@ node_modules
 .next
 .git
 .env
-.env.local
 *.log
-docker-compose.yml
-Dockerfile
-.dockerignore
 firebase-key.json
+logs/
