@@ -1,4 +1,3 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import { pool } from '@/lib/db';
 import puppeteer from 'puppeteer';
@@ -10,6 +9,7 @@ export const dynamic = 'force-dynamic';
 const CHROME_PATHS = [
   '/usr/bin/google-chrome',
   '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
   '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome',
   '/root/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'

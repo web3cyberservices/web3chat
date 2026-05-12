@@ -1,3 +1,4 @@
+'use server';
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
@@ -26,22 +27,11 @@ const ValidationOutputSchema = z.object({
   integrity_status: z.enum(['verified', 'incomplete', 'suspicious']),
 });
 
-export async function verifyIntegrity(html: string, findings: Violation[]) {
-  return verifyIntegrityFlow({ html: html.substring(0, 50000), findings });
-}
-
-const verifyIntegrityFlow = ai.defineFlow(
-  {
-    name: 'verifyIntegrityFlow',
-    inputSchema: ValidationInputSchema,
-    outputSchema: ValidationOutputSchema,
-  },
-  async (input) => {
-    const prompt = ai.definePrompt({
-      name: 'verifyIntegrityPrompt',
-      input: { schema: ValidationInputSchema },
-      output: { schema: ValidationOutputSchema },
-      prompt: `You are a Senior Legal Data Auditor and Truth Verifier. 
+const verifyIntegrityPrompt = ai.definePrompt({
+  name: 'verifyIntegrityPrompt',
+  input: { schema: ValidationInputSchema },
+  output: { schema: ValidationOutputSchema },
+  prompt: `You are a Senior Legal Data Auditor and Truth Verifier. 
 Your role is to act as a harsh critic and examine crawler findings against raw HTML.
 
 TASK:
@@ -71,9 +61,21 @@ Findings to verify:
 
 HTML Content Snippet:
 {{{html}}}`,
-    });
+});
 
-    const { output } = await prompt(input);
-    return output!;
+const verifyIntegrityFlow = ai.defineFlow(
+  {
+    name: 'verifyIntegrityFlow',
+    inputSchema: ValidationInputSchema,
+    outputSchema: ValidationOutputSchema,
+  },
+  async (input) => {
+    const { output } = await verifyIntegrityPrompt(input);
+    if (!output) throw new Error('Validator returned no output');
+    return output;
   }
 );
+
+export async function verifyIntegrity(html: string, findings: Violation[]) {
+  return verifyIntegrityFlow({ html: html.substring(0, 50000), findings });
+}

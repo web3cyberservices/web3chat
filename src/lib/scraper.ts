@@ -1,31 +1,38 @@
-
 'use server';
 
 import settings from '@/config/crawler-settings.json';
 import puppeteer from 'puppeteer';
 import * as cheerio from 'cheerio';
 import { logger } from './logger';
+import fs from 'fs';
 
 const REQUEST_TIMEOUT = 10000;
-const CHROME_PATH = '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome';
 
-export interface ScrapeResult {
-  html: string;
-  status: 'success' | 'fail';
-  method: 'fetch' | 'puppeteer';
-  rawHeaders: any;
-  screenshot?: string;
-  cookies?: any[];
-  duration_ms: number;
-  memory_usage_mb: number;
+// Hardened Chrome path detection for various server environments
+const CHROME_PATHS = [
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
+  '/root/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome',
+  '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+];
+
+async function getExecutablePath() {
+  for (const p of CHROME_PATHS) {
+    if (fs.existsSync(p)) return p;
+  }
+  return undefined; // Let puppeteer try to find it
 }
 
 async function bruteForceScrape(url: string): Promise<Partial<ScrapeResult>> {
   logger.info(`Phase BRUTEFORCE: Launching Puppeteer for ${url}`);
   let browser: any = null;
   try {
+    const executablePath = await getExecutablePath();
+    
     browser = await puppeteer.launch({
-      executablePath: CHROME_PATH,
+      executablePath,
       headless: 'new',
       args: [
         '--no-sandbox',
@@ -76,6 +83,17 @@ async function bruteForceScrape(url: string): Promise<Partial<ScrapeResult>> {
       await browser.close().catch(() => {});
     }
   }
+}
+
+export interface ScrapeResult {
+  html: string;
+  status: 'success' | 'fail';
+  method: 'fetch' | 'puppeteer';
+  rawHeaders: any;
+  screenshot?: string;
+  cookies?: any[];
+  duration_ms: number;
+  memory_usage_mb: number;
 }
 
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
