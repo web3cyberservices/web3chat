@@ -1,24 +1,34 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import { pool } from '@/lib/db';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
+import { z } from 'zod';
+import DOMPurify from 'isomorphic-dompurify';
 
 export const dynamic = 'force-dynamic';
+
+const DomainSchema = z.string().min(3).max(255).regex(/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/);
 
 const CHROME_PATHS = [
   '/usr/bin/google-chrome',
   '/usr/bin/chromium-browser',
   '/usr/bin/chromium',
+  '/usr/lib/chromium/chrome',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 ];
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const domain = searchParams.get('domain');
+  const rawDomain = searchParams.get('domain');
   
-  if (!domain) return NextResponse.json({ error: 'Domain required' }, { status: 400 });
+  const validation = DomainSchema.safeParse(rawDomain);
+  if (!validation.success) {
+    return NextResponse.json({ error: 'Valid domain required' }, { status: 400 });
+  }
+
+  const domain = validation.data;
+  const safeDomain = DOMPurify.sanitize(domain);
 
   let browser: any = null;
   try {
@@ -41,7 +51,6 @@ export async function GET(request: NextRequest) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'No audit data found' }, { status: 404 });
 
-    // V28.0 HARD CONSOLIDATION & LOGIC BRIDGE
     const consolidated = new Map();
     const docExistsOnSite = res.rows.some(row => 
       !row.issue_type.toLowerCase().includes('missing') && 
@@ -107,7 +116,7 @@ export async function GET(request: NextRequest) {
             <div class="logo-text">Humango Compliance Engine</div>
           </div>
           <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
-            Node: ${domain} | bot.humango.app
+            Node: ${safeDomain} | bot.humango.app
           </div>
         </div>
 
@@ -125,7 +134,7 @@ export async function GET(request: NextRequest) {
 
         <div style="margin-bottom: 30px;">
           <h1 style="font-size:20px; color:#0f172a; margin:0 0 8px 0; font-weight:800">Statutory Compliance Audit</h1>
-          <p style="color:#64748b; margin:0; font-size:10px">Executive Diagnostic Report for ${domain}.</p>
+          <p style="color:#64748b; margin:0; font-size:10px">Executive Diagnostic Report for ${safeDomain}.</p>
         </div>
 
         <div class="section-title">Findings by Statutory Law</div>
@@ -143,34 +152,30 @@ export async function GET(request: NextRequest) {
           return `
             <div class="violation-card">
               <div class="violation-head">
-                <span>${v.issue_type}</span>
+                <span>${DOMPurify.sanitize(v.issue_type)}</span>
                 <span class="risk-badge">${(v.severity || 'HIGH').toUpperCase()} RISK</span>
               </div>
               <div class="violation-body">
                 <span class="label">STATUTORY BASIS</span>
-                <div style="font-weight:800; font-size:10px; color:#0f172a">${v.law_name || 'GDPR Article 13'}</div>
-                <div style="color: #475569; font-size: 9px; margin-top: 5px;">${v.explanation || v.description}</div>
+                <div style="font-weight:800; font-size:10px; color:#0f172a">${DOMPurify.sanitize(v.law_name || 'GDPR Article 13')}</div>
+                <div style="color: #475569; font-size: 9px; margin-top: 5px;">${DOMPurify.sanitize(v.explanation || v.description)}</div>
 
                 <span class="label">SUMMARY</span>
-                <div style="color:#334155; font-size:10px;">${v.description}</div>
+                <div style="color:#334155; font-size:10px;">${DOMPurify.sanitize(v.description)}</div>
 
                 <span class="label">BUSINESS IMPACT</span>
-                <div class="impact-box">${impact}</div>
+                <div class="impact-box">${DOMPurify.sanitize(impact)}</div>
 
                 <span class="label">POTENTIAL LIABILITY</span>
-                <div style="color:#ef4444; font-weight:700; font-size:10px;">${liability}</div>
+                <div style="color:#ef4444; font-weight:700; font-size:10px;">${DOMPurify.sanitize(liability)}</div>
 
                 <span class="label">TARGETED RESOURCE(S)</span>
                 <ul class="url-list">
-                  ${urls.map(u => `<li>&bull; ${u}</li>`).join('')}
+                  ${urls.map(u => `<li>&bull; ${DOMPurify.sanitize(u)}</li>`).join('')}
                 </ul>
 
                 <span class="label">STEP-BY-STEP CORRECTIVE ACTION</span>
-                <div class="action-box">${remediation}</div>
-                
-                <div style="margin-top:15px; font-size:7px; color:#94a3b8; text-transform:uppercase;">
-                  VERIFICATION: STATIC+DYNAMIC | bot.humango.app
-                </div>
+                <div class="action-box">${DOMPurify.sanitize(remediation)}</div>
               </div>
             </div>
           `;
@@ -201,7 +206,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(pdfBuffer, { 
       headers: { 
         'Content-Type': 'application/pdf', 
-        'Content-Disposition': `attachment; filename=Humango_Audit_${domain}.pdf` 
+        'Content-Disposition': `attachment; filename=Humango_Audit_${safeDomain}.pdf` 
       } 
     });
   } catch (error: any) {
