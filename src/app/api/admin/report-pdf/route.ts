@@ -15,6 +15,7 @@ export async function GET(request: Request) {
 
   let browser: any = null;
   try {
+    // Dynamic column check to prevent 500 errors
     const colCheck = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'site_violations'`);
     const cols = colCheck.rows.map(r => r.column_name);
     
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
+    // STRICT DEDUPLICATION: Group by violation type and merge URLs
     const groupedViolations: Record<string, any> = {};
     res.rows.forEach(row => {
       const key = (row.issue_type || '').trim().toUpperCase();
@@ -52,7 +54,8 @@ export async function GET(request: Request) {
       }
     });
 
-    const finalViolations = Object.values(groupedViolations).slice(0, 10);
+    // Safety Limit: Show top 5 most critical violation groups to prevent 500 errors
+    const finalViolations = Object.values(groupedViolations).slice(0, 5);
     const legalGroundsIssues = finalViolations.filter(v => v.category === 'LEGAL_GROUNDS');
     const coreViolations = finalViolations.filter(v => v.category !== 'LEGAL_GROUNDS');
 
@@ -179,7 +182,7 @@ export async function GET(request: Request) {
     `;
 
     browser = await puppeteer.launch({ 
-      executable_Path: CHROME_PATH, 
+      executablePath: CHROME_PATH, 
       headless: 'new', 
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] 
     });

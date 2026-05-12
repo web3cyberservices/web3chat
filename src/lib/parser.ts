@@ -4,14 +4,14 @@ import { Violation, ComplianceReport, Category, VerificationMethod } from '@/typ
 
 /**
  * AUTHORITATIVE LIABILITY DATABASE
- * Eliminates 'null' and 'Calculating...' from all reports.
+ * Provides professional administrative penalty ranges based on GDPR Article 83.
  */
 const LIABILITY_DATABASE: Record<string, string> = {
     'PRIVACY': 'Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).',
     'COOKIES': 'Fines up to €10,000,000 or 2% of global turnover (ePrivacy Directive).',
     'IMPRESSUM': 'Fines up to €50,000 (German TMG §5).',
-    'TERMS': 'Loss of liability protection and potential consumer law fines.',
-    'LEGAL_GROUNDS': 'Fines for unlawful processing under Art. 83(5)(a) GDPR.',
+    'TERMS': 'Potential loss of liability protection and consumer law penalties.',
+    'LEGAL_GROUNDS': 'Critical fines for unlawful processing under Art. 83(5)(a) GDPR.',
     'DEFAULT': 'Administrative fines under GDPR Article 83.'
 };
 
@@ -46,10 +46,10 @@ const MANDATORY_CLUSTERS = {
 };
 
 const PROCESSING_ACTIVITIES = [
-  { name: 'Analytics', keywords: [/analytics/i, /tracking/i, /usage data/i, /hotjar/i, /google analytics/i] },
-  { name: 'Marketing', keywords: [/marketing/i, /advertising/i, /newsletter/i, /remarketing/i] },
-  { name: 'Fraud Prevention', keywords: [/fraud/i, /security/i, /prevention/i, /bot detection/i] },
-  { name: 'Customer Support', keywords: [/support/i, /contact form/i, /zendesk/i, /intercom/i] }
+  { name: 'Analytics', keywords: [/analytics/i, /tracking/i, /usage analysis/i, /hotjar/i, /google analytics/i], defaultBasis: 'Art. 6(1)(f)' },
+  { name: 'Marketing', keywords: [/marketing/i, /advertising/i, /newsletter/i, /remarketing/i], defaultBasis: 'Art. 6(1)(a)' },
+  { name: 'Fraud Prevention', keywords: [/fraud/i, /security/i, /prevention/i, /bot detection/i], defaultBasis: 'Art. 6(1)(f)' },
+  { name: 'Customer Support', keywords: [/support/i, /contact form/i, /zendesk/i, /intercom/i], defaultBasis: 'Art. 6(1)(b)' }
 ];
 
 const LEGAL_BASES = [
@@ -59,10 +59,6 @@ const LEGAL_BASES = [
   { name: 'Legitimate Interests', keywords: [/legitimate interest/i, /berechtigtes interesse/i, /art\. 6\(1\)\(f\)/i], article: '6(1)(f)' }
 ];
 
-/**
- * Determines if a site specifically requires an Impressum (Legal Notice)
- * based on regional laws (primarily DACH region).
- */
 function requiresImpressum(url: string, html: string): boolean {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
@@ -71,28 +67,19 @@ function requiresImpressum(url: string, html: string): boolean {
     const isGermanLanguage = /lang="de"/i.test(html) || /datenschutz|impressum|kontakt/i.test(html);
     if (isGermanLanguage) return true;
     return false;
-  } catch (e) {
-    return false;
-  }
+  } catch (e) { return false; }
 }
 
-/**
- * Authoritative URL Normalizer
- */
 export function normalizeUrl(url: string, base: string): string | null {
   try {
     const absolute = new URL(url, base);
     absolute.hash = '';
     absolute.search = '';
     let pathname = absolute.pathname.toLowerCase();
-    if (pathname.length > 1 && pathname.endsWith('/')) {
-      pathname = pathname.slice(0, -1);
-    }
+    if (pathname.length > 1 && pathname.endsWith('/')) { pathname = pathname.slice(0, -1); }
     absolute.pathname = pathname;
     return absolute.href.toLowerCase();
-  } catch (e) {
-    return url.toLowerCase().replace(/\/$/, "").split('?')[0];
-  }
+  } catch (e) { return url.toLowerCase().replace(/\/$/, "").split('?')[0]; }
 }
 
 export function parseHtmlContent(html: string, url: string, headers: any = {}, screenshot?: string, isPuppeteer: boolean = false): {
@@ -162,7 +149,6 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         const clusterFound = cluster.keywords.some(k => k.test(fullText));
         
         if (clusterKey === 'CONTROLLER' && !clusterFound) {
-          // Cross-page check: is it in the footer?
           const inFooter = cluster.keywords.some(k => k.test(footerText));
           if (inFooter) {
             violations.push({
@@ -171,7 +157,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
               issue_type: `Placement Recommendation: Controller Identity`,
               severity: 'low',
               evidence_html: url,
-              description: `Controller information found in footer, but missing from Privacy Policy document.`,
+              description: `Status: FOUND (Footer) / MISSING (Text). Note: While present in the footer, GDPR best practices and Art. 13 transparency principles suggest duplicating this info inside the Privacy Policy document itself.`,
               law_name: cluster.law,
               potential_fine: LIABILITY_DATABASE[doc.category],
               explanation: `Art. 13 mandates clear disclosure. While found on site, accessibility is improved by direct inclusion in the policy.`,
@@ -222,11 +208,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
                 issue_type: `Missing Legal Basis for ${activity.name}`,
                 severity: 'critical',
                 evidence_html: foundUrl,
-                description: `Activity [${activity.name}] detected, but no explicit legal basis (Art. 6 GDPR) is linked.`,
+                description: `The website performs '${activity.name}' but fails to link it to an Article 6 legal basis.`,
                 law_name: 'Art. 13(1)(c) GDPR',
                 potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
                 explanation: `Every processing operation must be tied to a specific legal ground from Article 6.`,
-                recommendation: `Associate the [${activity.name}] operation with a valid legal basis (e.g., Consent or Legitimate Interest).`,
+                recommendation: `Explicitly state that '${activity.name}' processing is based on ${activity.defaultBasis}.`,
                 verification_method
               });
             }
