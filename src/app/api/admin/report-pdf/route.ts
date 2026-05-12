@@ -40,13 +40,13 @@ export async function GET(request: Request) {
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
     // MANDATORY DE-DUPLICATION LAYER (Hardened)
+    // Groups by Title (issue_type) and Legal Basis (law_name)
     const groupedViolations: Record<string, any> = {};
     res.rows.forEach(row => {
-      // Normalize Title to prevent "Incomplete Policy" vs "Incomplete Disclosure" splits
       const law = (row.law_name || 'GDPR').trim().toUpperCase();
       let type = (row.issue_type || 'VIOLATION').trim().toUpperCase();
       
-      // Standardize Controller Identity titles to ensure merging
+      // Standardize titles to ensure merging
       if (type.includes('CONTROLLER IDENTITY')) type = 'INCOMPLETE DISCLOSURE: CONTROLLER IDENTITY';
       if (type.includes('DATA SUBJECT RIGHTS')) type = 'INCOMPLETE DISCLOSURE: DATA SUBJECT RIGHTS';
       
@@ -200,7 +200,7 @@ export async function GET(request: Request) {
     `;
 
     browser = await puppeteer.launch({ 
-      executablePath: CHROME_PATH, 
+      executable_path: CHROME_PATH, 
       headless: 'new', 
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] 
     });

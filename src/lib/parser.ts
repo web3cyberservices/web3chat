@@ -23,7 +23,7 @@ const MANDATORY_CLUSTERS = {
     keywords: [/data controller/i, /verantwortlicher/i, /responsable du traitement/i, /identity of the controller/i, /legal disclosure/i, /registered office/i, /provider identification/i],
     law: "Art. 13(1)(a) GDPR",
     name: "Controller Identity",
-    remediation: "Include the full legal name of your entity, registered physical address, and a direct contact email."
+    remediation: "Status: Detected in website footer. Requirement: While present in the footer, Article 13 transparency principles require this information to be explicitly included within the main body of the Privacy Policy document."
   },
   RIGHTS: {
     keywords: [/right to access/i, /right to erasure/i, /right to object/i, /auskunftsrecht/i, /löschungsrecht/i, /widerrufsrecht/i, /data subject rights/i, /your rights/i, /art\. 15/i],
@@ -160,8 +160,8 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
               description: `Status: Detected in website footer. Requirement: While present in the footer, Article 13 transparency principles require this information to be explicitly included within the main body of the Privacy Policy document.`,
               law_name: cluster.law,
               potential_fine: LIABILITY_DATABASE[doc.category],
-              explanation: `Art. 13 GDPR mandates explicit disclosure. While present in the footer, best practices and statutory transparency standards require inclusion inside the policy body.`,
-              recommendation: `REMEDIATION BLUEPRINT: Status: Detected in website footer. Requirement: While present in the footer, Article 13 transparency principles require this information to be explicitly included within the main body of the Privacy Policy document.`,
+              explanation: `Art. 13 GDPR mandates explicit disclosure. Identity data was detected in the footer, but statutory transparency standards require inclusion inside the policy body.`,
+              recommendation: `REMEDIATION BLUEPRINT: ${cluster.remediation}`,
               verification_method
             });
           } else if (!clusterFound) {
@@ -215,10 +215,10 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             issue_type: `LACK OF EXPLICIT LEGAL BASES (ART. 13(1)(C))`,
             severity: 'critical',
             evidence_html: foundUrl,
-            description: `The website mentions processing for ${missingBases.join(', ')} but fails to explicitly link these activities to an Art. 6 legal basis.`,
+            description: `The website performs specific processing operations but fails to link them to an Article 6 legal basis.`,
             law_name: 'Art. 13(1)(c) GDPR',
             potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
-            explanation: `Art. 13(1)(c) requires disclosure of processing purposes AND the legal basis. Processing activities like 'Analyzing usage' must be explicitly linked to Art. 6(1)(f) (Legitimate Interests).`,
+            explanation: `Art. 13(1)(c) requires explicit correlation between processing purposes and legal bases. For example: Processing activities like 'Analyzing usage' must be explicitly linked to Art. 6(1)(f) (Legitimate Interests).`,
             recommendation: `REMEDIATION BLUEPRINT: Explicitly state the legal basis for each processing activity. Example: "Processing of your data for 'Analyzing usage' is based on Art. 6(1)(f) (Legitimate Interests)."`,
             verification_method
           });
