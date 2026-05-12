@@ -1,6 +1,6 @@
 
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
-export type Category = 'ADA' | 'GDPR' | 'Privacy' | 'Security' | 'AI' | 'Transactional' | 'HR_Edu' | 'Legal_Content';
+export type Category = 'ADA' | 'GDPR' | 'Privacy' | 'Security' | 'AI' | 'Transactional' | 'HR_Edu' | 'Legal_Content' | 'IMPRESSUM' | 'LEGAL_GROUNDS';
 export type ScanType = 'basic' | 'deep';
 export type ReportType = 'SaaS' | 'Manual';
 export type VerificationMethod = 'Static Analysis' | 'Dynamic Emulation';
@@ -16,7 +16,6 @@ export interface Violation {
   law_name: string;        
   potential_fine: string;  
   recommendation?: string;
-  actionable_template?: string; // New: Template for the client to use
   scan_type?: ScanType;
   report_type: ReportType;
   affected_urls?: string[];
@@ -26,6 +25,7 @@ export interface Violation {
 export interface ComplianceReport {
   score: number;
   verdict: 'COMPLIANT' | 'RISKY';
+  jurisdiction?: string;
   nav_scout: {
     found_links: string[];
     missing_critical: string[];
