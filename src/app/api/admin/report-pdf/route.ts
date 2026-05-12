@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
-    // STRICT DEDUPLICATION: Group by violation type and merge URLs
+    // STRICT HYBRID DEDUPLICATION: Group by violation type and merge URLs/Methods
     const groupedViolations: Record<string, any> = {};
     res.rows.forEach(row => {
       const key = (row.issue_type || '').trim().toUpperCase();
@@ -51,6 +51,10 @@ export async function GET(request: Request) {
         };
       } else {
         groupedViolations[key].affected_urls.add(row.page_url);
+        // If findings came from different methods, mark as Hybrid
+        if (groupedViolations[key].verification_method !== row.verification_method) {
+            groupedViolations[key].verification_method = 'Hybrid (Dynamic + Static)';
+        }
       }
     });
 
@@ -160,6 +164,11 @@ export async function GET(request: Request) {
                 
                 <span class="label">Liability Mapping</span>
                 <div class="fine">${item.fine_amount}</div>
+
+                <span class="label">Targeted Resource(s)</span>
+                <div class="resource-list">
+                    ${Array.from(item.affected_urls).join('<br>')}
+                </div>
 
                 <span class="label">Remediation Blueprint</span>
                 <div style="background:#fff7ed; border:1px solid #ffedd5; padding:15px; border-radius:8px; color:#9a3412; font-size:11px">
