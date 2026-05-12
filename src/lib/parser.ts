@@ -161,7 +161,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
               law_name: cluster.law,
               potential_fine: LIABILITY_DATABASE[doc.category],
               explanation: `Art. 13 GDPR mandates clear and accessible disclosure. While found in the footer, best practices require duplication inside the policy body.`,
-              recommendation: `Note: Identity details were detected in the website footer. However, to fully satisfy Art. 13 transparency requirements, it is recommended to duplicate this information within the main body of the Privacy Policy.`,
+              recommendation: `Detected in footer; however, Art. 13 transparency requires inclusion within the document body for full statutory compliance.`,
               verification_method
             });
           } else if (!clusterFound) {
@@ -215,13 +215,13 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
           violations.push({
             category: 'LEGAL_GROUNDS',
             report_type: 'SaaS',
-            issue_type: `Missing Correlation: Purposes to Legal Bases`,
+            issue_type: `LACK OF EXPLICIT LEGAL BASES (Art. 13(1)(c))`,
             severity: 'critical',
             evidence_html: foundUrl,
             description: `The website performs operations including ${missingActivities.join(', ')} but fails to explicitly link these activities to an Art. 6 legal basis.`,
             law_name: 'Art. 13(1)(c) GDPR',
             potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
-            explanation: `Art. 13(1)(c) requires disclosure of the purposes of processing as well as the legal basis for that processing. For example, 'Usage Analysis' must be linked to Art. 6(1)(f) (Legitimate Interests).`,
+            explanation: `Art. 13(1)(c) requires disclosure of the purposes of processing as well as the legal basis for that processing. Processing activities like 'Analyzing usage' or 'Fraud prevention' must be explicitly linked to Art. 6(1)(f) (Legitimate Interests) or Art. 6(1)(a) (Consent).`,
             recommendation: `Explicitly state the legal basis for each processing activity. Recommendation: State that operations like ${missingActivities[0] || 'Analytics'} are based on Art. 6(1)(f) (Legitimate Interests).`,
             verification_method
           });

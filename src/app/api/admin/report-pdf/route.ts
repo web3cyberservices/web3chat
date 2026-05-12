@@ -40,10 +40,12 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
-    // STRICT HYBRID DEDUPLICATION: Group by violation type and merge URLs/Methods
+    // MANDATORY MERGE LOGIC: Group by Issue Type and Law Name to prevent duplicate pages
     const groupedViolations: Record<string, any> = {};
     res.rows.forEach(row => {
-      const key = (row.issue_type || '').trim().toUpperCase();
+      // Create a unique key for the violation type
+      const key = `${(row.issue_type || '').trim().toUpperCase()}_${(row.law_name || '').trim().toUpperCase()}`;
+      
       if (!groupedViolations[key]) {
         groupedViolations[key] = {
           ...row,
@@ -58,7 +60,7 @@ export async function GET(request: Request) {
       }
     });
 
-    // Safety Limit: Show top 5 most critical violation groups to prevent 500 errors
+    // Safety Limit: Show top 5 most critical violation groups to prevent 500 errors/timeouts
     const finalViolations = Object.values(groupedViolations).slice(0, 5);
     const legalGroundsIssues = finalViolations.filter(v => v.category === 'LEGAL_GROUNDS');
     const coreViolations = finalViolations.filter(v => v.category !== 'LEGAL_GROUNDS');
