@@ -1,4 +1,3 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import { pool } from '@/lib/db';
 import puppeteer from 'puppeteer';
@@ -45,20 +44,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
     }
 
-    // RULE 1: HARD CONSOLIDATION (Group by Statutory Basis/Law Name)
+    // RULE 1: HARD CONSOLIDATION (1 Law = 1 Block) - PLAN RAGE
     const consolidated = new Map();
     res.rows.forEach(row => {
       const key = row.law_name; 
+      // Skip redundant blocks like "Incomplete Transparency Framework"
+      if (row.issue_type.toLowerCase().includes('transparency framework')) return;
+
       if (!consolidated.has(key)) {
         const urls = row.page_url.split(',').map((u: string) => u.trim());
         consolidated.set(key, { ...row, urls: new Set(urls) });
       } else {
         const item = consolidated.get(key);
         row.page_url.split(',').forEach((u: string) => item.urls.add(u.trim()));
-        // Keep the one with actual content if the current one has better text
-        if (row.business_impact && !row.business_impact.toLowerCase().includes('null')) {
-            item.business_impact = row.business_impact;
-        }
       }
     });
 
@@ -89,7 +87,7 @@ export async function GET(request: NextRequest) {
           .label { font-size: 8px; font-weight: 800; color: #3b82f6; text-transform: uppercase; margin-top: 15px; display: block; margin-bottom: 4px; letter-spacing: 0.5px; }
           .risk-badge { font-size: 8px; font-weight: 800; padding: 2px 8px; border-radius: 99px; background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
           .impact-box { background: #fff7ed; border-left: 4px solid #f97316; padding: 12px; color: #9a3412; font-weight: 600; font-size: 10px; margin: 10px 0; border-radius: 4px; }
-          .action-box { background: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; border-radius: 8px; color: #0369a1; font-size: 10px; white-space: pre-line; line-height: 1.6; font-family: monospace; }
+          .action-box { background: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; border-radius: 8px; color: #0369a1; font-size: 10px; white-space: pre-line; line-height: 1.6; font-family: monospace; border-left: 4px solid #3b82f6; }
           .url-list { font-size: 8px; color: #64748b; background: #f8fafc; padding: 10px; border-radius: 6px; font-family: monospace; border: 1px solid #e2e8f0; margin-top: 5px; list-style: none; padding-left: 15px; }
           .term-box { background: #f1f5f9; padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 9px; color: #475569; border: 1px solid #e2e8f0; line-height: 1.6; }
           .footer-note { position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 8px; color: #94a3b8; }
@@ -102,29 +100,28 @@ export async function GET(request: NextRequest) {
             <div class="logo-text">Humango Compliance Audit Engine</div>
           </div>
           <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
-            Node: ${domain} | Senior Auditor V21.1
+            Node: ${domain} | Senior Auditor V21.3
           </div>
         </div>
 
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
           <h1 style="font-size:20px; color:#0f172a; margin:0 0 8px 0; font-weight:800">Executive Statutory Diagnostic</h1>
-          <p style="color:#64748b; margin:0; font-size:10px">Statutory transparency and data processing compliance report for ${domain}.</p>
+          <p style="color:#64748b; margin:0; font-size:10px">Statutory transparency and ownership audit for ${domain}.</p>
           <div class="term-box">
-            <strong>Methodology Explained:</strong><br>
-            • <strong>Static Analysis:</strong> Rapid structural verification of source code and legal disclosures.<br>
-            • <strong>Dynamic Emulation:</strong> Live test simulating human interaction to identify hidden scripts or non-compliant flows.<br>
-            • <strong>Data Protection Officer (DPO):</strong> A mandatory identity responsible for overseeing your data protection strategy.
+            <strong>Key Verification Terms:</strong><br>
+            • <strong>Static Analysis:</strong> A technical code audit to find missing legal text and structural errors.<br>
+            • <strong>Dynamic Emulation:</strong> A live test that simulates a human user to find hidden tracking scripts.<br>
+            • <strong>Official Company Ownership Info (Impressum):</strong> A mandatory identity card for your business listing who owns the site. Required in the EU.
           </div>
         </div>
 
-        <div class="section-title">Consolidated Findings by Statutory Article</div>
+        <div class="section-title">Consolidated Findings by Statutory Law</div>
 
         ${findings.map(v => {
           const urls = Array.from(v.urls);
-          // Protection against null Business Impact in rendering
           const impact = v.business_impact && !v.business_impact.toLowerCase().includes('null') 
             ? v.business_impact 
-            : "Commercial Risk: Regulatory non-compliance triggers ad-platform suspensions and loss of enterprise customer trust.";
+            : "Business Risk: This failure creates high vulnerability to Google/Meta ad account suspensions and legal claims from competitors.";
           
           return `
             <div class="violation-card">
@@ -137,13 +134,13 @@ export async function GET(request: NextRequest) {
                 <div style="font-weight:800; font-size:10px; color:#0f172a">${v.law_name}</div>
                 <div style="color: #475569; font-size: 9px; margin-top: 5px;">${v.explanation}</div>
 
-                <span class="label">DIAGNOSTIC DESCRIPTION</span>
+                <span class="label">DIAGNOSTIC SUMMARY</span>
                 <div style="color:#334155; font-size:10px;">${v.description}</div>
 
                 <span class="label">BUSINESS IMPACT</span>
                 <div class="impact-box">${impact}</div>
 
-                <span class="label">ADMINISTRATIVE LIABILITY</span>
+                <span class="label">POTENTIAL LIABILITY</span>
                 <div style="color:#ef4444; font-weight:700; font-size:10px;">${v.fine_amount}</div>
 
                 <span class="label">TARGETED RESOURCE(S)</span>
@@ -155,21 +152,15 @@ export async function GET(request: NextRequest) {
                 <div class="action-box">${v.recommendation}</div>
                 
                 <div style="margin-top:15px; font-size:7px; color:#94a3b8; text-transform:uppercase;">
-                  Verification: ${v.verification_method} | Statutory Mode: Strict
+                  Verification: ${v.verification_method} | Mode: Senior Auditor V21.3
                 </div>
               </div>
             </div>
           `;
         }).join('')}
 
-        <div class="term-box" style="margin-top:40px; background:#fff">
-           <strong>Statutory Definitions:</strong><br>
-           • <strong>Legal Notice (Impressum):</strong> A mandatory "Identity Card" for your business identifying ownership, required for commercial transparency in the EU.<br>
-           • <strong>Data Subject Rights:</strong> Fundamental rights granted to individuals (Access, Erasure, Objection) that must be explicitly listed in your policy.
-        </div>
-
         <div class="footer-note">
-          Confidential Audit &bull; Humango Compliance Audit Engine &bull; Senior Auditor V21.1
+          Confidential Audit &bull; Humango Compliance Audit Engine &bull; Senior Auditor V21.3
         </div>
       </body>
       </html>

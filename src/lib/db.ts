@@ -1,4 +1,3 @@
-
 import 'dotenv/config';
 import { Pool } from 'pg';
 import DOMPurify from 'isomorphic-dompurify';
@@ -61,7 +60,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // RULE 1: NO REPETITION (Hard Consolidation by Statutory Article)
+    // RULE 1: HARD CONSOLIDATION (1 Law = 1 Entry)
     const consolidated = new Map();
     violations.forEach(v => {
       const key = v.law_name; 
@@ -72,11 +71,10 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         if (!existing.page_urls.includes(url)) {
           existing.page_urls.push(url);
         }
-        // Keep the one with better content
-        if (v.confidence_score > existing.confidence_score) {
-          if (v.business_impact && !v.business_impact.toLowerCase().includes('null')) {
-             consolidated.set(key, { ...v, page_urls: existing.page_urls });
-          }
+        // Keep the more detailed or AI-verified finding
+        if (v.confidence_score > (existing.confidence_score || 0)) {
+           const urls = existing.page_urls;
+           consolidated.set(key, { ...v, page_urls: urls });
         }
       }
     });
@@ -91,18 +89,20 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), $17, $18, $19)
     `;
 
-    const standardFine = 'Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)';
+    const standardFine = 'Potential Fine: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)';
 
     for (const v of consolidated.values()) {
-      // RULE 2: ZERO TOLERANCE FOR NULL BUSINESS IMPACT
-      const impact = v.business_impact && !v.business_impact.toLowerCase().includes('null') 
-        ? v.business_impact 
-        : "Business Risk: This failure to disclose required information reduces customer trust and creates a high risk of your website being flagged or blocked by advertising networks like Google and Meta.";
+      // RULE 2: SPECIFIC BUSINESS IMPACT (PLAN RAGE)
+      let impact = v.business_impact || "";
+      if (impact.toLowerCase().includes('null') || impact.length < 5) {
+        impact = "Business Risk: This failure puts your domain at high risk of advertising suspension (Google/Meta) and legal claims from EU competitors.";
+      }
 
-      // RULE 3: ACTIONABLE STEP (FALLBACK)
-      const action = v.recommendation && !v.recommendation.toLowerCase().includes('ensure')
-        ? v.recommendation
-        : `FIX: Add this text to your footer: 'Data Controller: ${domain}, Address: [Registered Office], Contact: [Support Email]'.`;
+      // RULE 3: ACTIONABLE STEP (PLAN RAGE)
+      let action = v.recommendation || "";
+      if (!action.startsWith('ADD THIS TEXT:')) {
+        action = `ADD THIS TEXT to your site: 'Data Controller: ${domain}, Registered Address: [Your Address], Contact: [Your Email]'.`;
+      }
 
       await client.query(query, [
         sanitize(domain),
