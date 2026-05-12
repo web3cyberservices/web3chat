@@ -11,6 +11,7 @@ const CHROME_PATHS = [
   '/usr/bin/google-chrome',
   '/usr/bin/chromium-browser',
   '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome',
+  '/root/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 ];
 
@@ -45,10 +46,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
     }
 
-    // HARD MERGE: Consolidated by Issue Type to prevent repetition
+    // AUDITOR V21.0 HARD MERGE: Consolidated by Issue Type (Article)
     const consolidated = new Map();
     res.rows.forEach(row => {
-      const key = `${row.category}_${row.issue_type}`;
+      const key = row.issue_type; // Group by Article/Issue Type
       if (!consolidated.has(key)) {
         consolidated.set(key, { ...row, urls: new Set([row.page_url]) });
       } else {
@@ -88,7 +89,8 @@ export async function GET(request: NextRequest) {
           .risk-badge { font-size: 8px; font-weight: 800; padding: 2px 8px; border-radius: 99px; background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
           .impact-box { background: #fff7ed; border-left: 3px solid #f97316; padding: 10px; color: #9a3412; font-weight: 600; font-size: 9px; margin: 10px 0; }
           .blueprint { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px; border-radius: 6px; color: #0369a1; font-size: 9px; }
-          .url-list { font-size: 8px; color: #64748b; background: #f8fafc; padding: 8px; border-radius: 4px; font-family: monospace; border: 1px solid #e2e8f0; margin-top: 4px; list-style: none; }
+          .url-list { font-size: 8px; color: #64748b; background: #f8fafc; padding: 8px; border-radius: 4px; font-family: monospace; border: 1px solid #e2e8f0; margin-top: 4px; list-style: none; padding-left: 15px; }
+          .url-list li { margin-bottom: 2px; }
           .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin-bottom: 25px; }
           .footer-note { position: fixed; bottom: 30px; left: 0; right: 0; text-align: center; font-size: 8px; color: #94a3b8; }
           .processing-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
@@ -103,13 +105,13 @@ export async function GET(request: NextRequest) {
             <div class="logo-text">Humango Compliance Audit Engine</div>
           </div>
           <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
-            Expert Node: ${domain}
+            Node: ${domain} | GDPR V21.0
           </div>
         </div>
 
         <div class="summary-card">
           <h1 style="font-size:20px; color:#0f172a; margin:0 0 5px 0; font-weight:800">Executive Statutory Summary</h1>
-          <p style="color:#64748b; margin:0; font-size:10px">Statutory diagnostic regarding transparency (Art. 12/13) and processing grounds (Art. 6).</p>
+          <p style="color:#64748b; margin:0; font-size:10px">Consolidated legal diagnostic regarding transparency (Art. 12/13) and processing grounds (Art. 6).</p>
         </div>
 
         ${systemicRisks.length > 0 ? `
@@ -152,7 +154,7 @@ export async function GET(request: NextRequest) {
         ` : ''}
 
         <div class="footer-note">
-          Confidential Legal Audit &bull; Humango Compliance Audit Engine &bull; Expert Node
+          Confidential Legal Audit &bull; Humango Compliance Audit Engine &bull; Senior Auditor V21.0
         </div>
       </body>
       </html>
@@ -174,10 +176,10 @@ export async function GET(request: NextRequest) {
             <div style="color:#334155; font-size:9px;">${v.description}</div>
 
             <span class="label">BUSINESS IMPACT</span>
-            <div class="impact-box">${v.business_impact || 'Lack of statutory compliance escalating regulatory scrutiny.'}</div>
+            <div class="impact-box">${v.business_impact || 'Lack of statutory compliance marks the entity as a high-priority target for regulatory scrutiny and bad-faith findings.'}</div>
 
             <span class="label">ADMINISTRATIVE LIABILITY</span>
-            <div style="color:#ef4444; font-weight:700; font-size:9px;">${v.fine_amount || 'Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)'}</div>
+            <div style="color:#ef4444; font-weight:700; font-size:9px;">Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)</div>
 
             <span class="label">TARGETED RESOURCE(S)</span>
             <ul class="url-list">
@@ -200,9 +202,15 @@ export async function GET(request: NextRequest) {
     }
 
     browser = await puppeteer.launch({ 
-      executable_path: executablePath || undefined,
+      executablePath: executablePath || undefined,
       headless: 'new', 
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--font-render-hinting=none'
+      ] 
     });
     
     const page = await browser.newPage();
@@ -223,6 +231,8 @@ export async function GET(request: NextRequest) {
     console.error('[PDF API CRASH]', error);
     return NextResponse.json({ error: 'Failed to generate report: ' + error.message }, { status: 500 });
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
   }
 }

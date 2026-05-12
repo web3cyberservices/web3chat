@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
   
   // 1. Admin API Protection
   // We explicitly permit /api/admin/report-pdf so public users can download their results.
-  const isReportPdf = url.pathname === '/api/admin/report-pdf';
+  const isReportPdf = url.pathname.startsWith('/api/admin/report-pdf');
   const isAdminPath = url.pathname.startsWith('/api/admin');
   
   if (isAdminPath && !isReportPdf) {
