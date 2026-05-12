@@ -47,10 +47,11 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
+    // Deduplication by GDPR Article
     const uniqueViolations = new Map();
     violations.forEach(v => {
       const key = `${v.category}_${v.issue_type.toUpperCase()}_${v.law_name}`;
-      if (!uniqueViolations.has(key)) {
+      if (!uniqueViolations.has(key) || (v.confidence_score > (uniqueViolations.get(key).confidence_score || 0))) {
         uniqueViolations.set(key, v);
       }
     });
@@ -58,11 +59,11 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     const query = `
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
-        evidence_html, evidence_quote, confidence_score, description, 
-        explanation, law_name, recommendation, scan_type, report_type, 
+        evidence_html, evidence_quote, confidence_score, verification_status,
+        description, explanation, law_name, recommendation, scan_type, report_type, 
         created_at, fine_amount, verification_method, business_impact
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), $16, $17, $18)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), $17, $18, $19)
     `;
 
     const standardFine = 'Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)';
@@ -78,6 +79,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(v.evidence_html),
         sanitize(v.evidence_quote),
         v.confidence_score,
+        v.verification_status || 'pending',
         sanitize(v.description), 
         sanitize(v.explanation), 
         sanitize(v.law_name),
@@ -100,12 +102,12 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   }
 }
 
-export async function saveValidationLog(url: string, attempt: number, status: string, findings: any[]) {
+export async function saveValidationLog(url: string, iteration: number, status: string, findings: any[], confidence: number) {
   try {
     const domain = new URL(url).hostname;
     await pool.query(
-      'INSERT INTO validation_logs (domain, url, attempt, status, findings, timestamp) VALUES ($1, $2, $3, $4, $5, NOW())',
-      [sanitize(domain), sanitize(url), attempt, status, JSON.stringify(findings)]
+      'INSERT INTO validation_logs (domain, url, attempt, status, findings, confidence_score, timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+      [sanitize(domain), sanitize(url), iteration, status, JSON.stringify(findings), confidence]
     );
   } catch (e) {}
 }
@@ -219,7 +221,7 @@ export async function getViolations(limit = 100) {
         id, domain, issue_type as type, severity as level, created_at as date, 
         description as summary, explanation as description,
         fine_amount, law_name, page_url as url, evidence_html, evidence_quote, 
-        confidence_score, report_type, verification_method, business_impact
+        confidence_score, verification_status, report_type, verification_method, business_impact
       FROM site_violations ORDER BY created_at DESC LIMIT $1
     `, [limit]);
     return res.rows || [];

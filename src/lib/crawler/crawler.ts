@@ -4,13 +4,17 @@ import { parseHtmlContent } from '@/lib/parser';
 import { isUrlAllowed } from '@/config/robots-rules';
 import { saveAuditLog, saveBotEvent, saveAuditResults, normalizeUrl, saveValidationLog } from '@/lib/db';
 import { verifyIntegrity } from '@/lib/validator';
-import { CrawlResult, Violation, VerificationMethod } from '@/types';
+import { CrawlResult, Violation } from '@/types';
 import { z } from 'zod';
 import { performance } from 'perf_hooks';
 
 const urlSchema = z.string().url();
 
-export async function runCrawlTask(seedUrl: string, attempt: number = 1): Promise<CrawlResult> {
+/**
+ * The Loop Architecture (V22.0)
+ * Crawler -> Verifier -> Re-Tasker -> Finalizer
+ */
+export async function runCrawlTask(seedUrl: string, iteration: number = 1): Promise<CrawlResult> {
   const startTime = performance.now();
   const timestamp = new Date().toISOString();
   
@@ -27,15 +31,15 @@ export async function runCrawlTask(seedUrl: string, attempt: number = 1): Promis
       return { url: initialNormalized, timestamp, status: 'blocked', issuesFound: 0, scanType: 'basic', reason: robotsCheck.reason };
     }
 
-    // Step 1: Initial Scrape
+    // PHASE 1: COLLECTION
+    await saveBotEvent('SUCCESS', `Audit Loop Start: ${initialNormalized} (Iteration ${iteration})`);
     const scrape = await scrapeUrl(initialNormalized);
     if (scrape.status === 'fail') {
       return { url: initialNormalized, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: 'Failed to retrieve content' };
     }
 
-    // Step 2: Diagnostic Parsing
     const isDeep = scrape.method === 'puppeteer';
-    const { violations: initialViolations, meta, compliance_report: initialReport } = parseHtmlContent(
+    const parsed = parseHtmlContent(
       scrape.html, 
       initialNormalized, 
       scrape.rawHeaders, 
@@ -43,68 +47,108 @@ export async function runCrawlTask(seedUrl: string, attempt: number = 1): Promis
       isDeep
     );
 
-    // Step 3: Integrity Validation Layer
-    await saveBotEvent('SUCCESS', `Validating integrity for ${initialNormalized} (Attempt ${attempt})`);
-    const validationResult = await verifyIntegrity(scrape.html, initialViolations);
+    // PHASE 2: VERIFICATION
+    const validationResult = await verifyIntegrity(scrape.html, parsed.violations);
     
     // Log the validation attempt
-    await saveValidationLog(initialNormalized, attempt, validationResult.integrity_status, validationResult.validated_findings);
+    await saveValidationLog(
+      initialNormalized, 
+      iteration, 
+      validationResult.integrity_status, 
+      validationResult.validated_findings,
+      validationResult.overall_confidence
+    );
 
-    // Step 4: Re-Crawl Trigger (Recursive Logic)
-    let finalViolations = initialViolations.map(v => {
+    // PHASE 3: RE-TASKING / REFINEMENT
+    let finalViolations: Violation[] = parsed.violations.map(v => {
       const vMatch = validationResult.validated_findings.find(vf => vf.issue_type === v.issue_type);
       return {
         ...v,
         confidence_score: vMatch?.confidence_score ?? 0,
         evidence_quote: vMatch?.evidence_quote,
+        verification_status: vMatch?.verification_status || 'pending',
         is_hallucination: vMatch?.is_hallucination ?? false
       };
     }).filter(v => !v.is_hallucination && v.confidence_score > 0);
 
-    // If critical data is missing or confidence is low, and we haven't tried a deep scan yet
-    const needsDeepScan = (validationResult.integrity_status !== 'verified' || finalViolations.some(v => v.confidence_score < 0.8)) && attempt < 2 && !isDeep;
+    // Check if we need to deep-dive for missing facts
+    const needsRefinement = iteration < 2 && (
+      validationResult.overall_confidence < 0.9 || 
+      validationResult.integrity_status === 'incomplete'
+    );
 
-    if (needsDeepScan && meta.legal_links.impressum) {
-      const contactUrl = normalizeUrl(meta.legal_links.impressum, initialNormalized);
-      await saveBotEvent('SUCCESS', `Confidence low. Triggering recursive Deep Scan on: ${contactUrl}`);
-      const deepResult = await runCrawlTask(contactUrl, attempt + 1);
+    if (needsRefinement) {
+      const legalLinks = parsed.meta.legal_links;
+      const targetUrl = legalLinks.impressum || legalLinks.privacy;
       
-      // Merge results
-      if (deepResult.status === 'success' && deepResult.violations) {
-        finalViolations = [...finalViolations, ...deepResult.violations];
+      if (targetUrl) {
+        const deepUrl = normalizeUrl(targetUrl, initialNormalized);
+        await saveBotEvent('SUCCESS', `Confidence Low [${validationResult.overall_confidence}]. Triggering Targeted Deep Dive: ${deepUrl}`);
+        
+        // Recursive Call for iteration 2
+        const deepResult = await runCrawlTask(deepUrl, iteration + 1);
+        
+        if (deepResult.status === 'success' && deepResult.violations) {
+          // Merge refined findings
+          finalViolations = mergeFindings(finalViolations, deepResult.violations);
+        }
       }
     }
 
+    // PHASE 4: FINALIZATION
     const domain = new URL(initialNormalized).hostname;
     await saveAuditLog(domain, 200, null);
-    await saveAuditResults(domain, initialNormalized, finalViolations, isDeep ? 'deep' : 'basic');
+    
+    // Only save violations that crossed the verification threshold
+    const verifiedFindings = finalViolations.filter(v => v.confidence_score >= 0.5);
+    await saveAuditResults(domain, initialNormalized, verifiedFindings, iteration > 1 ? 'deep' : 'basic');
     
     const total_ms = Math.round(performance.now() - startTime);
-    await saveBotEvent('SUCCESS', `Audit finished: ${domain} | Confidence: ${validationResult.integrity_status} | Issues: ${finalViolations.length}`);
+    await saveBotEvent('SUCCESS', `Loop Finished: ${domain} | Confidence: ${validationResult.overall_confidence} | Issues: ${verifiedFindings.length}`);
 
     return {
       url: initialNormalized,
       timestamp,
       status: 'success',
-      issuesFound: finalViolations.length,
-      violations: finalViolations,
+      issuesFound: verifiedFindings.length,
+      violations: verifiedFindings,
+      iteration,
       compliance_report: {
-        ...initialReport,
+        ...parsed.compliance_report,
         validation_status: validationResult.integrity_status
       },
-      scanType: isDeep ? 'deep' : 'basic',
+      scanType: iteration > 1 ? 'deep' : 'basic',
       meta: {
         duration_ms: total_ms,
         memory_usage_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
         method: scrape.method,
-        verification_method: isDeep ? 'Dynamic Emulation' : 'Static Analysis',
-        hasCMP: meta.hasCMP,
-        legal_links: meta.legal_links,
-        attempts: attempt
+        verification_method: iteration > 1 ? 'Dynamic Emulation' : 'Static Analysis',
+        hasCMP: parsed.meta.hasCMP,
+        legal_links: parsed.meta.legal_links,
+        attempts: iteration,
+        confidence: validationResult.overall_confidence
       }
     };
   } catch (error: any) {
-    await saveBotEvent('ERROR', `Audit Crash [${seedUrl}]: ${error.message}`);
+    await saveBotEvent('ERROR', `Loop Crash [${seedUrl}]: ${error.message}`);
     return { url: seedUrl, timestamp, status: 'failed', issuesFound: 0, scanType: 'basic', reason: error.message };
   }
+}
+
+/**
+ * Merge findings from different iterations, preferring higher confidence.
+ */
+function mergeFindings(base: Violation[], refined: Violation[]): Violation[] {
+  const merged = new Map<string, Violation>();
+  
+  base.forEach(v => merged.set(v.issue_type, v));
+  
+  refined.forEach(v => {
+    const existing = merged.get(v.issue_type);
+    if (!existing || v.confidence_score > existing.confidence_score) {
+      merged.set(v.issue_type, v);
+    }
+  });
+  
+  return Array.from(merged.values());
 }

@@ -12,7 +12,7 @@ const pool = new Pool({
 async function migrate() {
   const client = await pool.connect();
   try {
-    console.log('[Migration] Starting Senior Auditor V21.0 schema update...');
+    console.log('[Migration] Starting High-Integrity Auditor V22.0 schema update...');
     
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.bot_settings (
@@ -56,6 +56,7 @@ async function migrate() {
         attempt int,
         status varchar(50),
         findings jsonb,
+        confidence_score float DEFAULT 0.0,
         timestamp timestamp DEFAULT NOW()
       );
 
@@ -70,6 +71,7 @@ async function migrate() {
         evidence_html text,
         evidence_quote text,
         confidence_score float DEFAULT 1.0,
+        verification_status varchar(50) DEFAULT 'pending',
         snippet text,
         description text,
         explanation text,
@@ -84,11 +86,13 @@ async function migrate() {
       );
     `);
 
-    // Add new columns to existing tables if they don't exist
+    // Ensure all columns exist
     const columnsToEnsure = [
       { table: 'site_violations', name: 'evidence_quote', type: 'text', default: 'NULL' },
       { table: 'site_violations', name: 'confidence_score', type: 'float', default: '1.0' },
-      { table: 'site_violations', name: 'business_impact', type: 'text', default: 'NULL' }
+      { table: 'site_violations', name: 'verification_status', type: 'varchar(50)', default: "'pending'" },
+      { table: 'site_violations', name: 'business_impact', type: 'text', default: 'NULL' },
+      { table: 'validation_logs', name: 'confidence_score', type: 'float', default: '0.0' }
     ];
 
     for (const col of columnsToEnsure) {
@@ -105,7 +109,7 @@ async function migrate() {
       `);
     }
     
-    console.log('[Migration] Database schema is Senior Auditor V21.0 compliant.');
+    console.log('[Migration] Database schema is Auditor V22.0 compliant.');
   } catch (err) {
     console.error('[Migration] Critical Error:', err);
     process.exit(1);

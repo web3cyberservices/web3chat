@@ -4,6 +4,7 @@ export type Category = 'ADA' | 'GDPR' | 'Privacy' | 'Security' | 'AI' | 'Transac
 export type ScanType = 'basic' | 'deep';
 export type ReportType = 'SaaS' | 'Manual';
 export type VerificationMethod = 'Static Analysis' | 'Dynamic Emulation';
+export type VerificationStatus = 'pending' | 'verified' | 'insufficient_data' | 'rejected';
 
 export interface Violation {
   id?: number;
@@ -13,6 +14,7 @@ export interface Violation {
   evidence_html: string; 
   evidence_quote?: string;
   confidence_score: number;
+  verification_status?: VerificationStatus;
   snippet?: string;
   description: string;
   business_impact: string;
@@ -59,6 +61,7 @@ export interface CrawlResult {
   violations?: Violation[];
   compliance_report?: ComplianceReport;
   scanType: ScanType;
+  iteration?: number;
   error?: string;
   reason?: string;
   discoveredLinks?: string[];
@@ -70,5 +73,6 @@ export interface CrawlResult {
     hasCMP: boolean;
     legal_links: Record<string, string | null>;
     attempts: number;
+    confidence: number;
   };
 }

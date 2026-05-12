@@ -4,8 +4,8 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Legal Integrity Validator Service.
- * Verifies crawler findings against actual HTML evidence using LLM.
+ * @fileOverview Legal Data Truth Verifier.
+ * Critical auditor that examines crawler findings for hallucinations and missing facts.
  */
 
 const ValidationInputSchema = z.object({
@@ -19,8 +19,10 @@ const ValidationOutputSchema = z.object({
     confidence_score: z.number().min(0).max(1),
     evidence_quote: z.string().optional(),
     is_hallucination: z.boolean(),
-    missing_facts: z.array(z.string()).optional(),
+    verification_status: z.enum(['verified', 'insufficient_data', 'rejected']),
+    missing_facts: z.array(z.string()).optional().describe("Specific missing facts for the crawler to find in a second pass."),
   })),
+  overall_confidence: z.number().min(0).max(1),
   integrity_status: z.enum(['verified', 'incomplete', 'suspicious']),
 });
 
@@ -39,21 +41,32 @@ const verifyIntegrityFlow = ai.defineFlow(
       name: 'verifyIntegrityPrompt',
       input: { schema: ValidationInputSchema },
       output: { schema: ValidationOutputSchema },
-      prompt: `You are a Senior Legal Data Auditor. Your task is to verify if the following compliance findings are supported by the provided HTML content.
+      prompt: `You are a Senior Legal Data Auditor and Truth Verifier. 
+Your role is to act as a harsh critic and examine crawler findings against raw HTML.
 
-CRITICAL RULES:
-1. CROSS-CHECK: If a finding claims "Controller Identity Found", you MUST find the exact entity name and address in the HTML.
-2. EVIDENCE REJECTION: If a finding claims a breach but you see evidence of compliance (e.g. a link to a Privacy Policy is actually present), mark as is_hallucination: true.
-3. QUOTES: For every confirmed finding, provide the exact string of text from the HTML that serves as evidence.
-4. CONFIDENCE: 
-   - 1.0: Exact match found with clear context.
-   - 0.5: Partial match (e.g. "Berlin" found but no street address for an entity).
+TASK:
+1. EXAMINE facts (Address, Company Name, VAT ID, etc.) in the provided findings.
+2. VERIFY against HTML: 
+   - Is it a real fact or a hallucination? (e.g. "Berlin" is NOT an address. "Friedrichstraße 12, 10117 Berlin" IS an address).
+   - Is the source URL relevant?
+3. ASSIGN CONFIDENCE:
+   - 1.0: Exact, detailed match found with clear context.
+   - 0.5: Weak/partial match. 
    - 0.0: No evidence or contradictory evidence found.
+4. MARK STATUS:
+   - 'verified': High confidence (>= 0.9).
+   - 'insufficient_data': Weak evidence or missing details.
+   - 'rejected': Clearly hallucinated or contradictory.
+
+IMPORTANT:
+- DO NOT invent information.
+- Provide a clear EVIDENCE QUOTE for every verified finding.
+- If information is missing or weak, list the specific MISSING FACTS for the second crawl pass.
 
 Findings to verify:
 {{#each findings}}
-- Type: {{{issue_type}}}
-  Description: {{{description}}}
+- Article/Type: {{{issue_type}}}
+  Diagnostic Summary: {{{description}}}
 {{/each}}
 
 HTML Content Snippet:
