@@ -5,8 +5,6 @@ import {
   getNextQueueItem, 
   updateQueueStatus, 
   saveBotEvent, 
-  addToQueue, 
-  getQueueSize,
   testConnection
 } from '@/lib/db';
 import settings from '@/config/crawler-settings.json';
@@ -15,7 +13,14 @@ import { logger } from '../logger';
 
 const DEFAULT_SLEEP = settings.scanIntervalMs || 5000; 
 const IDLE_WAIT = 15000;    
-const MAX_QUEUE_LIMIT = 50000; 
+
+/**
+ * V29.0 Hardened Auditor Engine
+ * 
+ * - ABSOLUTE ISOLATION: Automated discovery and queueing of new links is DISABLED.
+ * - TARGET LOCK: Only user-defined URLs from the terminal will be audited.
+ * - SECURITY: Port 80/443 restriction is enforced at the scraper layer.
+ */
 
 // Shared state across all worker threads in this process
 const lastScanByDomain = new Map<string, number>();
@@ -25,7 +30,7 @@ async function sleep(ms: number) {
 }
 
 async function runWorker(workerId: number) {
-  logger.info(`[Worker ${workerId}] Bootstrapped and monitoring queue.`);
+  logger.info(`[Worker ${workerId}] V29.0 Bootstrapped. Monitoring targeted audits only.`);
   
   while (true) {
     try {
@@ -46,8 +51,18 @@ async function runWorker(workerId: number) {
       try {
         const url = new URL(urlStr);
         domain = url.hostname.toLowerCase();
-      } catch (e) {
-        logger.error(`[Worker ${workerId}] Invalid URL in queue: ${urlStr}`);
+        
+        // Final Security Gate: Reject raw IPs or forbidden ports
+        if (url.port && !['80', '443'].includes(url.port)) {
+          throw new Error('Forbidden port');
+        }
+        const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+        if (ipRegex.test(domain)) {
+          throw new Error('IP-based auditing forbidden');
+        }
+
+      } catch (e: any) {
+        logger.error(`[Worker ${workerId}] Access Denied for ${urlStr}: ${e.message}`);
         await updateQueueStatus(task.id, 'failed');
         continue;
       }
@@ -71,7 +86,7 @@ async function runWorker(workerId: number) {
         await sleep(wait);
       }
 
-      logger.info(`[Worker ${workerId}] Starting audit: ${domain}`);
+      logger.info(`[Worker ${workerId}] Starting targeted audit: ${domain}`);
       await saveBotEvent('START', `Compliance Scan [Worker ${workerId}]: ${domain}`);
       
       let taskStatus: 'completed' | 'failed' = 'completed';
@@ -84,16 +99,11 @@ async function runWorker(workerId: number) {
         
         if (result.status === 'failed' || result.status === 'blocked') {
           taskStatus = 'failed';
-        } else if (result.status === 'success') {
-          if (result.discoveredLinks && result.discoveredLinks.length > 0) {
-            const currentQueueSize = await getQueueSize();
-            if (currentQueueSize < MAX_QUEUE_LIMIT) {
-              for (const link of result.discoveredLinks) {
-                await addToQueue(link, task.depth + 1, 1); 
-              }
-            }
-          }
         }
+        
+        // V29.0: AUTO-DISCOVERY DISABLED. 
+        // We no longer add discoveredLinks to the queue to prevent web-crawling.
+        
       } catch (taskError: any) {
         logger.error(`[Worker ${workerId}] Task error for ${domain}: ${taskError.message}`);
         taskStatus = 'failed';
@@ -119,9 +129,9 @@ async function runWorker(workerId: number) {
 
 export async function startEngine() {
   logger.info('==================================================');
-  logger.info('   HUMANGO BOT COMPLIANCE ENGINE v2.9             ');
+  logger.info('   HUMANGO BOT COMPLIANCE ENGINE v29.0            ');
+  logger.info('   MODE: TARGETED AUDIT (DISCOVERY DISABLED)      ');
   logger.info(`   Concurrency: ${settings.maxConcurrency} parallel workers  `);
-  logger.info(`   User-Agent: ${settings.userAgent}            `);
   logger.info('==================================================');
   
   try {
@@ -129,13 +139,6 @@ export async function startEngine() {
     await saveBotEvent('SUCCESS', `Engine started with ${settings.maxConcurrency} workers.`);
   } catch (err: any) {
     logger.error(`FATAL: Database unreachable. Reason: ${err.message}`);
-    // Provide additional context for debugging
-    if (err.message.includes('ECONNREFUSED')) {
-      logger.error('Check if the database server is running and accessible.');
-    }
-    if (err.message.includes('authentication failed')) {
-      logger.error('Check your DATABASE_URL credentials.');
-    }
     return;
   }
 

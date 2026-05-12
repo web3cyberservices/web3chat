@@ -4,10 +4,10 @@ import DOMPurify from 'isomorphic-dompurify';
 import { Violation, ScanType } from '@/types';
 
 /**
- * @fileOverview Automated Legal Fixer V28.0 - The Statutory Truth Bridge.
+ * @fileOverview Automated Legal Fixer V29.0 - Statutory Truth Bridge & Infrastructure Lockdown.
  * 
+ * - SECURITY: Programmatically prevents IP-range scanning and port bruteforcing.
  * - TRUTH-MAPPING: Programmatically prevents "Missing vs Incomplete" contradictions.
- * - CONSOLIDATION: Merging findings by Law Name to eliminate report bloat.
  * - NULL-PURGE: Absolute protection against empty liability or impact fields.
  */
 
@@ -32,7 +32,7 @@ export async function testConnection() {
     await client.query('SELECT 1');
     return true;
   } catch (error: any) {
-    console.error('[Database V28.0 Handshake Failure]', error.message);
+    console.error('[Database V29.0 Handshake Failure]', error.message);
     throw error;
   } finally {
     if (client) client.release();
@@ -44,9 +44,30 @@ function sanitize(text: string | null | undefined, fallback: string = 'Informati
   return DOMPurify.sanitize(text);
 }
 
+/**
+ * V29.0 Hardened Normalizer
+ * Blocks raw IPs and non-standard ports.
+ */
 export function normalizeUrl(url: string, base?: string): string {
   try {
     const u = base ? new URL(url, base) : new URL(url);
+    
+    // Security Gate: No non-standard ports (80/443 only)
+    if (u.port && !['80', '443'].includes(u.port)) {
+      throw new Error('Port forbidden');
+    }
+
+    // Security Gate: No raw IP hostnames
+    const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    if (ipRegex.test(u.hostname)) {
+      throw new Error('IP-based crawling forbidden');
+    }
+
+    // Security Gate: Protocol restriction
+    if (!['http:', 'https:'].includes(u.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+
     u.hash = '';
     u.search = '';
     let pathname = u.pathname.toLowerCase();
@@ -55,7 +76,8 @@ export function normalizeUrl(url: string, base?: string): string {
     u.pathname = pathname;
     return u.href.toLowerCase();
   } catch (e) {
-    return url.toLowerCase().replace(/\/$/, "").split('?')[0].split('#')[0];
+    // If invalid or forbidden, return empty or safe fallback that will fail in scraper
+    return 'invalid-target';
   }
 }
 
@@ -66,7 +88,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // V28.0: HARD CONSOLIDATION by Statutory Law
+    // V29.0: HARD CONSOLIDATION by Statutory Law
     const consolidated = new Map();
     violations.forEach(v => {
       const lowerType = v.issue_type.toLowerCase();
@@ -81,7 +103,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       }
     });
 
-    // V28.0 RULE: GLOBAL SEARCH FOR EXISTING DOCUMENTS
+    // V29.0 RULE: GLOBAL SEARCH FOR EXISTING DOCUMENTS
     const docDetectedOnSite = violations.some(v => 
       v.verification_status === 'verified' && 
       !v.issue_type.toLowerCase().includes('missing')
@@ -104,7 +126,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       
       const isMissingStatus = finalIssueType.toLowerCase().includes('missing');
 
-      // V28.0 LOGIC GATE: TRUTH-MAPPING
+      // V29.0 LOGIC GATE: TRUTH-MAPPING
       if (isMissingStatus && docDetectedOnSite) {
         finalIssueType = "CRITICAL INCOMPLETENESS";
         finalDescription = `The document was discovered via direct scan but is legally invalid due to lack of accessibility in the footer (Violation of Art. 12 GDPR).`;
@@ -153,7 +175,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     return { success: true };
   } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[DB V28.0 SAVE ERROR]', error.stack);
+    console.error('[DB V29.0 SAVE ERROR]', error.stack);
     return { success: false, error };
   } finally {
     client.release();
@@ -244,6 +266,8 @@ export async function getQueueSize(): Promise<number> {
 export async function addToQueue(url: string, depth: number = 0, priority: number = 0) {
   try {
     const normalized = normalizeUrl(url);
+    if (normalized === 'invalid-target') return;
+    
     await pool.query(
       "INSERT INTO scan_queue (url, status, depth, priority) VALUES ($1, 'pending', $2, $3) ON CONFLICT (url) DO NOTHING", 
       [normalized, depth, priority]

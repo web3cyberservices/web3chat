@@ -6,12 +6,13 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Automated Legal Fixer V28.0 - Ready-to-Copy Protocol.
+ * @fileOverview Automated Legal Fixer V29.0 - Infrastructure Hardened Protocol.
  * 
  * - RULE 1: NO ADVICE. NEVER use verbs like "Provide", "Specify", or "Update".
  * - RULE 2: READY-TO-USE. You MUST invent a standard 24-month compliant clause if data is missing.
  * - RULE 3: TRUTH-FIRST. If a document URL exists, Page 1 status is INCOMPLETE, not Missing.
  * - RULE 4: DOMAIN ADAPTATION. Use the domain {{{domain}}} for all contact templates.
+ * - RULE 5: SECURITY. Report ONLY on domains, never IPs or non-standard ports.
  */
 
 const ValidationInputSchema = z.object({
@@ -41,7 +42,7 @@ const verifyIntegrityPrompt = ai.definePrompt({
   input: { schema: ValidationInputSchema },
   output: { schema: ValidationOutputSchema },
   config: { temperature: 0.1 }, 
-  prompt: `### ROLE: AUTOMATED LEGAL FIXER V28.0
+  prompt: `### ROLE: AUTOMATED LEGAL FIXER V29.0
 Target Domain: {{{domain}}}
 
 ### ABSOLUTE RULES:
@@ -75,10 +76,10 @@ export async function verifyIntegrity(html: string, findings: Violation[]) {
       domain
     });
     
-    if (!output || !output.validated_findings) throw new Error('Validator V28.0 Integrity Failure');
+    if (!output || !output.validated_findings) throw new Error('Validator V29.0 Integrity Failure');
     return output;
   } catch (error: any) {
-    console.warn('[Validator V28.0] AI fallback triggered.');
+    console.warn('[Validator V29.0] AI fallback triggered.');
     return {
       validated_findings: findings.map(f => ({
         issue_type: f.issue_type,

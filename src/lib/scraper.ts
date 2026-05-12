@@ -1,3 +1,4 @@
+
 'use server';
 
 import settings from '@/config/crawler-settings.json';
@@ -25,10 +26,40 @@ async function getExecutablePath() {
   return undefined; // Let puppeteer try to find it
 }
 
+/**
+ * V29.0 Port Validator
+ * Restricts outbound traffic to ports 80 and 443 only.
+ */
+function validateNetworkTarget(urlStr: string) {
+  try {
+    const url = new URL(urlStr);
+    
+    // Rule: Reject raw IPs
+    const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    if (ipRegex.test(url.hostname)) {
+      throw new Error('Direct IP auditing is forbidden in V29.0 architecture.');
+    }
+
+    // Rule: Reject forbidden ports (only 80/443 allowed)
+    if (url.port && !['80', '443'].includes(url.port)) {
+      throw new Error(`Port ${url.port} is blocked. Auditor only supports 80 (HTTP) and 443 (HTTPS).`);
+    }
+
+    // Rule: Protocol check
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Forbidden protocol detected.');
+    }
+  } catch (e: any) {
+    throw new Error(`[Network Guard] Access Denied: ${e.message}`);
+  }
+}
+
 async function bruteForceScrape(url: string): Promise<Partial<ScrapeResult>> {
   logger.info(`Phase BRUTEFORCE: Launching Puppeteer for ${url}`);
   let browser: any = null;
   try {
+    validateNetworkTarget(url);
+    
     const executablePath = await getExecutablePath();
     
     browser = await puppeteer.launch({
@@ -108,6 +139,8 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   let cookies: any[] = [];
 
   try {
+    validateNetworkTarget(url);
+
     // PHASE 1: SPEED (Native Fetch)
     const response = await fetch(url, {
       headers: {
