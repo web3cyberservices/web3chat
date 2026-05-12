@@ -87,28 +87,49 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    const isAuth = document.cookie.includes('admin_authenticated=true');
+    // Determine authentication state on client mount
+    const isAuth = typeof document !== 'undefined' && document.cookie.includes('admin_authenticated=true');
     setIsAuthenticated(isAuth);
   }, []);
 
   const fetchData = useCallback(async () => {
-    if (!document.cookie.includes('admin_authenticated=true')) return;
+    // Only attempt fetch if authenticated and we are in the browser
+    if (typeof document === 'undefined' || !document.cookie.includes('admin_authenticated=true')) return;
+    
     setIsRefreshing(true);
     try {
       const timestamp = Date.now();
-      const [statusRes, statsRes, logsRes] = await Promise.all([
+      // Use allSettled to prevent one failing endpoint from breaking the loop
+      const responses = await Promise.allSettled([
         fetch(`/api/admin/control?t=${timestamp}`, { cache: 'no-store' }),
         fetch(`/api/admin/stats?t=${timestamp}`, { cache: 'no-store' }),
         fetch(`/api/admin/system-logs?t=${timestamp}`, { cache: 'no-store' })
       ]);
-      if (statusRes.ok) setIsActive((await statusRes.json()).isActive);
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setMetrics({ pagesScanned: statsData.pagesScanned || 0, issuesFound: statsData.issuesFound || 0 });
+
+      const [statusRes, statsRes, logsRes] = responses;
+
+      if (statusRes.status === 'fulfilled' && statusRes.value.ok) {
+        const data = await statusRes.value.json().catch(() => ({ isActive: false }));
+        setIsActive(data.isActive);
+      }
+      
+      if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
+        const statsData = await statsRes.value.json().catch(() => ({}));
+        setMetrics({ 
+          pagesScanned: statsData.pagesScanned || 0, 
+          issuesFound: statsData.issuesFound || 0 
+        });
         setRecentIssues(statsData.recentIssues || []);
         setLastSync(new Date().toLocaleTimeString());
       }
-      if (logsRes.ok) setSystemLogs((await logsRes.json()).logs || []);
+      
+      if (logsRes.status === 'fulfilled' && logsRes.value.ok) {
+        const logsData = await logsRes.value.json().catch(() => ({ logs: [] }));
+        setSystemLogs(logsData.logs || []);
+      }
+    } catch (err) {
+      // Quietly log errors to prevent [object Event] overlay spam
+      console.warn("Dashboard sync warning:", err);
     } finally {
       setIsRefreshing(false);
       setIsLoading(false);
@@ -127,7 +148,13 @@ export default function AdminDashboard() {
     setIsHistoryLoading(true);
     try {
       const res = await fetch(`/api/admin/violations?t=${Date.now()}`, { cache: 'no-store' });
-      if (res.ok) setAllViolations((await res.json()).violations || []);
+      if (res.ok) {
+        const data = await res.json().catch(() => ({ violations: [] }));
+        setAllViolations(data.violations || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+      toast({ variant: "destructive", title: "History Sync Failed" });
     } finally {
       setIsHistoryLoading(false);
       setShowIssuesDialog(true);
@@ -135,14 +162,18 @@ export default function AdminDashboard() {
   };
 
   const handleToggleBot = async (checked: boolean) => {
-    const res = await fetch('/api/admin/control', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: checked }),
-    });
-    if (res.ok) {
-      setIsActive(checked);
-      toast({ title: checked ? "Scanning active" : "Scanning paused" });
+    try {
+      const res = await fetch('/api/admin/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: checked }),
+      });
+      if (res.ok) {
+        setIsActive(checked);
+        toast({ title: checked ? "Scanning active" : "Scanning paused" });
+      }
+    } catch (e) {
+      toast({ variant: "destructive", title: "Control Toggle Failed" });
     }
   };
 
@@ -157,10 +188,12 @@ export default function AdminDashboard() {
 
   const groupedViolations = useMemo(() => {
     const groups: Record<string, DetectedIssue[]> = {};
-    allViolations.forEach(issue => {
-      if (!groups[issue.domain]) groups[issue.domain] = [];
-      groups[issue.domain].push(issue);
-    });
+    if (Array.isArray(allViolations)) {
+      allViolations.forEach(issue => {
+        if (!groups[issue.domain]) groups[issue.domain] = [];
+        groups[issue.domain].push(issue);
+      });
+    }
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
   }, [allViolations]);
 
@@ -174,7 +207,15 @@ export default function AdminDashboard() {
             <Image src="/logo.png" alt="Logo" width={64} height={64} priority />
             <h1 className="text-2xl font-bold">Terminal Access</h1>
           </div>
-          <form onSubmit={(e) => { e.preventDefault(); if (passphrase === "humango-admin-2025") { document.cookie = "admin_authenticated=true; path=/; max-age=3600"; setIsAuthenticated(true); } }} className="space-y-4">
+          <form onSubmit={(e) => { 
+            e.preventDefault(); 
+            if (passphrase === "humango-admin-2025") { 
+              document.cookie = "admin_authenticated=true; path=/; max-age=3600; SameSite=Strict"; 
+              setIsAuthenticated(true); 
+            } else {
+              toast({ variant: "destructive", title: "Invalid Passphrase" });
+            }
+          }} className="space-y-4">
             <Input type="password" placeholder="Passphrase" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} className="bg-white/5 text-center" />
             <Button type="submit" className="w-full">Unlock</Button>
           </form>

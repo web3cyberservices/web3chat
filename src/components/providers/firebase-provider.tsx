@@ -35,8 +35,20 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Only initialize on the client
+    if (typeof window === 'undefined') return;
+
     try {
-      const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+      // Check if config is actually set or still placeholder
+      const isPlaceholder = firebaseConfig.apiKey === "placeholder-api-key";
+      
+      let firebaseApp: FirebaseApp;
+      if (getApps().length === 0) {
+        firebaseApp = initializeApp(firebaseConfig);
+      } else {
+        firebaseApp = getApps()[0];
+      }
+      
       const firebaseAuth = getAuth(firebaseApp);
       
       setApp(firebaseApp);
@@ -49,7 +61,10 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
       return () => unsubscribe();
     } catch (error) {
-      console.error("Firebase initialization failed:", error);
+      // Avoid logging browser Event objects as errors to console
+      if (error instanceof Error) {
+        console.warn("Firebase Provider initialization restricted:", error.message);
+      }
       setLoading(false);
     }
   }, []);
