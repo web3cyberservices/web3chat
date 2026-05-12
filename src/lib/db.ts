@@ -4,7 +4,7 @@ import DOMPurify from 'isomorphic-dompurify';
 import { Violation, ScanType } from '@/types';
 
 /**
- * @fileOverview Automated Legal Fixer V25.0 - The Statutory Logic Bridge.
+ * @fileOverview Automated Legal Fixer V26.0 - The Statutory Logic Bridge.
  * 
  * - TRUTH-MAPPING: Programmatically prevents "Missing vs Incomplete" contradictions.
  * - CONSOLIDATION: Merging findings by Law Name to eliminate report bloat.
@@ -32,14 +32,14 @@ export async function testConnection() {
     await client.query('SELECT 1');
     return true;
   } catch (error: any) {
-    console.error('[Database V25.0 Handshake Failure]', error.message);
+    console.error('[Database V26.0 Handshake Failure]', error.message);
     throw error;
   } finally {
     if (client) client.release();
   }
 }
 
-function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V25.0 Diagnostic.'): string {
+function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V26.0 Diagnostic.'): string {
   if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
   return DOMPurify.sanitize(text);
 }
@@ -66,7 +66,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // V25.0: HARD CONSOLIDATION by Statutory Law to prevent duplicates
+    // V26.0: HARD CONSOLIDATION by Statutory Law to prevent duplicates
     const consolidated = new Map();
     violations.forEach(v => {
       const lowerType = v.issue_type.toLowerCase();
@@ -93,20 +93,20 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of consolidated.values()) {
-      // RULE: V25.0 - HARD LOGIC BRIDGE (TRUTH-MAPPING)
+      // RULE: V26.0 - HARD LOGIC BRIDGE (TRUTH-MAPPING)
       // If a document was actually found via any URL, we FORBID the "Missing" status.
       let finalIssueType = v.issue_type;
       let finalDescription = v.description;
       
-      const isPrivacyDetected = violations.some(v => v.issue_type.toLowerCase().includes('privacy') && v.verification_status === 'verified');
+      const isDocDetected = consolidated.has('Art. 13-Retention') || consolidated.has('Art. 13(1)(a)') || violations.some(v => v.verification_status === 'verified' && !v.issue_type.toLowerCase().includes('missing'));
       const isMissingStatus = finalIssueType.toLowerCase().includes('missing');
 
-      if (isMissingStatus && isPrivacyDetected) {
+      if (isMissingStatus && isDocDetected) {
         finalIssueType = "CRITICAL INCOMPLETENESS";
         finalDescription = `The document was successfully discovered via direct scan, but it is legally invalid because it is hidden from your website footer. Statutory law requires clear, persistent access to these disclosures.`;
       }
 
-      // V25.0 Mandatory Liability & Impact Fallbacks
+      // V26.0 Mandatory Liability & Impact Fallbacks
       const standardLiability = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account suspension (Meta/Google).";
       const standardImpact = "Business Risk: Immediate loss of marketing ROI as Meta, Google, and LinkedIn require valid statutory compliance signals to run active campaigns.";
       
@@ -132,7 +132,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(finalIssueType),
         v.severity,
         sanitize(v.evidence_html || url),
-        sanitize(v.evidence_quote, "Verified via Senior Auditor V25.0 Diagnostic."),
+        sanitize(v.evidence_quote, "Verified via Senior Auditor V26.0 Diagnostic."),
         v.confidence_score || 0.8,
         v.verification_status || 'verified',
         sanitize(finalDescription), 
@@ -150,7 +150,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     return { success: true };
   } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[DB V25.0 SAVE ERROR]', error.stack);
+    console.error('[DB V26.0 SAVE ERROR]', error.stack);
     return { success: false, error };
   } finally {
     client.release();
