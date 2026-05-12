@@ -15,7 +15,6 @@ export async function GET(request: Request) {
 
   let browser: any = null;
   try {
-    // Dynamic column check to prevent 500 errors
     const colCheck = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'site_violations'`);
     const cols = colCheck.rows.map(r => r.column_name);
     
@@ -32,7 +31,7 @@ export async function GET(request: Request) {
         ${hasFine ? 'fine_amount' : "'' as fine_amount"}, 
         ${hasLaw ? 'law_name' : "'GDPR' as law_name"}, 
         ${hasRec ? 'recommendation' : "'Remediation required' as recommendation"},
-        ${hasMethod ? 'verification_method' : "'Static' as verification_method"}
+        ${hasMethod ? 'verification_method' : "'Static Analysis' as verification_method"}
       FROM site_violations 
       WHERE domain = $1 
       ORDER BY severity DESC, created_at DESC
@@ -40,10 +39,10 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
-    // MANDATORY MERGE LOGIC: Group by Issue Type and Law Name to prevent duplicate pages
+    // DE-DUPLICATION LAYER: Group by Issue Type and Law Name
     const groupedViolations: Record<string, any> = {};
     res.rows.forEach(row => {
-      // Create a unique key for the violation type
+      // Group by Issue Type and Law to ensure absolute de-duplication
       const key = `${(row.issue_type || '').trim().toUpperCase()}_${(row.law_name || '').trim().toUpperCase()}`;
       
       if (!groupedViolations[key]) {
@@ -53,17 +52,17 @@ export async function GET(request: Request) {
         };
       } else {
         groupedViolations[key].affected_urls.add(row.page_url);
-        // If findings came from different methods, mark as Hybrid
+        // If found by both methods, mark as Hybrid
         if (groupedViolations[key].verification_method !== row.verification_method) {
             groupedViolations[key].verification_method = 'Hybrid (Dynamic + Static)';
         }
       }
     });
 
-    // Safety Limit: Show top 5 most critical violation groups to prevent 500 errors/timeouts
+    // Safety Limit: Limit to top 5 most critical violation groups to prevent resource overloads
     const finalViolations = Object.values(groupedViolations).slice(0, 5);
-    const legalGroundsIssues = finalViolations.filter(v => v.category === 'LEGAL_GROUNDS');
     const coreViolations = finalViolations.filter(v => v.category !== 'LEGAL_GROUNDS');
+    const legalGroundsIssues = finalViolations.filter(v => v.category === 'LEGAL_GROUNDS');
 
     let logoBase64 = '';
     try {
@@ -141,7 +140,7 @@ export async function GET(request: Request) {
 
               <span class="label">Remediation Blueprint</span>
               <div style="background:#ecfdf5; border:1px solid #d1fae5; padding:15px; border-radius:8px; color:#065f46; font-size:11px">
-                <strong>Corrective Action:</strong> ${item.recommendation}
+                <strong>Remediation Strategy:</strong> ${item.recommendation}
               </div>
             </div>
           </div>
@@ -158,10 +157,10 @@ export async function GET(request: Request) {
               <div class="violation-body">
                 <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
                 
-                <span class="label">Grounds Audit Result</span>
+                <span class="label">Purpose-to-Basis Mapping Diagnostic</span>
                 <div style="font-size:12px; margin-bottom:15px">${item.explanation}</div>
                 
-                <span class="label">Statutory Compliance (Art. 13(1)(c) / (d))</span>
+                <span class="label">Statutory Accountability (Art. 13(1)(c))</span>
                 <div style="font-size:11px; font-weight:bold; margin-bottom:15px; color:#0f172a">${item.law_name}</div>
                 
                 <span class="label">Liability Mapping</span>
@@ -183,7 +182,7 @@ export async function GET(request: Request) {
 
         <div class="footer">
           <div>
-            &copy; ${new Date().getFullYear()} Humango Limited • London • Policy v1.6<br>
+            &copy; ${new Date().getFullYear()} Humango Limited • London • Policy v1.8<br>
             Verification & Legal Inquiries: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
           </div>
           ${logoBase64 ? `<img src="${logoBase64}" style="width:30px; opacity:0.3">` : ''}

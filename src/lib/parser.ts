@@ -157,11 +157,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
               issue_type: `Incomplete Disclosure: ${cluster.name}`,
               severity: 'low',
               evidence_html: url,
-              description: `Status: FOUND (Footer) / MISSING (Policy Text). Information regarding the Data Controller was detected in the website footer but is missing from the core Privacy Policy document.`,
+              description: `Status: Present in footer. Verification: Identity details were detected in the website footer during dynamic emulation.`,
               law_name: cluster.law,
               potential_fine: LIABILITY_DATABASE[doc.category],
-              explanation: `Art. 13 GDPR mandates clear and accessible disclosure. While found in the footer, best practices require duplication inside the policy body.`,
-              recommendation: `Detected in footer; however, Art. 13 transparency requires inclusion within the document body for full statutory compliance.`,
+              explanation: `Art. 13 GDPR mandates explicit disclosure. While present in the footer, best practices and statutory transparency standards require inclusion inside the policy body.`,
+              recommendation: `Status: Present in footer. Requirement: To meet Article 13 transparency standards, you must also include this identity information directly within the Privacy Policy text.`,
               verification_method
             });
           } else if (!clusterFound) {
@@ -175,7 +175,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
               law_name: cluster.law,
               potential_fine: LIABILITY_DATABASE[doc.category],
               explanation: `${cluster.law} mandates explicit disclosure regarding the identity and contact details of the controller.`,
-              recommendation: `Corrective Action (Art. 13 Compliance): Append the full legal name and physical address of the data controller.`,
+              recommendation: `Corrective Action (Art. 13 Compliance): Append the full legal name and physical address of the data controller to the policy body.`,
               verification_method
             });
           }
@@ -215,36 +215,16 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
           violations.push({
             category: 'LEGAL_GROUNDS',
             report_type: 'SaaS',
-            issue_type: `LACK OF EXPLICIT LEGAL BASES (Art. 13(1)(c))`,
+            issue_type: `Missing Correlation: Purpose vs Legal Basis`,
             severity: 'critical',
             evidence_html: foundUrl,
-            description: `The website performs operations including ${missingActivities.join(', ')} but fails to explicitly link these activities to an Art. 6 legal basis.`,
+            description: `CRITICAL: Missing Correlation between Processing Purpose and Legal Basis (Art. 13(1)(c)). The website performs activities like ${missingActivities.join(', ')} but fails to explicitly link them to an Article 6 legal basis.`,
             law_name: 'Art. 13(1)(c) GDPR',
             potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
-            explanation: `Art. 13(1)(c) requires disclosure of the purposes of processing as well as the legal basis for that processing. Processing activities like 'Analyzing usage' or 'Fraud prevention' must be explicitly linked to Art. 6(1)(f) (Legitimate Interests) or Art. 6(1)(a) (Consent).`,
-            recommendation: `Explicitly state the legal basis for each processing activity. Recommendation: State that operations like ${missingActivities[0] || 'Analytics'} are based on Art. 6(1)(f) (Legitimate Interests).`,
+            explanation: `Art. 13(1)(c) requires disclosure of the purposes of processing as well as the legal basis for that processing. Processing activities like 'Analyzing usage' must be explicitly linked to Art. 6(1)(f) (Legitimate Interests).`,
+            recommendation: `Explicitly state the legal basis for each processing activity. Example: State that 'Analyzing usage' is based on Art. 6(1)(f) (Legitimate Interests).`,
             verification_method
           });
-        }
-
-        // Legitimate Interests Specification (Art. 13(1)(d))
-        if (/legitimate interest|berechtigtes interesse/i.test(fullText)) {
-          const describesInterest = /interests pursued by/i.test(fullText) || /following legitimate interests/i.test(fullText) || /our interest in/i.test(fullText);
-          if (!describesInterest) {
-            violations.push({
-              category: 'LEGAL_GROUNDS',
-              report_type: 'SaaS',
-              issue_type: `Failure to specify Legitimate Interests`,
-              severity: 'high',
-              evidence_html: foundUrl,
-              description: `Legitimate Interest used as legal basis, but specific interests are not described.`,
-              law_name: 'Art. 13(1)(d) GDPR',
-              potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
-              explanation: `Art. 13(1)(d) requires disclosure of the specific interests pursued when processing under Art. 6(1)(f).`,
-              recommendation: `Corrective Action: Describe the specific legitimate interests (e.g., system security, service optimization) pursued by the controller.`,
-              verification_method
-            });
-          }
         }
       }
     }
