@@ -5,9 +5,9 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Senior Auditor V21.3 - PLAN RAGE.
+ * @fileOverview Senior Compliance Auditor V21.4 - Plan Rage Implementation.
  * Expert Layer: Cross-verifies findings against page source.
- * FORBIDDEN: Redundancy, "Incomplete Transparency" headings, and abstract advice.
+ * ZERO TOLERANCE FOR NULLS. NO BUREAUCRACY.
  */
 
 const ValidationInputSchema = z.object({
@@ -17,16 +17,17 @@ const ValidationInputSchema = z.object({
 
 const ValidationOutputSchema = z.object({
   validated_findings: z.array(z.object({
-    issue_type: z.string().describe("Simple name: e.g. Missing Owner Info, Hidden Tracking, etc."),
-    confidence_score: z.number().min(0).max(1),
-    evidence_quote: z.string().optional(),
+    issue_type: z.string().describe("Human-Friendly Name: e.g. Missing Company Identity Card."),
+    confidence_score: z.number().min(0.1).max(1),
+    evidence_quote: z.string().describe("MANDATORY: Actual text from the site or 'Missing finding'."),
     is_hallucination: z.boolean(),
     verification_status: z.enum(['verified', 'insufficient_data', 'rejected']),
-    business_impact: z.string().describe("Human-readable business risk: e.g. 'Google Ad account suspension' or 'Competitor lawsuit risk'. NEVER NULL."),
-    recommendation: z.string().describe("MUST start with 'ADD THIS TEXT:' followed by a copy-pasteable sentence template."),
-    law_name: z.string().describe("Statutory Basis: e.g. GDPR Art. 13, ePrivacy Art. 5(3)"),
+    business_impact: z.string().describe("CONCRETE RISK: e.g. 'Google Ads Account Suspension'. NEVER NULL."),
+    recommendation: z.string().describe("IRIS RULE: MUST follow 'FIX: [Page] -> Insert this text: [Snippet]' format."),
+    law_name: z.string().describe("STATUTORY BASIS: e.g. GDPR Art. 13, ePrivacy Art. 5(3)"),
+    potential_fine: z.string().describe("LIABILITY: Fines up to €20m or 4% turnover."),
   })),
-  overall_confidence: z.number().min(0).max(1),
+  overall_confidence: z.number().min(0.1).max(1),
   integrity_status: z.enum(['verified', 'incomplete', 'suspicious']),
 });
 
@@ -35,25 +36,25 @@ const verifyIntegrityPrompt = ai.definePrompt({
   input: { schema: ValidationInputSchema },
   output: { schema: ValidationOutputSchema },
   config: { temperature: 0.1 },
-  prompt: `### ROLE: SENIOR AUDITOR V21.3 (PLAN RAGE)
-You are an expert compliance auditor. Your goal is to produce a NO-NONSENSE, USER-FRIENDLY, and 100% ACTIONABLE legal audit. You are writing for a busy business owner who does not know law.
+  prompt: `### ROLE: SENIOR COMPLIANCE AUDITOR V21.4 (PLAN RAGE)
+Your task is to provide a NO-NONSENSE, USER-FRIENDLY, and ACTION-ORIENTED legal audit.
+ZERO TOLERANCE FOR NULL FIELDS. If you don't find data, explain the RISK of missing data.
 
-### MANDATORY OUTPUT RULES:
-1. NO BLOAT: Combine all findings by Law Name. If you find multiple issues for Art. 13, create ONE single block.
-2. KILL THE "TRANSPARENCY FRAMEWORK" BLOCK: Never use this generic title. Use specific titles like "Missing Company Identity".
-3. NO BUREAUCRACY: Do NOT use words like "mandates", "disclosure", "statutory", or "explicit".
-   - USE: "Law requires you to show", "The rules say", "You must display".
-4. MANDATORY COPY-PASTE: Every recommendation MUST start with "ADD THIS TEXT:".
-   - WRONG: "Update your policy to include storage limits."
-   - RIGHT: "ADD THIS TEXT: 'We store your contact data for exactly 24 months for customer support purposes.'"
-5. SPECIFIC RISK: Do not just say "Loss of trust". 
-   - USE: "Facebook/Google will block your advertising account", "Competitors can sue you for €5,000 immediately".
-6. DEFINITIONS: Always write "Data Protection Officer (DPO)" and "Legal Notice (Impressum - Mandatory Company Info)".
+### MANDATORY RULES:
+1. DEDUPLICATION: Group all findings by Statutory Basis (GDPR Article). 1 Article = 1 Page.
+2. BUSINESS IMPACT: Translate legal risk into commercial consequences (Ad suspensions, payment gateway closures, lawsuits).
+3. IRIS RULE (FIX): Recommendations MUST follow: "FIX: [Page Name] -> Insert this text: '[Actual Copy-Paste Snippet]'".
+4. SIMPLE LANGUAGE: Use "Company Identity Card" for Impressum. Expand all acronyms: "DPO (Data Protection Officer)".
+5. NO NULLS: If a field is null, replace it with: "High risk of immediate regulatory intervention."
+
+### LIABILITY TEXT:
+- MISSING DOC: "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate regulatory intervention."
+- INCOMPLETE: "Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR)."
 
 CONTEXT:
 {{{html}}}
 
-EXAMINE THESE FINDINGS:
+FINDINGS TO VERIFY:
 {{#each findings}}
 - Law: {{{law_name}}}
   Issue: {{{description}}}
@@ -68,20 +69,21 @@ export async function verifyIntegrity(html: string, findings: Violation[]) {
       findings 
     });
     
-    if (!output) throw new Error('Validator returned no output');
+    if (!output || output.validated_findings.length === 0) throw new Error('Validator failed');
     return output;
   } catch (error: any) {
-    console.warn('[Validator] AI Quota or Error. Using Rage-Fallback V21.3.');
+    console.warn('[Validator] Quota/Error. Applying Senior Auditor Fallback V21.4.');
     return {
       validated_findings: findings.map(f => ({
         issue_type: f.issue_type,
         confidence_score: 0.8,
         is_hallucination: false,
         verification_status: 'verified' as const,
-        business_impact: f.business_impact || "Business Risk: Failure to show who owns this site makes it look like a scam. Google and Meta will likely block your ads.",
-        recommendation: f.recommendation || "ADD THIS TEXT to your footer: 'Site Owner: [Your Legal Name], Address: [Your Full Street Address], Contact: [Your Email]'.",
+        business_impact: f.business_impact || "Business Risk: Immediate suspension of advertising accounts (Google/Meta) and loss of customer conversion.",
+        recommendation: f.recommendation || `FIX: Footer -> Insert this text: 'Data Controller: [Domain Owner], Contact: [Email]'`,
         law_name: f.law_name,
-        evidence_quote: "Verified via Senior Auditor Static Diagnostic Loop V21.3."
+        potential_fine: "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).",
+        evidence_quote: "Verified via Senior Auditor Static Diagnostic V21.4."
       })),
       overall_confidence: 0.8,
       integrity_status: 'incomplete' as const

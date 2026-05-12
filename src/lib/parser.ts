@@ -1,7 +1,8 @@
 import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, VerificationMethod } from '@/types';
 
-const LIABILITY_STANDARD = 'Potential Fine: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)';
+const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate regulatory intervention.";
+const LIABILITY_HIGH = "Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).";
 
 interface JurisdictionProfile {
   name: string;
@@ -91,15 +92,15 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     violationMap.set('Art. 13', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'MISSING COMPANY IDENTITY INFO',
+      issue_type: 'MISSING PRIVACY INFRASTRUCTURE',
       severity: 'critical',
       evidence_html: url,
-      description: `The site does not show a Privacy Policy. The law requires you to show who collects user data.`,
-      business_impact: 'Business Risk: Identity Crisis. Without a clear owner, users will not trust your checkout or forms. Google Ads will likely block your domain.',
+      description: `The website lacks a mandatory Privacy Statement required for legal data processing.`,
+      business_impact: 'Business Risk: Immediate suspension of advertising accounts (Google Ads, Meta Ads) and total loss of marketing tracking capability.',
       law_name: profile.law,
-      potential_fine: LIABILITY_STANDARD,
-      explanation: 'You must inform users who you are and why you collect data. This is a basic rule for doing business in the EU.',
-      recommendation: `ADD THIS TEXT to your website footer: 'Data Controller: ${hostname}, Registered Address: [Your Full Office Address], Contact: [Support Email]'.`,
+      potential_fine: LIABILITY_CRITICAL,
+      explanation: 'GDPR Art. 13 requires companies to inform users of who owns the website and how data is handled before collection begins.',
+      recommendation: `FIX: Footer -> Insert this text: 'Privacy Policy: [Link to Document], Data Controller: ${hostname}, Contact: support@${hostname}'`,
       verification_method
     });
   }
@@ -110,51 +111,51 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     violationMap.set('Art. 13(1)(a)', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'HIDDEN BUSINESS OWNERSHIP',
+      issue_type: 'ANONYMOUS DATA CONTROLLER',
       severity: 'high',
       evidence_html: url,
-      description: 'The official registered name and address of your business are missing.',
-      business_impact: 'Business Risk: Lawsuit Target. Competitors can report you to the authorities for being an anonymous/unregulated entity, leading to fines.',
+      description: 'The website operator identity (registered name and street address) is missing or obscured.',
+      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) suspension due to identity verification failure.',
       law_name: 'Art. 13(1)(a) GDPR',
-      potential_fine: LIABILITY_STANDARD,
-      explanation: 'The law requires you to show your official registered name and a physical street address where you can be reached.',
-      recommendation: "ADD THIS TEXT to your 'Contact' page: '[Full Legal Company Name], Registered at [Full Street Address, City, Zip Code]'.",
+      potential_fine: LIABILITY_HIGH,
+      explanation: 'Statutory rules require a physical street address and registered entity name for commercial accountability.',
+      recommendation: `FIX: Contact Page -> Insert this text: 'Official Operator: [Your Legal Entity Name], Registered Address: [Your Full Street Address]'`,
       verification_method
     });
   }
 
-  // RULE 3: Statutory Legal Notice (Impressum)
+  // RULE 3: Company Identity Card (Impressum)
   if (profile.requireImpressum && !links.impressum && !profile.excluded_checks.includes('impressum_check')) {
     violationMap.set('TDDG', {
       category: 'IMPRESSUM',
       report_type: 'SaaS',
-      issue_type: 'MISSING STATUTORY LEGAL NOTICE (IMPRESSUM)',
+      issue_type: 'MISSING COMPANY IDENTITY CARD (IMPRESSUM)',
       severity: 'critical',
       evidence_html: url,
-      description: `Missing "Impressum" (Legal Notice). This is a mandatory identity card for your business.`,
-      business_impact: 'Business Risk: Immediate Legal Warning. In Germany, lawyers actively sue websites that miss an Impressum, costing you €2,000+ per incident.',
+      description: `Missing mandatory "Impressum" Legal Notice required for commercial transparency in the EU.`,
+      business_impact: 'Business Risk: Legal "Abmahnung" (Cease and Desist) risk from EU competitors. Direct vulnerability to specialized litigation bots.',
       law_name: profile.law.includes('TDDG') ? '§ 5 TDDG (Germany)' : 'Commercial Transparency Act',
-      potential_fine: LIABILITY_STANDARD,
-      explanation: 'In the EU, every commercial site must have an Impressum listing the owner, VAT ID, and managing directors.',
-      recommendation: "ADD THIS TEXT to a new 'Legal Notice' page: 'Managing Directors: [Names], VAT ID: [Your ID], Registration Court: [City]'.",
+      potential_fine: LIABILITY_CRITICAL,
+      explanation: 'Every commercial website in jurisdictions like Germany must have an Impressum listing the owner and VAT ID.',
+      recommendation: `FIX: Legal Notice Page -> Insert this text: 'Managing Director: [Names], VAT ID: [Your ID], Registration: [City/Court]'`,
       verification_method
     });
   }
 
-  // RULE 4: Cookies & Tracking (ePrivacy)
+  // RULE 4: ePrivacy & Cookies (Art. 5(3))
   if (!fullHtmlLower.includes('cookie') && !fullHtmlLower.includes('tracking')) {
     violationMap.set('ePrivacy', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'ILLEGAL COOKIE TRACKING',
+      issue_type: 'UNAUTHORIZED TRACKING (ePRIVACY)',
       severity: 'medium',
       evidence_html: url,
-      description: 'The site sets tracking cookies without getting user permission first.',
-      business_impact: 'Business Risk: Facebook Pixel Block. Meta and Google now require explicit "Consent Mode v2". Without it, your tracking and ad optimization will fail.',
-      law_name: 'ePrivacy Directive Art. 5(3)',
-      potential_fine: LIABILITY_STANDARD,
-      explanation: 'The law says you must ask for permission before using any non-essential cookies or tracking pixels.',
-      recommendation: "ADD THIS TEXT to your cookie banner: 'We use tracking cookies to improve your experience. We store this consent for 12 months.'",
+      description: 'The website sets tracking scripts without acquiring statutory user consent first.',
+      business_impact: 'Business Risk: Total loss of marketing ROI as Meta and Google now require explicit "Consent Mode v2" for tracking.',
+      law_name: 'ePrivacy Directive Art. 5(3) & Art. 7 GDPR',
+      potential_fine: LIABILITY_HIGH,
+      explanation: 'Legal consent is strictly required before setting any non-essential cookies or tracking pixels.',
+      recommendation: `FIX: Cookie Banner -> Insert this text: 'We use cookies to analyze traffic. We store your choice for exactly 12 months.'`,
       verification_method
     });
   }
