@@ -32,7 +32,12 @@ export async function GET(request: NextRequest) {
       FROM site_violations 
       WHERE domain = $1 
       ORDER BY 
-        severity DESC,
+        CASE severity 
+          WHEN 'critical' THEN 1 
+          WHEN 'high' THEN 2 
+          WHEN 'medium' THEN 3 
+          ELSE 4 
+        END ASC,
         created_at ASC
     `, [domain]);
 
@@ -40,7 +45,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
     }
 
-    // CONSOLIDATION: Group by GDPR Article / Law Name
+    // HARD MERGE: Consolidate by Law Name / Article
     const consolidated = new Map();
     res.rows.forEach(row => {
       const key = row.law_name; 
@@ -97,11 +102,12 @@ export async function GET(request: NextRequest) {
 
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
           <h1 style="font-size:20px; color:#0f172a; margin:0 0 8px 0; font-weight:800">Executive Statutory Diagnostic</h1>
-          <p style="color:#64748b; margin:0; font-size:10px">Statutory compliance verification regarding transparency frameworks and processing operations.</p>
+          <p style="color:#64748b; margin:0; font-size:10px">Official regulatory audit regarding statutory transparency and processing operations.</p>
           <div class="term-box">
-            <strong>Verification Methodology Explained:</strong><br>
-            • <strong>Static Analysis (Code Audit):</strong> Rapid structural verification of source code, HTTP headers, and footer elements.<br>
-            • <strong>Dynamic Emulation (Live Test):</strong> Deep rendering of JavaScript-heavy components and interaction simulation to detect hidden tracking behavior.
+            <strong>Verification Methodology Glossary:</strong><br>
+            • <strong>Static Analysis:</strong> Rapid structural verification of source code and HTTP headers.<br>
+            • <strong>Dynamic Emulation:</strong> Live test simulating user interaction to detect hidden tracking scripts.<br>
+            • <strong>DPO:</strong> Data Protection Officer - Mandatory role for overseeing data protection strategy.
           </div>
         </div>
 
@@ -116,14 +122,14 @@ export async function GET(request: NextRequest) {
                 <span class="risk-badge">${v.severity.toUpperCase()} RISK</span>
               </div>
               <div class="violation-body">
-                <span class="label">STATUTORY DEFINITION</span>
+                <span class="label">STATUTORY BASIS</span>
                 <div style="font-weight:800; font-size:10px; color:#0f172a">${v.law_name}</div>
                 <div style="color: #475569; font-size: 9px; margin-top: 5px;">${v.explanation}</div>
 
                 <span class="label">DIAGNOSTIC DESCRIPTION</span>
                 <div style="color:#334155; font-size:10px;">${v.description}</div>
 
-                <span class="label">BUSINESS IMPACT (RISK TO OPERATIONS)</span>
+                <span class="label">BUSINESS IMPACT</span>
                 <div class="impact-box">${v.business_impact}</div>
 
                 <span class="label">ADMINISTRATIVE LIABILITY</span>
@@ -138,7 +144,7 @@ export async function GET(request: NextRequest) {
                 <div class="action-box">${v.recommendation}</div>
                 
                 <div style="margin-top:15px; font-size:7px; color:#94a3b8; text-transform:uppercase;">
-                  Verification: ${v.verification_method} | Mode: Statutory Hard Merge
+                  Verification: ${v.verification_method} | Statutory Mode: Strict
                 </div>
               </div>
             </div>
@@ -146,14 +152,13 @@ export async function GET(request: NextRequest) {
         }).join('')}
 
         <div class="term-box" style="margin-top:40px; background:#fff">
-           <strong>Terms Glossary:</strong><br>
-           • <strong>Data Protection Officer (DPO):</strong> The mandatory expert role responsible for overseeing an organization's data protection strategy.<br>
-           • <strong>Statutory Legal Notice (Impressum):</strong> A mandatory transparency disclosure required for commercial websites in many EU jurisdictions (e.g., Germany, Austria) identifying the company ownership and registered office.<br>
-           • <strong>Data Subject Rights:</strong> Mandatory rights granted to individuals (Access, Erasure, Rectification) that must be explicitly listed in your policy.
+           <strong>Terms Explained:</strong><br>
+           • <strong>Statutory Legal Notice (Impressum):</strong> A mandatory transparency disclosure identifying company ownership, required for commercial sites in many EU jurisdictions (e.g., Germany).<br>
+           • <strong>Data Subject Rights:</strong> Rights granted to individuals (Access, Erasure, Rectification) that must be explicitly listed in your policy.
         </div>
 
         <div class="footer-note">
-          Confidential Audit &bull; Humango Compliance Audit Engine &bull; Statutory V21.1
+          Confidential Audit &bull; Humango Compliance Audit Engine &bull; Senior Auditor V21.1
         </div>
       </body>
       </html>

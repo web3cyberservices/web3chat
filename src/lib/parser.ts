@@ -11,8 +11,8 @@ interface JurisdictionProfile {
   lang: string;
   localGdprTerm: string;
   requireImpressum: boolean;
+  excluded_checks: string[];
   entitySuffixes: RegExp[];
-  phonePrefixes: string[];
 }
 
 const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
@@ -22,9 +22,9 @@ const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
     authority: 'BfDI', 
     lang: 'German', 
     requireImpressum: true, 
+    excluded_checks: [],
     localGdprTerm: 'DSGVO',
-    entitySuffixes: [/GmbH/i, /AG/i, /e\.V\./i, /UG/i, /GmbH & Co\. KG/i],
-    phonePrefixes: ['+49', '0049']
+    entitySuffixes: [/GmbH/i, /AG/i, /e\.V\./i, /UG/i, /GmbH & Co\. KG/i]
   },
   'FR': { 
     name: 'France',
@@ -32,9 +32,9 @@ const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
     authority: 'CNIL', 
     lang: 'French', 
     requireImpressum: false, 
+    excluded_checks: ['impressum_check'],
     localGdprTerm: 'RGPD',
-    entitySuffixes: [/SAS/i, /SARL/i, /SA/i, /EI/i],
-    phonePrefixes: ['+33', '0033']
+    entitySuffixes: [/SAS/i, /SARL/i, /SA/i, /EI/i]
   },
   'PL': { 
     name: 'Poland',
@@ -42,9 +42,9 @@ const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
     authority: 'UODO', 
     lang: 'Polish', 
     requireImpressum: false, 
+    excluded_checks: ['impressum_check'], // PL Override
     localGdprTerm: 'RODO',
-    entitySuffixes: [/Sp\. z o\.o\./i, /S\.A\./i, /Sp\.k\./i, /S\.K\.A\./i],
-    phonePrefixes: ['+48', '0048']
+    entitySuffixes: [/Sp\. z o\.o\./i, /S\.A\./i, /Sp\.k\./i, /S\.K\.A\./i]
   },
   'DEFAULT': { 
     name: 'European Union',
@@ -52,44 +52,16 @@ const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
     authority: 'Data Protection Authority', 
     lang: 'English', 
     requireImpressum: false, 
+    excluded_checks: [],
     localGdprTerm: 'GDPR',
-    entitySuffixes: [/Limited/i, /Ltd/i, /LLC/i, /PLC/i],
-    phonePrefixes: []
+    entitySuffixes: [/Limited/i, /Ltd/i, /LLC/i, /PLC/i]
   }
 };
 
 const DOC_KEYWORDS: Record<string, RegExp[]> = {
-  privacy: [
-    /privacy/i, /datenschutz/i, /confidentialit/i, /privacidad/i, /trattamento/i, 
-    /privacyverklaring/i, /polityka prywatno/i, /rodo/i, /tietosuojaseloste/i, 
-    /integritetspolicy/i, /zásady ochrany/i, /privatlivspolitik/i, /privatumo politika/i
-  ],
-  impressum: [
-    /impressum/i, /legal notice/i, /mentions l/i, /aviso legal/i, /note legali/i, 
-    /rechtliche hinweise/i, /mentions légales/i, /colofon/i, /aviso legal/i
-  ]
+  privacy: [/privacy/i, /datenschutz/i, /confidentialit/i, /privacidad/i, /trattamento/i, /rodo/i],
+  impressum: [/impressum/i, /legal notice/i, /mentions l/i, /aviso legal/i]
 };
-
-const PROCESSING_PURPOSES = [
-  { id: 'analytics', name: 'Usage Analysis & Optimization', keywords: [/analytics/i, /tracking/i, /analyse/i, /analityka/i, /pixels/i, /matomo/i, /hotjar/i], defaultBasis: 'Art. 6(1)(f)' },
-  { id: 'security', name: 'Security & Fraud Prevention', keywords: [/fraud/i, /security/i, /s[ée]curit[ée]/i, /oszustwom/i, /firewall/i], defaultBasis: 'Art. 6(1)(f)' },
-  { id: 'marketing', name: 'Direct Marketing & Advertising', keywords: [/marketing/i, /advertising/i, /publicit[ée]/i, /publicidad/i, /adsense/i], defaultBasis: 'Art. 6(1)(a)' },
-  { id: 'support', name: 'Customer Support & Contact', keywords: [/support/i, /contact/i, /kontakt/i, /hilfe/i], defaultBasis: 'Art. 6(1)(b)' }
-];
-
-function detectJurisdiction(html: string, url: string, userInput?: string): JurisdictionProfile {
-  if (userInput && JURISDICTION_CONFIG[userInput.toUpperCase()]) {
-    return JURISDICTION_CONFIG[userInput.toUpperCase()];
-  }
-  const fullText = html.substring(0, 50000);
-  const hostname = new URL(url).hostname;
-  for (const [code, profile] of Object.entries(JURISDICTION_CONFIG)) {
-    if (profile.entitySuffixes.some(s => s.test(fullText))) return profile;
-  }
-  const tld = hostname.split('.').pop()?.toUpperCase();
-  if (tld && JURISDICTION_CONFIG[tld]) return JURISDICTION_CONFIG[tld];
-  return JURISDICTION_CONFIG.DEFAULT;
-}
 
 export function parseHtmlContent(html: string, url: string, headers: any = {}, screenshot?: string, isPuppeteer: boolean = false, userInputCountry?: string): {
   violations: Violation[],
@@ -99,202 +71,98 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
 } {
   const $ = cheerio.load(html);
   const verification_method: VerificationMethod = isPuppeteer ? 'Dynamic Emulation' : 'Static Analysis';
-  const profile = detectJurisdiction(html, url, userInputCountry);
-  const links: Record<string, string | null> = { impressum: null, privacy: null };
   
+  // Jurisdiction Detection
+  const hostname = new URL(url).hostname;
+  const tld = hostname.split('.').pop()?.toUpperCase();
+  const profile = JURISDICTION_CONFIG[userInputCountry?.toUpperCase() || tld || ''] || JURISDICTION_CONFIG.DEFAULT;
+
+  const links: Record<string, string | null> = { impressum: null, privacy: null };
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href') || '';
-    if (!href || href.startsWith('javascript:') || href.startsWith('#')) return;
     if (DOC_KEYWORDS.privacy.some(k => k.test(text))) links.privacy = href;
     if (DOC_KEYWORDS.impressum.some(k => k.test(text))) links.impressum = href;
   });
 
   const violationMap = new Map<string, Violation>();
   const fullHtmlLower = html.toLowerCase();
-  const footerText = $('footer').text().toLowerCase();
 
-  const reportedArticles = new Set<string>();
-
-  // 1. SYSTEMIC TRANSPARENCY (Art. 13)
-  if (!links.privacy && !fullHtmlLower.includes('privacy policy') && !fullHtmlLower.includes(profile.localGdprTerm.toLowerCase())) {
-    const article = 'Art. 13';
-    if (!reportedArticles.has(article)) {
-      violationMap.set(article, {
-        category: 'Privacy',
-        report_type: 'SaaS',
-        issue_type: 'SYSTEMIC TRANSPARENCY FAILURE (Art. 13)',
-        severity: 'critical',
-        evidence_html: url,
-        description: `Our legal diagnostic confirmed a critical failure: the domain completely lacks a statutory Privacy Policy. Under Article 13, website operators must provide transparent information at the moment of data collection.`,
-        business_impact: 'Immediate Regulatory Risk: Any visitor can file a complaint with their local Data Protection Authority. This triggers a mandatory audit and carries a high probability of administrative fines due to fundamental non-compliance.',
-        law_name: profile.law,
-        potential_fine: LIABILITY_STANDARD,
-        explanation: 'GDPR Article 13 requires companies to explicitly inform data subjects of their rights and how their data is processed at the time of collection.',
-        recommendation: '1. Create a dedicated "Privacy Policy" page.\n2. Place a clear, accessible link in the global website footer.\n3. Ensure the text explicitly lists all processing activities, legal bases (Art. 6), and data subject rights.',
-        verification_method
-      });
-      reportedArticles.add(article);
-    }
+  // 1. STATUTORY PRIVACY NOTICE (Art. 13)
+  if (!links.privacy && !fullHtmlLower.includes('privacy policy')) {
+    violationMap.set('Art. 13', {
+      category: 'Privacy',
+      report_type: 'SaaS',
+      issue_type: 'SYSTEMIC TRANSPARENCY FAILURE (Art. 13)',
+      severity: 'critical',
+      evidence_html: url,
+      description: `Complete absence of a statutory Privacy Policy as required by Article 13 GDPR.`,
+      business_impact: 'High Risk of Regulatory Injunction: Failing to provide a privacy policy is a fundamental violation that triggers immediate administrative scrutiny and blocks ad accounts in Google/Meta.',
+      law_name: profile.law,
+      potential_fine: LIABILITY_STANDARD,
+      explanation: 'Companies must inform users of data processing activities at the moment of collection.',
+      recommendation: '1. Create a "Privacy Policy" page.\n2. Add a clear footer link.\n3. Include processing purposes and data subject rights.',
+      verification_method
+    });
   }
 
   // 2. CONTROLLER IDENTITY (Art. 13-1-a)
-  const identityInFooter = profile.entitySuffixes.some(s => s.test(footerText));
-  const identityInDocument = profile.entitySuffixes.some(s => s.test(fullHtmlLower));
-  const article131a = 'Art. 13(1)(a)';
-
-  if (!reportedArticles.has(article131a)) {
-    if (!identityInDocument && !identityInFooter) {
-      violationMap.set(article131a, {
-        category: 'Privacy',
-        report_type: 'SaaS',
-        issue_type: 'CONTROLLER IDENTITY FAILURE (Art. 13-1-a)',
-        severity: 'high',
-        evidence_html: url,
-        description: `The audit infrastructure failed to identify the official legal identity of the Data Controller. This includes the registered legal name, physical office address, and registration identifier.`,
-        business_impact: 'Erosion of Trust: Customers are significantly more hesitant to provide data or complete purchases when they cannot identify the legal owner. This directly leads to lower conversion rates and increased brand skepticism.',
-        law_name: 'Art. 13(1)(a) GDPR',
-        potential_fine: LIABILITY_STANDARD,
-        explanation: 'Article 13(1)(a) requires that the identity and contact details of the controller are provided to the data subject.',
-        recommendation: '1. Specify the official legal entity name (e.g., "Example Corp Ltd").\n2. Provide the full registered office address.\n3. Include a direct electronic contact method (email or contact form) and the company registration number.',
-        verification_method
-      });
-      reportedArticles.add(article131a);
-    } else if (identityInFooter && !identityInDocument && links.privacy) {
-      violationMap.set(article131a, {
-        category: 'Privacy',
-        report_type: 'SaaS',
-        issue_type: 'PARTIAL IDENTITY TRANSPARENCY (Art. 13-1-a)',
-        severity: 'medium',
-        evidence_html: url,
-        description: 'Identity markers were found in the website footer, but these specific details are missing from the formal Transparency Disclosure (Privacy Policy).',
-        business_impact: 'Accountability Risk: Fragmented legal information can be interpreted by regulators as a deliberate lack of transparency. Consolidation is required to satisfy the "Accountability Principle" under Art. 5(2).',
-        law_name: 'Art. 13(1)(a) GDPR',
-        potential_fine: LIABILITY_STANDARD,
-        explanation: 'The Controller identity must be part of the core transparency disclosure, ensuring subjects don\'t have to search multiple sub-pages to exercise their rights.',
-        recommendation: '1. Transfer the legal entity name and address from the footer into the "Data Controller" section of the Privacy Policy.\n2. Ensure contact details match exactly across all legal documents.',
-        verification_method
-      });
-      reportedArticles.add(article131a);
-    }
-  }
-
-  // 3. RETENTION PERIODS (Art. 13-2-a)
-  const article132a = 'Art. 13(2)(a)';
-  if (!fullHtmlLower.includes('retention') && !fullHtmlLower.includes('storage period') && links.privacy && !reportedArticles.has(article132a)) {
-    violationMap.set(article132a, {
+  const identityFound = profile.entitySuffixes.some(s => s.test(fullHtmlLower));
+  if (!identityFound && !violationMap.has('Art. 13')) {
+    violationMap.set('Art. 13(1)(a)', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'MISSING RETENTION FRAMEWORK (Art. 13-2-a)',
+      issue_type: 'IDENTITY TRANSPARENCY FAILURE (Art. 13-1-a)',
       severity: 'high',
-      evidence_html: links.privacy || url,
-      description: 'The Privacy Policy fails to disclose the specific duration for which personal data is stored or the criteria used to determine that period.',
-      business_impact: 'Storage Limitation Risk: Storing user data indefinitely without a declared retention strategy is a major violation. This is a primary target for regulatory scrutiny and consumer protection audits.',
-      law_name: 'Art. 13(2)(a) GDPR',
+      evidence_html: url,
+      description: 'The audit failed to identify the official legal entity responsible for data processing.',
+      business_impact: 'Loss of Customer Trust: Visitors are less likely to convert or provide information when they cannot verify the legal ownership of the platform.',
+      law_name: 'Art. 13(1)(a) GDPR',
       potential_fine: LIABILITY_STANDARD,
-      explanation: 'Companies must explicitly inform subjects of the time period for which personal data will be stored, or the criteria used to determine it.',
-      recommendation: '1. Define specific storage durations for different data types (e.g., "Invoices: 10 years for tax compliance").\n2. If duration cannot be fixed, explain the criteria (e.g., "Data is kept as long as the account is active").',
+      explanation: 'The Data Controller\'s official identity and registered address must be explicitly disclosed.',
+      recommendation: '1. Add your official legal company name (e.g., Ltd/GmbH).\n2. Provide the full registered office address in your policy.',
       verification_method
     });
-    reportedArticles.add(article132a);
   }
 
-  // 4. PURPOSE-TO-BASIS CORRELATION (Art. 13-1-c)
-  const activeProcessing = PROCESSING_PURPOSES.filter(p => p.keywords.some(k => k.test(fullHtmlLower)));
-  if (activeProcessing.length > 0) {
-    const article131c = 'Art. 13(1)(c)';
-    const hasLegalBasisSection = fullHtmlLower.includes('legal basis') || fullHtmlLower.includes('article 6') || fullHtmlLower.includes('art. 6');
-
-    if (!hasLegalBasisSection && !reportedArticles.has(article131c)) {
-      violationMap.set(article131c, {
-        category: 'LEGAL_GROUNDS',
-        report_type: 'SaaS',
-        issue_type: 'LEGAL BASIS CORRELATION FAILURE (Art. 13-1-c)',
-        severity: 'high',
-        evidence_html: links.privacy || url,
-        description: `The site performs processing (e.g., ${activeProcessing.map(p => p.name).join(', ')}) but fails to explicitly link these activities to the mandatory legal bases in Article 6.`,
-        business_impact: 'Advertising & Marketing Risk: Major platforms like Google and Meta strictly require that advertisers explicitly declare the legal basis for their tracking pixels to operate within their terms.',
-        law_name: 'Art. 13(1)(c) GDPR',
-        potential_fine: LIABILITY_STANDARD,
-        explanation: 'Every individual processing activity must be explicitly linked to one of the six legal bases from Article 6 GDPR.',
-        recommendation: '1. Map every processing purpose to its statutory basis (e.g., "Analytics: Art. 6(1)(f) Legitimate Interest").\n2. Update the Privacy Policy to include a clear list or table of purposes and bases.',
-        verification_method
-      });
-      reportedArticles.add(article131c);
-    }
-  }
-
-  // 5. DATA SUBJECT RIGHTS (Art. 13-2-b)
-  const article132b = 'Art. 13(2)(b)';
-  const rightsKeywords = [/right of access/i, /right to erasure/i, /right to rectification/i, /right to portability/i, /right to object/i];
-  const hasRights = rightsKeywords.some(k => k.test(fullHtmlLower));
-  if (!hasRights && links.privacy && !reportedArticles.has(article132b)) {
-    violationMap.set(article132b, {
-      category: 'Privacy',
+  // 3. STATUTORY LEGAL NOTICE (Impressum) - Override for PL
+  if (profile.requireImpressum && !links.impressum && !profile.excluded_checks.includes('impressum_check')) {
+    violationMap.set('TDDG', {
+      category: 'IMPRESSUM',
       report_type: 'SaaS',
-      issue_type: 'MISSING DATA SUBJECT RIGHTS (Art. 13-2-b)',
-      severity: 'high',
-      evidence_html: links.privacy || url,
-      description: 'The transparency disclosure fails to inform users of their mandatory rights, including the right to access, rectification, and the right to erasure ("Right to be Forgotten").',
-      business_impact: 'High Enforcement Risk: Failing to inform users of their rights is often interpreted by regulators as a deliberate attempt to hinder user control, leading to high-bracket fines.',
-      law_name: 'Art. 13(2)(b) GDPR',
+      issue_type: 'MISSING STATUTORY LEGAL NOTICE',
+      severity: 'critical',
+      evidence_html: url,
+      description: `Absence of a mandatory Legal Notice (Impressum) required for commercial operations in ${profile.name}.`,
+      business_impact: 'Immediate Injunction Risk: Competitors in jurisdictions like Germany can file legal cease-and-desist orders (Abmahnung) for missing identity info.',
+      law_name: profile.law.includes('TDDG') ? '§ 5 TDDG (Germany)' : 'Statutory Transparency Act',
       potential_fine: LIABILITY_STANDARD,
-      explanation: 'GDPR Article 13(2)(b) requires companies to explicitly inform subjects of their rights: Access, Rectification, Erasure, Restriction, Objection, and Portability.',
-      recommendation: '1. Add a dedicated "Your Rights" section to the Privacy Policy.\n2. List all statutory rights clearly and provide a contact method (e.g., a specific email) to exercise them.',
+      explanation: 'Statutory transparency laws require commercial websites to identify company ownership and contact details in a single, accessible notice.',
+      recommendation: '1. Create an "Impressum" page.\n2. List Company Name, Address, VAT ID, and Managing Directors.',
       verification_method
     });
-    reportedArticles.add(article132b);
   }
 
-  // 6. JURISDICTIONAL SPECIFICS (Statutory Legal Notice)
-  if (profile.requireImpressum && !links.impressum && !fullHtmlLower.includes('impressum')) {
-    const articleImpressum = 'Statutory Legal Notice';
-    if (!reportedArticles.has(articleImpressum)) {
-      violationMap.set(articleImpressum, {
-        category: 'IMPRESSUM',
-        report_type: 'SaaS',
-        issue_type: 'MISSING STATUTORY LEGAL NOTICE (TDDG)',
-        severity: 'critical',
-        evidence_html: url,
-        description: `The audit confirmed the total absence of a 'Statutory Legal Notice' (Impressum), which is a mandatory commercial transparency requirement in ${profile.name}.`,
-        business_impact: 'Injunction Risk: In jurisdictions like Germany, missing a Legal Notice allows competitors or legal associations to file "Abmahnung" lawsuits, resulting in immediate legal costs and injunctions.',
-        law_name: '§ 5 TDDG (Germany)',
-        potential_fine: LIABILITY_STANDARD,
-        explanation: 'Statutory transparency laws (like the TDDG) require specific identity, contact, and registration information to be provided in a consolidated legal notice.',
-        recommendation: '1. Create a dedicated "Legal Notice" or "Impressum" page.\n2. Include the official company name, registered address, managing directors, VAT ID, and registration number.',
-        verification_method
-      });
-      reportedArticles.add(articleImpressum);
-    }
-  }
-
-  // 7. COOKIE TRANSPARENCY
-  const articleCookie = 'Cookie Transparency';
-  if (!fullHtmlLower.includes('cookie policy') && !fullHtmlLower.includes('cookies') && !reportedArticles.has(articleCookie)) {
-    violationMap.set(articleCookie, {
+  // 4. COOKIE DISCLOSURE (ePrivacy)
+  if (!fullHtmlLower.includes('cookie') && !fullHtmlLower.includes('tracking')) {
+    violationMap.set('ePrivacy', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'COOKIE DISCLOSURE FAILURE (ePrivacy)',
+      issue_type: 'COOKIE CONSENT FAILURE (ePrivacy)',
       severity: 'medium',
       evidence_html: url,
-      description: 'The site does not provide clear and comprehensive information regarding the use of cookies and tracking technologies.',
-      business_impact: 'Marketing Restriction: Modern advertising networks strictly require clear cookie disclosures and user consent for tracking pixels to operate. Failure can lead to ad account suspension.',
+      description: 'Failure to provide comprehensive information about the use of cookies and tracking pixels.',
+      business_impact: 'Marketing Restriction: Ad platforms strictly require transparency for tracking pixels. Lack of disclosure leads to platform-wide advertising bans.',
       law_name: 'ePrivacy Directive (2002/58/EC)',
       potential_fine: LIABILITY_STANDARD,
-      explanation: 'Under the ePrivacy Directive, website operators must provide clear information about the use of cookies and obtain user consent before accessing or storing non-essential cookies.',
-      recommendation: '1. Implement a clear Cookie Disclosure or Banner.\n2. Categorize all cookies (Essential, Analytical, Marketing) and provide an opt-out mechanism for non-essential types.',
+      explanation: 'Operators must provide clear information about non-essential cookies and obtain user consent before storage.',
+      recommendation: '1. Implement a Cookie Disclosure or Banner.\n2. Categorize all cookies and provide a clear opt-out mechanism.',
       verification_method
     });
-    reportedArticles.add(articleCookie);
   }
 
   const violations = Array.from(violationMap.values());
-  const score = Math.max(0, 100 - (violations.length * 15));
-  let grade: 'A' | 'B' | 'C' | 'D' | 'F' = 'F';
-  if (score > 90) grade = 'A';
-  else if (score > 80) grade = 'B';
-  else if (score > 70) grade = 'C';
-  else if (score > 60) grade = 'D';
+  const score = Math.max(0, 100 - (violations.length * 20));
 
   return {
     violations,
@@ -302,14 +170,14 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     meta: { hasCMP: false, legal_links: links },
     compliance_report: {
       score,
-      grade,
+      grade: score > 90 ? 'A' : score > 70 ? 'C' : 'F',
       verdict: violations.length > 0 ? 'RISKY' : 'COMPLIANT',
       jurisdiction: profile.name,
       top_risks: violations.slice(0, 3).map(v => v.issue_type),
-      nav_scout: { found_links: Object.values(links).filter(Boolean) as string[], missing_critical: [], discovery_score: 100 },
+      validation_status: 'incomplete',
+      nav_scout: { found_links: [], missing_critical: [], discovery_score: 100 },
       lex_analyzer: { has_vat_id: true, has_contact_info: true, has_mandatory_terms: true, content_truncated: false, missing_clusters: [] },
-      cmp_detect: { detected_provider: null, is_active: false },
-      validation_status: 'incomplete'
+      cmp_detect: { detected_provider: null, is_active: false }
     }
   };
 }

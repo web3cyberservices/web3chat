@@ -64,12 +64,18 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // Deduplication by GDPR Article
+    // HARD MERGE: Deduplication by Statutory Basis (Law Name)
     const uniqueViolations = new Map();
     violations.forEach(v => {
-      const key = `${v.category}_${v.issue_type.toUpperCase()}_${v.law_name}`;
-      if (!uniqueViolations.has(key) || (v.confidence_score > (uniqueViolations.get(key).confidence_score || 0))) {
+      const key = v.law_name; // Use Law Name / Article as the unique key
+      if (!uniqueViolations.has(key)) {
         uniqueViolations.set(key, v);
+      } else {
+        // Update existing with better data if iteration is deep
+        const existing = uniqueViolations.get(key);
+        if (v.confidence_score > existing.confidence_score) {
+          uniqueViolations.set(key, { ...v, affected_urls: [...(existing.affected_urls || []), url] });
+        }
       }
     });
 
@@ -89,16 +95,16 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       await client.query(query, [
         sanitize(domain),
         sanitize(normalizeUrl(url)),
-        sanitize(v.evidence_html || url), // page_url placeholder
+        sanitize(v.evidence_html || url),
         v.category,
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html || url),
         sanitize(v.evidence_quote),
-        v.confidence_score || 1.0,
-        v.verification_status || 'pending',
+        v.confidence_score || 0.8,
+        v.verification_status || 'verified',
         sanitize(v.description), 
-        sanitize(v.explanation), 
+        sanitize(v.explanation || v.description), 
         sanitize(v.law_name),
         sanitize(v.recommendation),
         scanType,
@@ -238,7 +244,7 @@ export async function getViolations(limit = 100) {
         id, domain, issue_type as type, severity as level, created_at as date, 
         description as summary, explanation as description,
         fine_amount, law_name, page_url as url, evidence_html, evidence_quote, 
-        confidence_score, verification_status, report_type, verification_method, business_impact
+        confidence_score, verification_status, report_type, verification_method, business_impact, recommendation
       FROM site_violations ORDER BY created_at DESC LIMIT $1
     `, [limit]);
     return res.rows || [];
