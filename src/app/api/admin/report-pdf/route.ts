@@ -67,10 +67,10 @@ export async function GET(request: Request) {
       }
     });
 
-    // Limit to top 5 groups to prevent resource timeout / memory overload
-    const finalViolations = Object.values(groupedViolations).slice(0, 5);
-    const coreViolations = finalViolations.filter(v => v.category !== 'LEGAL_GROUNDS');
-    const legalGroundsIssues = finalViolations.filter(v => v.category === 'LEGAL_GROUNDS');
+    // Separate based on category for report structure
+    const allGroups = Object.values(groupedViolations);
+    const coreViolations = allGroups.filter(v => v.category !== 'LEGAL_GROUNDS');
+    const legalGroundsIssues = allGroups.filter(v => v.category === 'LEGAL_GROUNDS');
 
     let logoBase64 = '';
     try {

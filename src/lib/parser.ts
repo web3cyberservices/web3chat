@@ -223,6 +223,26 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             verification_method
           });
         }
+
+        // Legitimate Interests Specification (Art. 13(1)(d))
+        const hasLegitInterest = /legitimate interest/i.test(fullText) || /berechtigtes interesse/i.test(fullText);
+        const hasInterestDesc = /interest consists of/i.test(fullText) || /our interest is/i.test(fullText) || /consists in the/i.test(fullText);
+        
+        if (hasLegitInterest && !hasInterestDesc) {
+           violations.push({
+            category: 'LEGAL_GROUNDS',
+            report_type: 'SaaS',
+            issue_type: `INCOMPLETE: LEGITIMATE INTERESTS SPECIFICATION (ART. 13(1)(D))`,
+            severity: 'medium',
+            evidence_html: foundUrl,
+            description: `The document relies on Legitimate Interests but fails to explicitly describe what those interests are.`,
+            law_name: 'Art. 13(1)(d) GDPR',
+            potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
+            explanation: `Art. 13(1)(d) requires that where processing is based on point (f) of Article 6(1), the controller must state the legitimate interests pursued.`,
+            recommendation: `REMEDIATION BLUEPRINT: Provide a clear description of the specific legitimate interests pursued for each relevant processing activity.`,
+            verification_method
+          });
+        }
       }
     }
   });
