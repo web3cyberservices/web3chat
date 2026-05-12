@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
             <div class="logo-text">Humango Compliance Engine</div>
           </div>
           <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
-            Node: ${domain} | SENIOR ARCHITECT V28.0
+            Node: ${domain} | bot.humango.app
           </div>
         </div>
 
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
                 <div class="action-box">${remediation}</div>
                 
                 <div style="margin-top:15px; font-size:7px; color:#94a3b8; text-transform:uppercase;">
-                  VERIFICATION: STATIC+DYNAMIC | SENIOR ARCHITECT V28.0
+                  VERIFICATION: STATIC+DYNAMIC | bot.humango.app
                 </div>
               </div>
             </div>
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
         }).join('')}
 
         <div class="footer-note">
-          VERIFICATION: STATIC+DYNAMIC | AUDITOR V28.0 | <a href="mailto:abuse@humango.app" style="color:#3b82f6; text-decoration:none">abuse@humango.app</a>
+          VERIFICATION: STATIC+DYNAMIC | bot.humango.app | <a href="mailto:abuse@humango.app" style="color:#3b82f6; text-decoration:none">abuse@humango.app</a>
         </div>
       </body>
       </html>

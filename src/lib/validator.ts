@@ -89,7 +89,7 @@ export async function verifyIntegrity(html: string, findings: Violation[]) {
         recommendation: f.recommendation || `ACTION: INSERT THIS TEXT -> 'Data Controller: [Your Company Name], Email: legal@${domain}'`,
         law_name: f.law_name || "GDPR Article 13",
         potential_fine: "Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).",
-        evidence_quote: "Verified via Senior Auditor V28.0 Static Diagnostic."
+        evidence_quote: "Verified via bot.humango.app."
       })),
       overall_confidence: 0.8,
       integrity_status: 'incomplete' as const

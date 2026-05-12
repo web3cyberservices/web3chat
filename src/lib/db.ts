@@ -39,7 +39,7 @@ export async function testConnection() {
   }
 }
 
-function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V28.0 Diagnostic.'): string {
+function sanitize(text: string | null | undefined, fallback: string = 'Information verified via bot.humango.app.'): string {
   if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
   return DOMPurify.sanitize(text);
 }
@@ -135,7 +135,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(finalIssueType),
         finalSeverity,
         sanitize(v.evidence_html || url),
-        sanitize(v.evidence_quote, "Verified via Senior Auditor V28.0 Diagnostic."),
+        sanitize(v.evidence_quote, "Verified via bot.humango.app."),
         v.confidence_score || 0.8,
         v.verification_status || 'verified',
         sanitize(finalDescription), 
