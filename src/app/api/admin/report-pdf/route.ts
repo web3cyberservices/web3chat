@@ -45,17 +45,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
     }
 
-    // RULE 1: CONSOLIDATION (Group by Statutory Basis)
+    // RULE 1: HARD CONSOLIDATION (Group by Statutory Basis/Law Name)
     const consolidated = new Map();
     res.rows.forEach(row => {
       const key = row.law_name; 
       if (!consolidated.has(key)) {
-        // Normalize multiple URLs separated by comma
         const urls = row.page_url.split(',').map((u: string) => u.trim());
         consolidated.set(key, { ...row, urls: new Set(urls) });
       } else {
         const item = consolidated.get(key);
         row.page_url.split(',').forEach((u: string) => item.urls.add(u.trim()));
+        // Keep the one with actual content if the current one has better text
+        if (row.business_impact && !row.business_impact.toLowerCase().includes('null')) {
+            item.business_impact = row.business_impact;
+        }
       }
     });
 
@@ -107,7 +110,7 @@ export async function GET(request: NextRequest) {
           <h1 style="font-size:20px; color:#0f172a; margin:0 0 8px 0; font-weight:800">Executive Statutory Diagnostic</h1>
           <p style="color:#64748b; margin:0; font-size:10px">Statutory transparency and data processing compliance report for ${domain}.</p>
           <div class="term-box">
-            <strong>Methodology & Methodology explained:</strong><br>
+            <strong>Methodology Explained:</strong><br>
             • <strong>Static Analysis:</strong> Rapid structural verification of source code and legal disclosures.<br>
             • <strong>Dynamic Emulation:</strong> Live test simulating human interaction to identify hidden scripts or non-compliant flows.<br>
             • <strong>Data Protection Officer (DPO):</strong> A mandatory identity responsible for overseeing your data protection strategy.
@@ -118,6 +121,11 @@ export async function GET(request: NextRequest) {
 
         ${findings.map(v => {
           const urls = Array.from(v.urls);
+          // Protection against null Business Impact in rendering
+          const impact = v.business_impact && !v.business_impact.toLowerCase().includes('null') 
+            ? v.business_impact 
+            : "Commercial Risk: Regulatory non-compliance triggers ad-platform suspensions and loss of enterprise customer trust.";
+          
           return `
             <div class="violation-card">
               <div class="violation-head">
@@ -133,7 +141,7 @@ export async function GET(request: NextRequest) {
                 <div style="color:#334155; font-size:10px;">${v.description}</div>
 
                 <span class="label">BUSINESS IMPACT</span>
-                <div class="impact-box">${v.business_impact}</div>
+                <div class="impact-box">${impact}</div>
 
                 <span class="label">ADMINISTRATIVE LIABILITY</span>
                 <div style="color:#ef4444; font-weight:700; font-size:10px;">${v.fine_amount}</div>

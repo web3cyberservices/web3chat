@@ -64,7 +64,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // RULE 1: NO REPETITION (Hard Deduplication by Law Name)
+    // RULE 1: NO REPETITION (Hard Deduplication by Law Name per scan session)
     const uniqueViolations = new Map();
     violations.forEach(v => {
       const key = v.law_name; 
@@ -75,9 +75,12 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         if (!existing.affected_urls.includes(url)) {
           existing.affected_urls.push(url);
         }
-        // Retain the version with higher confidence
-        if (v.confidence_score > existing.confidence_score) {
-          uniqueViolations.set(key, { ...v, affected_urls: existing.affected_urls });
+        // Retain the version with higher confidence/better content
+        if (v.confidence_score > (existing.confidence_score || 0)) {
+           // Ensure we don't overwrite if the new one has a 'null' impact
+           if (v.business_impact && !v.business_impact.toLowerCase().includes('null')) {
+              uniqueViolations.set(key, { ...v, affected_urls: existing.affected_urls });
+           }
         }
       }
     });
@@ -95,10 +98,15 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     const standardFine = 'Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)';
 
     for (const v of uniqueViolations.values()) {
+      // Ensure Business Impact is never null
+      const impact = v.business_impact && !v.business_impact.toLowerCase().includes('null') 
+        ? v.business_impact 
+        : "Commercial Risk: Advertising platforms like Google or Meta may suspend your account for non-compliance with statutory transparency requirements.";
+
       await client.query(query, [
         sanitize(domain),
         sanitize(normalizeUrl(url)),
-        sanitize(v.affected_urls.join(', ')), // List all URLs
+        sanitize(v.affected_urls.join(', ')), 
         v.category,
         v.issue_type,
         v.severity,
@@ -114,7 +122,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.report_type,
         standardFine,
         v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis'),
-        sanitize(v.business_impact || 'Commercial Risk: Regulatory non-compliance triggers ad-platform suspensions and loss of enterprise customer trust.')
+        sanitize(impact)
       ]);
     }
     await client.query('COMMIT');
