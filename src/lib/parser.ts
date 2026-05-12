@@ -124,41 +124,13 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
           potential_fine: LIABILITY_DATABASE.PRIVACY,
           explanation: `${controllerCluster.law} mandates explicit disclosure regarding the identity of the controller.`,
           recommendation: clusterFoundInFooter 
-            ? `Status: Detected in footer. Requirement: To meet Article 13 transparency standards, you must also include this identity information directly within the main body of the Privacy Policy document.`
+            ? `Status: Detected in website footer. Requirement: While present in the footer, Article 13 transparency principles require this information to be explicitly included within the main body of the Privacy Policy document.`
             : `Append the full legal name and physical address of the data controller to the policy body.`,
           verification_method
         });
       }
 
-      // 2. CONSOLIDATED TRANSPARENCY FRAMEWORK AUDIT (Rights, Retention, DPO)
-      const transparencyIssues: string[] = [];
-      const transparencyLaws: Set<string> = new Set();
-      
-      ['RIGHTS', 'RETENTION', 'DPO'].forEach(key => {
-        const cluster = MANDATORY_CLUSTERS[key as keyof typeof MANDATORY_CLUSTERS];
-        if (!cluster.keywords.some(k => k.test(fullText))) {
-          transparencyIssues.push(cluster.name);
-          transparencyLaws.add(cluster.law);
-        }
-      });
-
-      if (transparencyIssues.length > 0) {
-        violations.push({
-          category: 'PRIVACY',
-          report_type: 'SaaS',
-          issue_type: `INCOMPLETE TRANSPARENCY FRAMEWORK`,
-          severity: 'high',
-          evidence_html: foundUrl,
-          description: `Policy document is missing core transparency segments required by Articles 13/14.`,
-          law_name: Array.from(transparencyLaws).join(', '),
-          potential_fine: LIABILITY_DATABASE.PRIVACY,
-          explanation: `The following mandatory clusters were not detected: ${transparencyIssues.join(', ')}. This indicates a structural failure in data subject communication.`,
-          recommendation: `Update the Privacy Policy to include explicit sections for: ${transparencyIssues.join(', ')}.`,
-          verification_method
-        });
-      }
-
-      // 3. CONSOLIDATED PROCESSING BASIS AUDIT (Art. 13(1)(c))
+      // 2. CONSOLIDATED PROCESSING BASIS AUDIT (Art. 13(1)(c))
       if (doc.key === 'privacy') {
         const missingBasisActivities: string[] = [];
         PROCESSING_ACTIVITIES.forEach(activity => {
@@ -181,11 +153,31 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             law_name: 'Art. 13(1)(c) GDPR',
             potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
             explanation: `Art. 13(1)(c) requires a purpose-to-basis mapping. The following detected activities lack a clear Article 6 reference:\n\n* ${missingBasisActivities.join('\n* ')}`,
-            recommendation: `REMEDIATION: Explicitly cite the legal basis for every processing purpose. Example: "Processing for usage analysis is based on Art. 6(1)(f) (Legitimate Interests)."`,
+            recommendation: `REMEDIATION: Explicitly cite the legal basis for every processing purpose. Example: "Processing activities like 'Analyzing usage' must be explicitly linked to Art. 6(1)(f) (Legitimate Interests) or Art. 6(1)(a) (Consent)."`,
             verification_method
           });
         }
       }
+
+      // 3. TRANSPARENCY CLUSTERS
+      ['RIGHTS', 'RETENTION', 'DPO'].forEach(key => {
+        const cluster = MANDATORY_CLUSTERS[key as keyof typeof MANDATORY_CLUSTERS];
+        if (!cluster.keywords.some(k => k.test(fullText))) {
+          violations.push({
+            category: 'PRIVACY',
+            report_type: 'SaaS',
+            issue_type: `MISSING CLUSTER: ${cluster.name.toUpperCase()}`,
+            severity: 'high',
+            evidence_html: foundUrl,
+            description: `Mandatory segment [${cluster.name}] not detected in policy document.`,
+            law_name: cluster.law,
+            potential_fine: LIABILITY_DATABASE.PRIVACY,
+            explanation: `${cluster.law} requires explicit disclosure of ${cluster.name.toLowerCase()}.`,
+            recommendation: `Update the policy text to include a dedicated section for ${cluster.name.toLowerCase()}.`,
+            verification_method
+          });
+        }
+      });
     }
   });
 
