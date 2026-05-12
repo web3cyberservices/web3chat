@@ -48,7 +48,18 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     );
 
     // PHASE 2: VERIFICATION
-    const validationResult = await verifyIntegrity(scrape.html, parsed.violations);
+    let validationResult;
+    try {
+      validationResult = await verifyIntegrity(scrape.html, parsed.violations);
+    } catch (vErr) {
+      console.error('[CrawlTask] Critical error in verification phase:', vErr);
+      // Create a dummy validation result if something fails catastrophically
+      validationResult = {
+        integrity_status: 'incomplete' as const,
+        validated_findings: [],
+        overall_confidence: 0.1
+      };
+    }
     
     // Log the validation attempt
     await saveValidationLog(
@@ -86,10 +97,13 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
         const deepUrl = normalizeUrl(targetUrl, initialNormalized);
         await saveBotEvent('SUCCESS', `Confidence Low [${validationResult.overall_confidence}]. Triggering Targeted Deep Dive: ${deepUrl}`);
         
-        const deepResult = await runCrawlTask(deepUrl, iteration + 1);
-        
-        if (deepResult.status === 'success' && deepResult.violations) {
-          finalViolations = mergeFindings(finalViolations, deepResult.violations);
+        try {
+          const deepResult = await runCrawlTask(deepUrl, iteration + 1);
+          if (deepResult.status === 'success' && deepResult.violations) {
+            finalViolations = mergeFindings(finalViolations, deepResult.violations);
+          }
+        } catch (deepErr) {
+          console.error('[CrawlTask] Deep dive iteration failed:', deepErr);
         }
       }
     }
