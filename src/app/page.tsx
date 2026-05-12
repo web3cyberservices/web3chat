@@ -113,7 +113,7 @@ export default function Home() {
               <Terminal className="w-3 h-3" /> Audit Terminal
             </Link>
             <Badge variant="outline" className="hidden sm:flex border-primary/20 bg-primary/5 text-primary text-[10px] font-bold tracking-[0.2em] px-3 py-1 rounded-full uppercase">
-              Pan-European V5.0
+              Pan-European V21.0
             </Badge>
           </nav>
         </div>
@@ -130,7 +130,7 @@ export default function Home() {
                 Statutory Privacy & <br />Security Monitoring
               </h1>
               <p className="text-lg text-slate-400 max-w-xl leading-relaxed">
-                Identify systemic compliance failures and <span className="text-white font-medium">GDPR liability</span> across digital assets. Automated analysis of multi-jurisdictional legal requirements.
+                Identify systemic compliance failures and <span className="text-white font-medium">GDPR liability</span> across digital assets. Legal diagnostic regarding multi-jurisdictional mandates.
               </p>
             </div>
 
@@ -230,7 +230,7 @@ export default function Home() {
                             { label: 'Art. 13(2)(a) Retention', status: true },
                             { label: 'DPO/Contact Info', status: true },
                             { label: 'Jurisdiction Check', status: true },
-                            { label: 'Stateless Proxy', status: true }
+                            { label: 'Statutory Correlation', status: true }
                           ].map((item, i) => (
                             <div key={i} className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
                               {item.status ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
@@ -274,7 +274,7 @@ export default function Home() {
                 <div className="space-y-3">
                   <label className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Audit Agent ID</label>
                   <div className="p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 break-all">
-                    Humango Compliance Audit Engine / 5.0
+                    Humango Compliance Audit Engine / 21.0
                   </div>
                 </div>
                 
@@ -322,7 +322,7 @@ export default function Home() {
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[9px] text-slate-500 uppercase tracking-[0.25em] font-bold">
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-4 h-4 text-primary opacity-80" />
-            <span>Humango Compliance Audit Engine • Pan-European V5.0</span>
+            <span>Humango Compliance Audit Engine • Pan-European V21.0</span>
           </div>
           <div className="flex gap-8 items-center">
             <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Statement</Link>

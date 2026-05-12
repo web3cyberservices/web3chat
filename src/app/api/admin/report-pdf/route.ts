@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found.' }, { status: 404 });
 
-    // Hard Merge by Article/Category for professional density
+    // Deduplication by Statuory Article for expert density
     const consolidated = new Map();
     res.rows.forEach(row => {
-      const key = `${row.category}_${row.issue_type}_${row.law_name}`;
+      const key = `${row.issue_type}_${row.law_name}`;
       if (!consolidated.has(key)) {
         consolidated.set(key, { ...row, urls: new Set([row.page_url]) });
       } else {
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
         <div class="summary-card">
           <h1 style="font-size:20px; color:#0f172a; margin:0 0 5px 0; font-weight:800">Executive Statutory Summary</h1>
-          <p style="color:#64748b; margin:0; font-size:10px">Statutory compliance assessment regarding transparency (Art. 12/13) and processing grounds (Art. 6).</p>
+          <p style="color:#64748b; margin:0; font-size:10px">Legal diagnostic regarding transparency (Art. 12/13) and processing grounds (Art. 6).</p>
         </div>
 
         ${systemicRisks.length > 0 ? `
@@ -118,23 +118,17 @@ export async function GET(request: NextRequest) {
                 <thead>
                   <tr>
                     <th>Detected Activity</th>
-                    <th>Legal Basis (Statutory Requirement)</th>
-                    <th>Audit Status</th>
+                    <th>Statutory Requirement (Art. 6)</th>
+                    <th>Diagnostic Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td>Usage Analysis / Analytics</td><td>Art. 6(1)(f) + Legitimate Interest Description</td><td>Deficient</td></tr>
-                  <tr><td>Fraud Prevention</td><td>Art. 6(1)(f) + Legitimate Interest Description</td><td>Deficient</td></tr>
-                  <tr><td>Customer Support</td><td>Art. 6(1)(b) Contractual Necessity</td><td>Missing Mapping</td></tr>
+                  <tr><td>Usage Analysis / Analytics</td><td>Art. 6(1)(f) + Description</td><td>Deficient</td></tr>
+                  <tr><td>Fraud Prevention</td><td>Art. 6(1)(f) + Description</td><td>Deficient</td></tr>
+                  <tr><td>Customer Support</td><td>Art. 6(1)(b) Contractual</td><td>Missing Correlation</td></tr>
                 </tbody>
               </table>
-              ${processingRisks.map(r => `
-                <span class="label">DIAGNOSTIC DESCRIPTION</span>
-                <div style="font-size:9px; color:#334155">${r.description}</div>
-                <div class="impact-box">${r.business_impact}</div>
-                <span class="label">REMEDIATION BLUEPRINT</span>
-                <div class="blueprint">${r.recommendation}</div>
-              `).join('')}
+              ${processingRisks.map(renderViolation).join('')}
             </div>
           </div>
         ` : ''}
@@ -145,7 +139,7 @@ export async function GET(request: NextRequest) {
         ` : ''}
 
         <div class="footer-note">
-          Confidential Compliance Audit &bull; Humango Compliance Audit Engine &bull; Statutory Article 13/14 Assessment
+          Confidential Legal Audit &bull; Humango Compliance Audit Engine &bull; Pan-European V21.0
         </div>
       </body>
       </html>

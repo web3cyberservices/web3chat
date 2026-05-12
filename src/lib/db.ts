@@ -57,11 +57,11 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // STRICT DEDUPLICATION AT STORAGE LEVEL
+    // Hard merge by Article/Topic to prevent page spam
     const uniqueViolations = new Map();
     violations.forEach(v => {
       const affectedUrl = normalizeUrl(v.evidence_html || url);
-      const key = `${v.issue_type.toUpperCase()}_${affectedUrl}`;
+      const key = `${v.issue_type.toUpperCase()}_${v.law_name}`;
       if (!uniqueViolations.has(key)) {
         uniqueViolations.set(key, { ...v, evidence_html: affectedUrl });
       }
@@ -71,16 +71,14 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
         evidence_html, description, explanation, law_name, recommendation, 
-        scan_type, report_type, created_at, fine_amount, verification_method
+        scan_type, report_type, created_at, fine_amount, verification_method, business_impact
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15, $16)
     `;
 
-    for (const v of uniqueViolations.values()) {
-      const finalFine = v.potential_fine && v.potential_fine !== 'null' 
-        ? v.potential_fine 
-        : 'Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR)';
+    const standardFine = 'Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)';
 
+    for (const v of uniqueViolations.values()) {
       await client.query(query, [
         sanitize(domain),
         sanitize(normalizeUrl(url)),
@@ -95,8 +93,9 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(v.recommendation),
         scanType,
         v.report_type,
-        finalFine,
-        v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis')
+        standardFine,
+        v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis'),
+        sanitize(v.business_impact)
       ]);
     }
     await client.query('COMMIT');
@@ -219,7 +218,7 @@ export async function getViolations(limit = 100) {
         id, domain, issue_type as type, severity as level, created_at as date, 
         description as summary, explanation as description,
         fine_amount, law_name, page_url as url, evidence_html, report_type,
-        verification_method
+        verification_method, business_impact
       FROM site_violations ORDER BY created_at DESC LIMIT $1
     `, [limit]);
     return res.rows || [];
