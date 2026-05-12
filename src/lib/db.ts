@@ -82,6 +82,11 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of uniqueViolations.values()) {
+      // Fix potential "null" fine_amount strings
+      const finalFine = v.potential_fine && v.potential_fine !== 'null' 
+        ? v.potential_fine 
+        : 'Up to €20,000,000 or 4% of global turnover';
+
       await client.query(query, [
         sanitize(domain),
         sanitize(normalizeUrl(url)),
@@ -96,7 +101,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(v.recommendation),
         scanType,
         v.report_type,
-        v.potential_fine || 'Up to €20M / 4% turnover',
+        finalFine,
         v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis')
       ]);
     }

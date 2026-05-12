@@ -310,7 +310,7 @@ export default function Home() {
                 { icon: ShieldCheck, title: "NAV-SCOUT Engine", desc: "Structural navigation analysis identifying mandatory legal documents and their visibility." },
                 { icon: FileText, title: "LEX-ANALYZER Module", desc: "Semantic legal cluster verification for VAT IDs, retention policies, and DPO contacts." },
                 { icon: Scale, title: "Art. 83 Liability", desc: "Authoritative liability mapping based on the latest EU regulatory fine frameworks." },
-                { icon: Globe, title: "Stateless Agent", desc: "Auditing performed by HumangoBot/1.0 under strict RFC 9309 compliance protocols." },
+                { icon: Globe, title: "Stateless Agent", desc: "Auditing performed by HumangoBot/1.0 under strict compliance protocols." },
               ].map((item, i) => (
                 <Card key={i} className="bg-white/[0.02] border-white/5 p-6 hover:bg-white/[0.04] transition-all">
                   <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center mb-4">
@@ -354,7 +354,7 @@ export default function Home() {
                     <label className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Transparency Adherence</label>
                     <div className="flex items-center gap-2 font-mono text-xs text-slate-200">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>RFC 9309 & GDPR ART. 6(1)(F)</span>
+                      <span>GDPR ART. 6(1)(F)</span>
                     </div>
                   </div>
                 </div>
@@ -396,7 +396,6 @@ export default function Home() {
           </div>
           <div className="flex gap-8 items-center">
             <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/legal/rfc9309" className="hover:text-white transition-colors">RFC 9309 Standards</Link>
             <Link href="/admin" className="text-slate-800 hover:text-white transition-colors">Admin Terminal</Link>
           </div>
         </div>

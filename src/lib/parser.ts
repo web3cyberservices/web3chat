@@ -7,11 +7,11 @@ import { Violation, ComplianceReport, Category, VerificationMethod } from '@/typ
  * Based on GDPR Article 83.
  */
 const LIABILITY_DATABASE: Record<string, string> = {
-    'PRIVACY': '€20,000,000 or 4% of global turnover',
-    'COOKIES': '€20,000,000 or 4% of global turnover',
-    'IMPRESSUM': '€20,000,000 or 4% of global turnover',
-    'LEGAL_GROUNDS': '€20,000,000 or 4% of global turnover',
-    'DEFAULT': '€20,000,000 or 4% of global turnover'
+    'PRIVACY': 'Up to €20,000,000 or 4% of global turnover',
+    'COOKIES': 'Up to €20,000,000 or 4% of global turnover',
+    'IMPRESSUM': 'Up to €20,000,000 or 4% of global turnover',
+    'LEGAL_GROUNDS': 'Up to €20,000,000 or 4% of global turnover',
+    'DEFAULT': 'Up to €20,000,000 or 4% of global turnover'
 };
 
 /**
@@ -115,6 +115,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   ];
 
   mandatoryDocs.forEach(doc => {
+    // PRESENCE LOGIC FIX: If link is found, we assume document exists.
     if (!links[doc.key]) {
       violations.push({
         category: doc.cat,
@@ -141,11 +142,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'CONTROLLER IDENTITY COMPLIANCE',
       severity: 'critical',
       evidence_html: links.privacy || url,
-      description: `The system analyzed the ${config.lang} version of the site and found that the official legal name and identity of the data controller are not identifiable. According to Art. 13(1)(a) of GDPR and ${config.law}, this is a mandatory requirement.`,
+      description: `The automated scan performed a semantic and structural analysis of the website's legal documents and metadata. The system failed to identify the official legal name of the data controller, a registered physical address, or a specific registration number. Under Art. 13(1)(a), this information is mandatory for establishing accountability.`,
       law_name: config.law,
       potential_fine: LIABILITY_DATABASE.PRIVACY,
       explanation: `Information identifies the entity responsible for data processing.`,
-      recommendation: `Append the full legal name and physical address of the controller to the Privacy Policy.`,
+      recommendation: `Append the full legal name and physical address of the controller to the Privacy Policy body. Note: Detected in footer, but Art. 13 transparency requires document body inclusion.`,
       verification_method
     });
   }
@@ -163,7 +164,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       law_name: 'Art. 13(1)(c) GDPR',
       potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
       explanation: `Purpose-to-basis mapping is a core transparency requirement.`,
-      recommendation: `Update the policy to link each detected operation to an Article 6 legal basis.`,
+      recommendation: `Update the policy to link each detected operation to an Article 6 legal basis (e.g., Legitimate Interests).`,
       verification_method
     });
   }
