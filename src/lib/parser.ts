@@ -7,12 +7,12 @@ import { Violation, ComplianceReport, Category, VerificationMethod } from '@/typ
  * Provides professional administrative penalty ranges based on GDPR Article 83.
  */
 const LIABILITY_DATABASE: Record<string, string> = {
-    'PRIVACY': 'Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).',
-    'COOKIES': 'Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).',
-    'IMPRESSUM': 'Fines up to €50,000 (German TMG §5).',
+    'PRIVACY': '€20,000,000 or 4% of global turnover',
+    'COOKIES': '€20,000,000 or 4% of global turnover',
+    'IMPRESSUM': '€20,000,000 or 4% of global turnover',
     'TERMS': 'Potential loss of liability protection and consumer law penalties.',
-    'LEGAL_GROUNDS': 'Critical fines for unlawful processing under Art. 83(5)(a) GDPR (Up to €20M).',
-    'DEFAULT': 'Administrative fines up to €20,000,000 or 4% of global turnover.'
+    'LEGAL_GROUNDS': '€20,000,000 or 4% of global turnover',
+    'DEFAULT': '€20,000,000 or 4% of global turnover'
 };
 
 /**
@@ -131,7 +131,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       violations.push({
         category: doc.category as Category,
         report_type: 'SaaS',
-        issue_type: `Missing ${doc.name}`,
+        issue_type: `MISSING ${doc.name.toUpperCase()}`,
         severity: 'critical',
         evidence_html: url,
         description: `NAV-SCOUT structural audit failed to identify a compliant ${doc.name} matching standard patterns.`,
@@ -154,7 +154,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             violations.push({
               category: doc.category as Category,
               report_type: 'SaaS',
-              issue_type: `Incomplete Disclosure: ${cluster.name}`,
+              issue_type: `INCOMPLETE DISCLOSURE: ${cluster.name.toUpperCase()}`,
               severity: 'low',
               evidence_html: url,
               description: `Status: Detected in website footer. Requirement: While present in the footer, Article 13 transparency principles require this information to be explicitly included within the main body of the Privacy Policy document.`,
@@ -168,7 +168,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
             violations.push({
               category: doc.category as Category,
               report_type: 'SaaS',
-              issue_type: `Incomplete Disclosure: ${cluster.name}`,
+              issue_type: `INCOMPLETE DISCLOSURE: ${cluster.name.toUpperCase()}`,
               severity: 'high',
               evidence_html: foundUrl,
               description: `Violation of ${cluster.law}. Document identified, but mandatory cluster [${cluster.name}] was not detected.`,
@@ -183,7 +183,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
           violations.push({
             category: doc.category as Category,
             report_type: 'SaaS',
-            issue_type: `Incomplete ${doc.name}: ${cluster.name}`,
+            issue_type: `INCOMPLETE DISCLOSURE: ${cluster.name.toUpperCase()}`,
             severity: 'high',
             evidence_html: foundUrl,
             description: `Violation of ${cluster.law}. Cluster [${cluster.name}] missing from ${doc.name}.`,
@@ -198,26 +198,31 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
 
       // Legal Basis Mapping (Art. 13(1)(c) & Art. 6)
       if (doc.key === 'privacy') {
+        const missingBases: string[] = [];
         PROCESSING_ACTIVITIES.forEach(activity => {
           if (activity.keywords.some(k => k.test(fullText))) {
             const hasBasis = LEGAL_BASES.some(basis => basis.keywords.some(k => k.test(fullText)));
             if (!hasBasis) {
-              violations.push({
-                category: 'LEGAL_GROUNDS',
-                report_type: 'SaaS',
-                issue_type: `LACK OF EXPLICIT LEGAL BASES FOR PROCESSING`,
-                severity: 'critical',
-                evidence_html: foundUrl,
-                description: `The website mentions '${activity.name}' but fails to explicitly link this activity to Art. 6(1)(f) (Legitimate Interests) or Art. 6(1)(a) (Consent).`,
-                law_name: 'Art. 13(1)(c) GDPR',
-                potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
-                explanation: `Art. 13(1)(c) requires disclosure of the purposes of processing as well as the legal basis for that processing. Processing activities like '${activity.name}' must be explicitly linked to an Art. 6 legal basis.`,
-                recommendation: `REMEDIATION BLUEPRINT: Explicitly state the legal basis for each processing activity. Example: State that '${activity.name}' is based on Art. 6(1)(f) (Legitimate Interests).`,
-                verification_method
-              });
+              missingBases.push(activity.name);
             }
           }
         });
+
+        if (missingBases.length > 0) {
+          violations.push({
+            category: 'LEGAL_GROUNDS',
+            report_type: 'SaaS',
+            issue_type: `LACK OF EXPLICIT LEGAL BASES (ART. 13(1)(C))`,
+            severity: 'critical',
+            evidence_html: foundUrl,
+            description: `The website mentions processing for ${missingBases.join(', ')} but fails to explicitly link these activities to an Art. 6 legal basis.`,
+            law_name: 'Art. 13(1)(c) GDPR',
+            potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
+            explanation: `Art. 13(1)(c) requires disclosure of processing purposes AND the legal basis. Processing activities like 'Analyzing usage' must be explicitly linked to Art. 6(1)(f) (Legitimate Interests).`,
+            recommendation: `REMEDIATION BLUEPRINT: Explicitly state the legal basis for each processing activity. Example: "Processing of your data for 'Analyzing usage' is based on Art. 6(1)(f) (Legitimate Interests)."`,
+            verification_method
+          });
+        }
       }
     }
   });

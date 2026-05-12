@@ -39,29 +39,35 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
-    // MANDATORY DE-DUPLICATION LAYER
+    // MANDATORY DE-DUPLICATION LAYER (Hardened)
     const groupedViolations: Record<string, any> = {};
     res.rows.forEach(row => {
-      // Group by Issue Type and Law Name to ensure absolute de-duplication
+      // Normalize Title to prevent "Incomplete Policy" vs "Incomplete Disclosure" splits
       const law = (row.law_name || 'GDPR').trim().toUpperCase();
-      const type = (row.issue_type || 'VIOLATION').trim().toUpperCase();
+      let type = (row.issue_type || 'VIOLATION').trim().toUpperCase();
+      
+      // Standardize Controller Identity titles to ensure merging
+      if (type.includes('CONTROLLER IDENTITY')) type = 'INCOMPLETE DISCLOSURE: CONTROLLER IDENTITY';
+      if (type.includes('DATA SUBJECT RIGHTS')) type = 'INCOMPLETE DISCLOSURE: DATA SUBJECT RIGHTS';
+      
       const key = `${type}_${law}`;
       
       if (!groupedViolations[key]) {
         groupedViolations[key] = {
           ...row,
+          issue_type: type,
           affected_urls: new Set([row.page_url])
         };
       } else {
         groupedViolations[key].affected_urls.add(row.page_url);
-        // Hybrid Detection: If found by different methods, upgrade to Hybrid
+        // Hybrid Detection Logic
         if (groupedViolations[key].verification_method !== row.verification_method) {
-            groupedViolations[key].verification_method = 'Hybrid Analysis';
+            groupedViolations[key].verification_method = 'Hybrid (Dynamic + Static)';
         }
       }
     });
 
-    // Limit to top 5 most critical violation groups for performance
+    // Limit to top 5 groups to prevent resource timeout / memory overload
     const finalViolations = Object.values(groupedViolations).slice(0, 5);
     const coreViolations = finalViolations.filter(v => v.category !== 'LEGAL_GROUNDS');
     const legalGroundsIssues = finalViolations.filter(v => v.category === 'LEGAL_GROUNDS');
@@ -184,7 +190,7 @@ export async function GET(request: Request) {
 
         <div class="footer">
           <div>
-            &copy; ${new Date().getFullYear()} Humango Limited • London • Policy v2.1<br>
+            &copy; ${new Date().getFullYear()} Humango Limited • London • Policy v2.9<br>
             Verification & Legal Inquiries: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
           </div>
           ${logoBase64 ? `<img src="${logoBase64}" style="width:30px; opacity:0.3">` : ''}
