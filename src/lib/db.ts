@@ -23,34 +23,26 @@ function sanitize(text: string | null | undefined): string {
   return DOMPurify.sanitize(text);
 }
 
-/**
- * Robust URL Normalizer (Hardened for Deduplication)
- * Standardizes URLs to prevent duplicates like site.com/ and site.com.
- * Strips fragments, query parameters, and normalizes trailing slashes.
- */
 export function normalizeUrl(url: string): string {
   try {
     const u = new URL(url);
     u.hash = '';
     u.search = '';
     let pathname = u.pathname.toLowerCase();
-    // Ensure root is just /
     if (pathname === '') pathname = '/';
-    // Remove trailing slash if not root
     if (pathname.length > 1 && pathname.endsWith('/')) {
       pathname = pathname.slice(0, -1);
     }
     u.pathname = pathname;
     return u.href.toLowerCase();
   } catch (e) {
-    // Fallback for non-standard formats
     return url.toLowerCase().replace(/\/$/, "").split('?')[0].split('#')[0];
   }
 }
 
 export async function testConnection() {
   try {
-    const res = await pool.query('SELECT NOW()');
+    await pool.query('SELECT NOW()');
     return true;
   } catch (err: any) {
     console.error('[DB] Connection test FAILED:', err.message);
@@ -59,26 +51,14 @@ export async function testConnection() {
 }
 
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
-  if (!violations || violations.length === 0) {
-    return { success: true };
-  }
+  if (!violations || violations.length === 0) return { success: true };
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    // Check for column existence before insert to prevent crash
-    const colCheck = await client.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'site_violations'
-    `);
-    const existingCols = colCheck.rows.map(r => r.column_name);
-
-    // Normalizing audit base URL
-    const cleanUrl = normalizeUrl(url);
-
-    // Deduplication by issue_type and page_url
+    // STRICT DEDUPLICATION AT STORAGE LEVEL
+    // Prevents duplicate entries for the same issue_type on the same page
     const uniqueViolations = new Map();
     violations.forEach(v => {
       const affectedUrl = normalizeUrl(v.evidence_html || url);
@@ -91,34 +71,29 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     const query = `
       INSERT INTO site_violations (
         domain, url, page_url, category, issue_type, severity, 
-        evidence_html, snippet, description, explanation, law_name, recommendation, 
+        evidence_html, description, explanation, law_name, recommendation, 
         scan_type, report_type, created_at, fine_amount, verification_method
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15)
     `;
 
     for (const v of uniqueViolations.values()) {
-      // Robust mapping for missing columns
-      const fine = v.potential_fine || v.fine_amount || 'Up to €20M / 4% turnover';
-      const method = v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis');
-
       await client.query(query, [
         sanitize(domain),
-        sanitize(cleanUrl),
+        sanitize(normalizeUrl(url)),
         sanitize(v.evidence_html),
         v.category,
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html),
-        sanitize(v.snippet || ''),
         sanitize(v.description), 
         sanitize(v.explanation), 
         sanitize(v.law_name),
         sanitize(v.recommendation),
         scanType,
         v.report_type,
-        fine,
-        method
+        v.potential_fine || 'Up to €20M / 4% turnover',
+        v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis')
       ]);
     }
     await client.query('COMMIT');
@@ -236,26 +211,12 @@ export async function getStats() {
 
 export async function getViolations(limit = 100) {
   try {
-    // Dynamic column check for safety
-    const colCheck = await pool.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'site_violations'
-    `);
-    const cols = colCheck.rows.map(r => r.column_name);
-
-    const hasFine = cols.includes('fine_amount');
-    const hasLaw = cols.includes('law_name');
-    const hasMethod = cols.includes('verification_method');
-
     const res = await pool.query(`
       SELECT 
         id, domain, issue_type as type, severity as level, created_at as date, 
         description as summary, explanation as description,
-        ${hasFine ? 'fine_amount' : "'N/A' as fine_amount"}, 
-        ${hasLaw ? 'law_name' : "'GDPR' as law_name"}, 
-        page_url as url, evidence_html, report_type, snippet, 
-        ${hasMethod ? 'verification_method' : "'Static' as verification_method"}
+        fine_amount, law_name, page_url as url, evidence_html, report_type,
+        verification_method
       FROM site_violations ORDER BY created_at DESC LIMIT $1
     `, [limit]);
     return res.rows || [];

@@ -15,23 +15,10 @@ export async function GET(request: Request) {
 
   let browser: any = null;
   try {
-    const colCheck = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'site_violations'`);
-    const cols = colCheck.rows.map(r => r.column_name);
-    
-    const hasLaw = cols.includes('law_name');
-    const hasFine = cols.includes('fine_amount');
-    const hasRec = cols.includes('recommendation');
-    const hasMethod = cols.includes('verification_method');
-    const hasExp = cols.includes('explanation');
-
     const res = await pool.query(`
       SELECT 
-        issue_type, page_url, severity, category,
-        ${hasExp ? 'explanation' : 'description as explanation'}, 
-        ${hasFine ? 'fine_amount' : "'' as fine_amount"}, 
-        ${hasLaw ? 'law_name' : "'GDPR' as law_name"}, 
-        ${hasRec ? 'recommendation' : "'Remediation required' as recommendation"},
-        ${hasMethod ? 'verification_method' : "'Static Analysis' as verification_method"}
+        issue_type, page_url, severity, category, explanation, 
+        fine_amount, law_name, recommendation, verification_method
       FROM site_violations 
       WHERE domain = $1 
       ORDER BY severity DESC, created_at DESC
@@ -39,38 +26,33 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
-    // MANDATORY DE-DUPLICATION LAYER (Hardened)
-    // Groups by Title (issue_type) and Legal Basis (law_name)
-    const groupedViolations: Record<string, any> = {};
+    // MANDATORY HYBRID DE-DUPLICATION ENGINE
+    // Groups violations by their core Diagnostic Title and Legal Basis
+    const consolidatedFindings: Record<string, any> = {};
+    
     res.rows.forEach(row => {
+      const type = (row.issue_type || 'VIOLATION').trim().toUpperCase();
       const law = (row.law_name || 'GDPR').trim().toUpperCase();
-      let type = (row.issue_type || 'VIOLATION').trim().toUpperCase();
-      
-      // Standardize titles to ensure merging
-      if (type.includes('CONTROLLER IDENTITY')) type = 'INCOMPLETE DISCLOSURE: CONTROLLER IDENTITY';
-      if (type.includes('DATA SUBJECT RIGHTS')) type = 'INCOMPLETE DISCLOSURE: DATA SUBJECT RIGHTS';
-      
       const key = `${type}_${law}`;
-      
-      if (!groupedViolations[key]) {
-        groupedViolations[key] = {
+
+      if (!consolidatedFindings[key]) {
+        consolidatedFindings[key] = {
           ...row,
           issue_type: type,
           affected_urls: new Set([row.page_url])
         };
       } else {
-        groupedViolations[key].affected_urls.add(row.page_url);
-        // Hybrid Detection Logic
-        if (groupedViolations[key].verification_method !== row.verification_method) {
-            groupedViolations[key].verification_method = 'Hybrid (Dynamic + Static)';
+        consolidatedFindings[key].affected_urls.add(row.page_url);
+        // If methods differ, mark as Hybrid
+        if (consolidatedFindings[key].verification_method !== row.verification_method) {
+          consolidatedFindings[key].verification_method = 'Hybrid (Dynamic + Static)';
         }
       }
     });
 
-    // Separate based on category for report structure
-    const allGroups = Object.values(groupedViolations);
-    const coreViolations = allGroups.filter(v => v.category !== 'LEGAL_GROUNDS');
-    const legalGroundsIssues = allGroups.filter(v => v.category === 'LEGAL_GROUNDS');
+    const allFindings = Object.values(consolidatedFindings);
+    const coreViolations = allFindings.filter(v => v.category !== 'LEGAL_GROUNDS');
+    const legalGroundsIssues = allFindings.filter(v => v.category === 'LEGAL_GROUNDS');
 
     let logoBase64 = '';
     try {
@@ -148,7 +130,7 @@ export async function GET(request: Request) {
 
               <span class="label">REMEDIATION BLUEPRINT</span>
               <div style="background:#ecfdf5; border:1px solid #d1fae5; padding:15px; border-radius:8px; color:#065f46; font-size:11px">
-                ${item.recommendation.replace('REMEDIATION BLUEPRINT: ', '')}
+                ${item.recommendation}
               </div>
             </div>
           </div>
@@ -181,7 +163,7 @@ export async function GET(request: Request) {
 
                 <span class="label">REMEDIATION BLUEPRINT</span>
                 <div style="background:#fff7ed; border:1px solid #ffedd5; padding:15px; border-radius:8px; color:#9a3412; font-size:11px">
-                  ${item.recommendation.replace('REMEDIATION BLUEPRINT: ', '')}
+                  ${item.recommendation}
                 </div>
               </div>
             </div>

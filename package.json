@@ -48,7 +48,7 @@
     "genkit": "^1.28.0",
     "isomorphic-dompurify": "^2.20.0",
     "lucide-react": "^0.475.0",
-    "next": "15.1.4",
+    "next": "15.1.6",
     "patch-package": "^8.0.0",
     "pg": "^8.11.3",
     "puppeteer": "^24.2.1",
@@ -79,6 +79,6 @@
   "overrides": {
     "postcss": "^8.4.31",
     "serialize-javascript": "^6.0.0",
-    "next": "15.1.4"
+    "next": "15.1.6"
   }
 }
