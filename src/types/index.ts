@@ -12,6 +12,7 @@ export interface Violation {
   evidence_html: string; 
   snippet?: string;
   description: string;
+  business_impact?: string;
   explanation: string;
   law_name: string;        
   potential_fine: string;  
@@ -24,8 +25,10 @@ export interface Violation {
 
 export interface ComplianceReport {
   score: number;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
   verdict: 'COMPLIANT' | 'RISKY';
   jurisdiction?: string;
+  top_risks: string[];
   nav_scout: {
     found_links: string[];
     missing_critical: string[];
