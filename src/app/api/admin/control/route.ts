@@ -4,13 +4,18 @@ import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
+// Strict validation for input payload
 const ControlSchema = z.object({
   isActive: z.boolean(),
 });
 
 export async function GET() {
-  const isActive = await getBotStatus();
-  return NextResponse.json({ isActive });
+  try {
+    const isActive = await getBotStatus();
+    return NextResponse.json({ isActive });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to fetch status' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -19,7 +24,10 @@ export async function POST(request: Request) {
     const validation = ControlSchema.safeParse(body);
     
     if (!validation.success) {
-      return NextResponse.json({ success: false, error: 'Invalid input payload' }, { status: 400 });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid input payload' 
+      }, { status: 400 });
     }
 
     const { isActive } = validation.data;
@@ -28,7 +36,7 @@ export async function POST(request: Request) {
     if (result.success) {
       await saveBotEvent(
         isActive ? 'START' : 'STOP', 
-        `Движок переведен в состояние ${isActive ? 'АКТИВЕН' : 'ПАУЗА'} через админ-панель.`
+        `System state transitioned to ${isActive ? 'ACTIVE' : 'PAUSED'} via administrative terminal.`
       );
       return NextResponse.json({ success: true, isActive });
     }

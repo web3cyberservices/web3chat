@@ -2,6 +2,10 @@ node_modules
 .next
 .git
 .env
-*.log
+.env.local
+.env.production
 firebase-key.json
-logs/
+*.log
+Dockerfile
+.dockerignore
+README.md

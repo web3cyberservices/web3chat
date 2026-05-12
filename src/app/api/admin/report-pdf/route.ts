@@ -8,7 +8,12 @@ import DOMPurify from 'isomorphic-dompurify';
 
 export const dynamic = 'force-dynamic';
 
-// Strict validation for domain format to prevent injection
+/**
+ * @fileOverview V30.0 Secure PDF Generation Engine
+ * Implements strict Zod domain validation and DOMPurify sanitization to prevent RCE/XSS.
+ */
+
+// Strict regex for domain validation to prevent shell/command injection
 const DomainSchema = z.string().min(3).max(255).regex(/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/);
 
 const CHROME_PATHS = [
