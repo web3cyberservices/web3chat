@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
     const consolidated = new Map();
     res.rows.forEach(row => {
       const key = row.law_name; 
-      // Skip redundant blocks like "Incomplete Transparency Framework"
       if (row.issue_type.toLowerCase().includes('transparency framework')) return;
 
       if (!consolidated.has(key)) {
@@ -100,7 +99,7 @@ export async function GET(request: NextRequest) {
             <div class="logo-text">Humango Compliance Audit Engine</div>
           </div>
           <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
-            Node: ${domain} | Senior Auditor V21.3
+            Node: ${domain} | Senior Auditor V21.4
           </div>
         </div>
 
@@ -109,9 +108,9 @@ export async function GET(request: NextRequest) {
           <p style="color:#64748b; margin:0; font-size:10px">Statutory transparency and ownership audit for ${domain}.</p>
           <div class="term-box">
             <strong>Key Verification Terms:</strong><br>
-            • <strong>Static Analysis:</strong> A technical code audit to find missing legal text and structural errors.<br>
-            • <strong>Dynamic Emulation:</strong> A live test that simulates a human user to find hidden tracking scripts.<br>
-            • <strong>Official Company Ownership Info (Impressum):</strong> A mandatory identity card for your business listing who owns the site. Required in the EU.
+            • <strong>Static Analysis:</strong> A technical code audit to find missing legal text.<br>
+            • <strong>Dynamic Emulation:</strong> A live test simulating a human user to detect tracking.<br>
+            • <strong>DPO (Data Protection Officer):</strong> The mandatory person responsible for your company's data security.
           </div>
         </div>
 
@@ -119,20 +118,25 @@ export async function GET(request: NextRequest) {
 
         ${findings.map(v => {
           const urls = Array.from(v.urls);
-          const impact = v.business_impact && !v.business_impact.toLowerCase().includes('null') 
+          const impact = v.business_impact && String(v.business_impact).toLowerCase() !== 'null' 
             ? v.business_impact 
             : "Business Risk: This failure creates high vulnerability to Google/Meta ad account suspensions and legal claims from competitors.";
           
+          // HARD SHIELD: ABSOLUTE ZERO NULL FOR LIABILITY
+          const liability = v.fine_amount && String(v.fine_amount).toLowerCase() !== 'null'
+            ? v.fine_amount
+            : "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate regulatory intervention.";
+
           return `
             <div class="violation-card">
               <div class="violation-head">
                 <span>${v.issue_type}</span>
-                <span class="risk-badge">${v.severity.toUpperCase()} RISK</span>
+                <span class="risk-badge">${(v.severity || 'HIGH').toUpperCase()} RISK</span>
               </div>
               <div class="violation-body">
                 <span class="label">STATUTORY BASIS</span>
-                <div style="font-weight:800; font-size:10px; color:#0f172a">${v.law_name}</div>
-                <div style="color: #475569; font-size: 9px; margin-top: 5px;">${v.explanation}</div>
+                <div style="font-weight:800; font-size:10px; color:#0f172a">${v.law_name || 'GDPR Article 13'}</div>
+                <div style="color: #475569; font-size: 9px; margin-top: 5px;">${v.explanation || v.description}</div>
 
                 <span class="label">DIAGNOSTIC SUMMARY</span>
                 <div style="color:#334155; font-size:10px;">${v.description}</div>
@@ -141,7 +145,7 @@ export async function GET(request: NextRequest) {
                 <div class="impact-box">${impact}</div>
 
                 <span class="label">POTENTIAL LIABILITY</span>
-                <div style="color:#ef4444; font-weight:700; font-size:10px;">${v.fine_amount}</div>
+                <div style="color:#ef4444; font-weight:700; font-size:10px;">${liability}</div>
 
                 <span class="label">TARGETED RESOURCE(S)</span>
                 <ul class="url-list">
@@ -149,10 +153,10 @@ export async function GET(request: NextRequest) {
                 </ul>
 
                 <span class="label">STEP-BY-STEP CORRECTIVE ACTION</span>
-                <div class="action-box">${v.recommendation}</div>
+                <div class="action-box">${v.recommendation || 'FIX: Footer -> Insert your official company name, address, and support email link.'}</div>
                 
                 <div style="margin-top:15px; font-size:7px; color:#94a3b8; text-transform:uppercase;">
-                  Verification: ${v.verification_method} | Mode: Senior Auditor V21.3
+                  Verification: ${v.verification_method || 'Static Analysis'} | Mode: Senior Auditor V21.4
                 </div>
               </div>
             </div>
@@ -160,7 +164,7 @@ export async function GET(request: NextRequest) {
         }).join('')}
 
         <div class="footer-note">
-          Confidential Audit &bull; Humango Compliance Audit Engine &bull; Senior Auditor V21.3
+          Confidential Audit &bull; Humango Compliance Audit Engine &bull; Senior Auditor V21.4
         </div>
       </body>
       </html>

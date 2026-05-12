@@ -32,7 +32,7 @@ export async function testConnection() {
 }
 
 function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V21.4 Diagnostic Loop.'): string {
-  if (!text || text === 'null' || text.trim() === '') return fallback;
+  if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
   return DOMPurify.sanitize(text);
 }
 
@@ -90,18 +90,23 @@ export async function saveAuditResults(domain: string, url: string, violations: 
 
     for (const v of consolidated.values()) {
       // RULE: CONCRETE LIABILITY FALLBACK - NO NULLS ALLOWED
-      let liability = v.potential_fine;
       const criticalFine = "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate regulatory intervention.";
       const highFine = "Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).";
       
-      if (!liability || liability === 'null' || liability.trim() === '') {
+      let liability = v.potential_fine;
+      if (!liability || liability === 'null' || String(liability).toLowerCase() === 'null' || String(liability).trim() === '') {
         liability = v.severity === 'critical' ? criticalFine : highFine;
       }
 
       // RULE: CONCRETE BUSINESS IMPACT FALLBACK
       let impact = sanitize(v.business_impact, "Business Risk: Immediate suspension of advertising accounts (Google/Meta) and loss of customer trust.");
       
-      let action = sanitize(v.recommendation, `FIX: Footer -> Insert this text: 'Data Controller: ${domain}, Registered Address: [Your Full Office Address], Contact: [Support Email]'`);
+      // RULE: ACTIONABLE STEP FALLBACK
+      let action = v.recommendation || "";
+      if (!action || action === 'null' || action.trim() === '') {
+        action = `FIX: Footer -> Insert this text: 'Data Controller: ${domain}, Registered Address: [Your Full Office Address], Contact: [Support Email]'`;
+      }
+      
       if (!action.startsWith('FIX:')) {
         action = `FIX: Resource Page -> ${action}`;
       }
@@ -120,12 +125,12 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(v.description, "Statutory compliance failure detected in page structural analysis."), 
         sanitize(v.explanation || v.description, "The law requires explicit transparency regarding website ownership and data handling."), 
         sanitize(v.law_name, "GDPR Article 13"),
-        action,
+        sanitize(action),
         scanType,
         v.report_type,
-        liability,
+        sanitize(liability, criticalFine),
         v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis'),
-        impact
+        sanitize(impact)
       ]);
     }
     await client.query('COMMIT');

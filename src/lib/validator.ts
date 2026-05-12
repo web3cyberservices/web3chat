@@ -45,7 +45,7 @@ ZERO TOLERANCE FOR NULL FIELDS. If you don't find data, explain the RISK of miss
 2. BUSINESS IMPACT: Translate legal risk into commercial consequences (Ad suspensions, payment gateway closures, lawsuits).
 3. IRIS RULE (FIX): Recommendations MUST follow: "FIX: [Page Name] -> Insert this text: '[Actual Copy-Paste Snippet]'".
 4. SIMPLE LANGUAGE: Use "Company Identity Card" for Impressum. Expand all acronyms: "DPO (Data Protection Officer)".
-5. NO NULLS: If a field is null, replace it with high-value business or statutory risk text.
+5. NO NULLS: If any field (like potential_fine or business_impact) would be empty, replace it with a high-stakes business risk text.
 
 ### LIABILITY TEXT (DO NOT CHANGE):
 - MISSING DOC: "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate regulatory intervention."
@@ -69,7 +69,7 @@ export async function verifyIntegrity(html: string, findings: Violation[]) {
       findings 
     });
     
-    if (!output || output.validated_findings.length === 0) throw new Error('Validator failed');
+    if (!output || !output.validated_findings || output.validated_findings.length === 0) throw new Error('Validator failed');
     return output;
   } catch (error: any) {
     console.warn('[Validator] Quota/Error. Applying Senior Auditor Fallback V21.4.');
