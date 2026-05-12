@@ -1,11 +1,12 @@
+
 import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, VerificationMethod } from '@/types';
 
 /**
- * @fileOverview Senior Legal Architect V22.2 - Statutory Truth-Mapping.
+ * @fileOverview Senior Legal Architect V22.2 - Statutory Diagnostic Engine.
  * 
- * - Rule: Human-Friendly definitions (DPO, Official Ownership).
- * - Rule: Copy-pasteable HTML/Text solutions.
+ * - Rule: Human-Friendly definitions (DPO, Official Company Identity).
+ * - Rule: Zero-Advice Fixes (Copy-paste ready HTML/Text snippets).
  */
 
 const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account suspension.";
@@ -32,26 +33,6 @@ const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
     excluded_checks: [],
     localGdprTerm: 'DSGVO',
     entitySuffixes: [/GmbH/i, /AG/i, /e\.V\./i, /UG/i, /GmbH & Co\. KG/i]
-  },
-  'FR': { 
-    name: 'France',
-    law: 'Art. 13 GDPR & Loi Informatique et Libertés', 
-    authority: 'CNIL', 
-    lang: 'French', 
-    requireImpressum: false, 
-    excluded_checks: ['impressum_check'],
-    localGdprTerm: 'RGPD',
-    entitySuffixes: [/SAS/i, /SARL/i, /SA/i, /EI/i]
-  },
-  'PL': { 
-    name: 'Poland',
-    law: 'Art. 13 GDPR & RODO', 
-    authority: 'UODO', 
-    lang: 'Polish', 
-    requireImpressum: false, 
-    excluded_checks: ['impressum_check'],
-    localGdprTerm: 'RODO',
-    entitySuffixes: [/Sp\. z o\.o\./i, /S\.A\./i, /Sp\.k\./i, /S\.K\.A\./i]
   },
   'DEFAULT': { 
     name: 'European Union',
@@ -104,47 +85,49 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'MISSING PRIVACY INFRASTRUCTURE',
       severity: 'critical',
       evidence_html: url,
-      description: `Statutory law requires you to display a Privacy Policy before any data collection begins. None was detected.`,
-      business_impact: 'Business Risk: Immediate loss of marketing ROI as Google/Meta advertising platforms require valid compliance signals.',
+      description: `Statutory law requires you to display a Privacy Policy before any data collection begins. No document was detected in your site structure.`,
+      business_impact: 'Business Risk: Immediate loss of marketing ROI as Google and Meta advertising platforms require valid compliance signals to run campaigns.',
       law_name: profile.law,
       potential_fine: LIABILITY_CRITICAL,
       explanation: 'You must inform users of site ownership and data usage before collection starts.',
-      recommendation: `INSERT THIS HTML: '<a href="/privacy">Privacy Policy</a>' and add to your website footer.`,
+      recommendation: `ACTION: INSERT THIS EXACT HTML INTO YOUR FOOTER: '<a href="/privacy">Privacy Policy</a>'. Then create a page at /privacy and insert your legal disclosures.`,
       verification_method
     });
   } else {
-    // If document exists, check for specific gaps
-    if (!/retention|storage|storing/i.test($('body').text())) {
+    // Check for specific gaps in the policy
+    const policyBody = $('body').text();
+    if (!/retention|storage|storing/i.test(policyBody)) {
        violationMap.set('Art. 13-Retention', {
         category: 'Privacy',
         report_type: 'SaaS',
-        issue_type: 'CRITICAL GAP: DATA RETENTION',
+        issue_type: 'CRITICAL GAP: DATA RETENTION TIMEFRAMES',
         severity: 'high',
         evidence_html: links.privacy,
-        description: `Statutory law requires you to state exactly how long you store user data. This is missing from your policy.`,
-        business_impact: 'Business Risk: Direct vulnerability to regulatory audits and Art. 17 data erasure lawsuits.',
+        description: `Your policy fails to state exactly how long you store user data. This is a mandatory transparency requirement under Art. 13.`,
+        business_impact: 'Business Risk: Direct vulnerability to regulatory audits and Art. 17 data erasure lawsuits. High risk of ad account suspension.',
         law_name: 'Art. 13(2)(a) GDPR',
         potential_fine: LIABILITY_HIGH,
-        explanation: 'You must state how long you keep user data or the criteria used to decide that timeframe.',
-        recommendation: `INSERT THIS TEXT: 'Data Retention: We store user data for 24 months from the last login or until you request account deletion.'`,
+        explanation: 'You must state how long you keep user data or the specific criteria used to decide that timeframe.',
+        recommendation: `ACTION: INSERT THIS EXACT TEXT INTO YOUR PRIVACY POLICY: 'Data Retention: We store user personal data for a period of 24 months from the date of your last interaction or until you request account deletion.'`,
         verification_method
       });
     }
   }
 
+  // Official Company Identity Check
   if (!identityFound && !violationMap.has('Art. 13-Missing')) {
     violationMap.set('Art. 13(1)(a)', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'OFFICIAL COMPANY OWNERSHIP INFO',
+      issue_type: 'MISSING OFFICIAL COMPANY IDENTITY',
       severity: 'high',
       evidence_html: url,
       description: 'The law requires you to display your registered company name and physical address for commercial accountability.',
-      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) account suspension.',
+      business_impact: 'Business Risk: Significant loss of B2B trust and potential payment gateway (Stripe/PayPal) account suspension due to lack of verified identity.',
       law_name: 'Art. 13(1)(a) GDPR',
       potential_fine: LIABILITY_HIGH,
-      explanation: 'Statutory rules require a physical address and registered name for all commercial entities.',
-      recommendation: `INSERT THIS TEXT: 'Data Controller: [Company Name], Address: [Street, City], Email: legal@${domain}'`,
+      explanation: 'Statutory rules require a physical address and registered company name for all commercial entities operating in the EU.',
+      recommendation: `ACTION: INSERT THIS EXACT TEXT INTO YOUR WEBSITE FOOTER: 'Data Controller: [Your Registered Company Name], Address: [Your Legal Business Address], Email: support@${domain}'`,
       verification_method
     });
   }

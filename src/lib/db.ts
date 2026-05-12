@@ -1,4 +1,4 @@
-import 'dotenv/config';
+
 import { Pool } from 'pg';
 import DOMPurify from 'isomorphic-dompurify';
 import { Violation, ScanType } from '@/types';
@@ -8,6 +8,7 @@ import { Violation, ScanType } from '@/types';
  * 
  * - TRUTH-MAPPING: Hard-coded logic to prevent "Missing vs Incomplete" contradictions.
  * - CONSOLIDATION: Merging findings by Law Name to eliminate report bloat.
+ * - NULL-PURGE: Absolute protection against empty liability or impact fields.
  */
 
 if (!process.env.DATABASE_URL) {
@@ -65,10 +66,10 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // V22.2: HARD CONSOLIDATION by Statutory Law
+    // V22.2: HARD CONSOLIDATION by Statutory Law to prevent duplicates
     const consolidated = new Map();
     violations.forEach(v => {
-      // RULE: V22.2 - Remove bloat blocks and redundant summaries
+      // RULE: V22.2 - Remove redundant "Transparency Framework" bloat
       const lowerType = v.issue_type.toLowerCase();
       if (lowerType.includes('transparency framework') || lowerType.includes('analyzer summary')) return;
 
@@ -92,8 +93,8 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of consolidated.values()) {
-      // RULE: V22.2 - CODE-LEVEL TRUTH MAPPING
-      // If we are analyzing a URL, it CANNOT be reported as missing.
+      // RULE: V22.2 - HARD TRUTH MAPPING
+      // Programmatically prevent "Missing" status if a URL was actually detected.
       let finalIssueType = v.issue_type;
       let finalDescription = v.description;
       
@@ -102,11 +103,12 @@ export async function saveAuditResults(domain: string, url: string, violations: 
 
       if (isMissingStatus && isLegalPath) {
         finalIssueType = "CRITICAL INCOMPLETENESS";
-        finalDescription = `The document exists but fails fundamental statutory transparency checks. Linkage is not accessible from the site footer as required.`;
+        finalDescription = `The document was discovered at ${url} but is not accessible via a standard statutory link in the website footer.`;
       }
 
-      const standardLiability = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate advertising account termination.";
-      const standardImpact = "Business Risk: Immediate loss of marketing ROI as Google/Meta advertising platforms require valid compliance signals.";
+      // Mandatory Liability & Impact Fallbacks
+      const standardLiability = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account termination.";
+      const standardImpact = "Business Risk: Immediate loss of marketing ROI as ad platforms (Google/Meta) require valid statutory compliance signals.";
       
       let liability = v.potential_fine;
       if (!liability || liability === 'null' || String(liability).toLowerCase() === 'null') {
