@@ -6,12 +6,22 @@ import fs from 'fs';
 import path from 'path';
 
 export const dynamic = 'force-dynamic';
-const CHROME_PATH = '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome';
+
+// Potential chrome paths for different environments
+const CHROME_PATHS = [
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium-browser',
+  '/root/.cache/puppeteer/chrome/linux-148.0.7778.97/chrome-linux64/chrome',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+];
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const domain = searchParams.get('domain');
-  if (!domain) return NextResponse.json({ error: 'Domain is required' }, { status: 400 });
+  
+  if (!domain) {
+    return NextResponse.json({ error: 'Domain parameter is required' }, { status: 400 });
+  }
 
   let browser: any = null;
   try {
@@ -19,7 +29,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         issue_type, page_url, severity, category, description, business_impact,
         fine_amount, law_name, recommendation, explanation, report_type,
-        verification_method
+        verification_method, created_at
       FROM site_violations 
       WHERE domain = $1 
       ORDER BY 
@@ -32,12 +42,14 @@ export async function GET(request: NextRequest) {
         severity DESC
     `, [domain]);
 
-    if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found.' }, { status: 404 });
+    if (res.rows.length === 0) {
+      return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
+    }
 
-    // Deduplication by Statuory Article for expert density
+    // Expert Deduplication & Hard Merge by Article
     const consolidated = new Map();
     res.rows.forEach(row => {
-      const key = `${row.issue_type}_${row.law_name}`;
+      const key = `${row.category}_${row.issue_type}_${row.law_name}`;
       if (!consolidated.has(key)) {
         consolidated.set(key, { ...row, urls: new Set([row.page_url]) });
       } else {
@@ -47,15 +59,19 @@ export async function GET(request: NextRequest) {
 
     const findings = Array.from(consolidated.values());
     const systemicRisks = findings.filter(f => f.issue_type.includes('SYSTEMIC'));
-    const identityRisks = findings.filter(f => f.issue_type.includes('IDENTITY'));
+    const identityRisks = findings.filter(f => f.issue_type.includes('IDENTITY') || f.category === 'IMPRESSUM');
     const processingRisks = findings.filter(f => f.category === 'LEGAL_GROUNDS');
     const otherRisks = findings.filter(f => !systemicRisks.includes(f) && !identityRisks.includes(f) && !processingRisks.includes(f));
 
     let logoBase64 = '';
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-      logoBase64 = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
-    } catch (e) {}
+      if (fs.existsSync(logoPath)) {
+        logoBase64 = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
+      }
+    } catch (e) {
+      console.warn('[PDF] Logo load failed:', e);
+    }
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -96,7 +112,7 @@ export async function GET(request: NextRequest) {
 
         <div class="summary-card">
           <h1 style="font-size:20px; color:#0f172a; margin:0 0 5px 0; font-weight:800">Executive Statutory Summary</h1>
-          <p style="color:#64748b; margin:0; font-size:10px">Legal diagnostic regarding transparency (Art. 12/13) and processing grounds (Art. 6).</p>
+          <p style="color:#64748b; margin:0; font-size:10px">Statutory diagnostic regarding transparency (Art. 12/13) and processing grounds (Art. 6).</p>
         </div>
 
         ${systemicRisks.length > 0 ? `
@@ -105,7 +121,7 @@ export async function GET(request: NextRequest) {
         ` : ''}
 
         ${identityRisks.length > 0 ? `
-          <div class="section-title">II. Controller Accountability (Art. 13-1-a)</div>
+          <div class="section-title">II. Controller Accountability & Identity</div>
           ${identityRisks.map(renderViolation).join('')}
         ` : ''}
 
@@ -124,7 +140,7 @@ export async function GET(request: NextRequest) {
                 </thead>
                 <tbody>
                   <tr><td>Usage Analysis / Analytics</td><td>Art. 6(1)(f) + Description</td><td>Deficient</td></tr>
-                  <tr><td>Fraud Prevention</td><td>Art. 6(1)(f) + Description</td><td>Deficient</td></tr>
+                  <tr><td>Fraud Prevention / Security</td><td>Art. 6(1)(f) + Description</td><td>Deficient</td></tr>
                   <tr><td>Customer Support</td><td>Art. 6(1)(b) Contractual</td><td>Missing Correlation</td></tr>
                 </tbody>
               </table>
@@ -139,13 +155,14 @@ export async function GET(request: NextRequest) {
         ` : ''}
 
         <div class="footer-note">
-          Confidential Legal Audit &bull; Humango Compliance Audit Engine &bull; Pan-European V21.0
+          Confidential Legal Audit &bull; Humango Compliance Audit Engine &bull; Expert Node
         </div>
       </body>
       </html>
     `;
 
     function renderViolation(v: any) {
+      const urls = Array.from(v.urls);
       return `
         <div class="violation-card">
           <div class="violation-head">
@@ -160,27 +177,36 @@ export async function GET(request: NextRequest) {
             <div style="color:#334155; font-size:9px;">${v.description}</div>
 
             <span class="label">BUSINESS IMPACT</span>
-            <div class="impact-box">${v.business_impact}</div>
+            <div class="impact-box">${v.business_impact || 'Lack of statutory compliance escalating regulatory scrutiny.'}</div>
 
             <span class="label">ADMINISTRATIVE LIABILITY</span>
-            <div style="color:#ef4444; font-weight:700; font-size:9px;">${v.fine_amount}</div>
+            <div style="color:#ef4444; font-weight:700; font-size:9px;">Potential Administrative Liability: Up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR)</div>
 
             <span class="label">TARGETED RESOURCE(S)</span>
             <ul class="url-list">
-              ${Array.from(v.urls).map(u => `<li>&bull; ${u}</li>`).join('')}
+              ${urls.map(u => `<li>&bull; ${u}</li>`).join('')}
             </ul>
 
             <span class="label">REMEDIATION BLUEPRINT</span>
-            <div class="blueprint">${v.recommendation.replace(/\n/g, '<br>')}</div>
+            <div class="blueprint">${(v.recommendation || '').replace(/\n/g, '<br>')}</div>
           </div>
         </div>
       `;
     }
 
+    // Robust puppeteer launch
+    let executablePath = '';
+    for (const p of CHROME_PATHS) {
+      if (fs.existsSync(p)) {
+        executablePath = p;
+        break;
+      }
+    }
+
     browser = await puppeteer.launch({ 
-      executable_path: CHROME_PATH, 
+      executablePath: executablePath || undefined,
       headless: 'new', 
-      args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
     });
     
     const page = await browser.newPage();
@@ -198,7 +224,8 @@ export async function GET(request: NextRequest) {
       } 
     });
   } catch (error: any) {
-    return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
+    console.error('[PDF API CRASH]', error);
+    return NextResponse.json({ error: 'Failed to generate report: ' + error.message }, { status: 500 });
   } finally {
     if (browser) await browser.close();
   }

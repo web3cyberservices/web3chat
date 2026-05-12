@@ -57,11 +57,12 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // Hard merge by Article/Topic to prevent page spam
+    // Expert Hard Merge by Statutory Type and Category to prevent repetition
     const uniqueViolations = new Map();
     violations.forEach(v => {
       const affectedUrl = normalizeUrl(v.evidence_html || url);
-      const key = `${v.issue_type.toUpperCase()}_${v.law_name}`;
+      // Deduplicate by category, issue type and law for clean history
+      const key = `${v.category}_${v.issue_type.toUpperCase()}_${v.law_name}`;
       if (!uniqueViolations.has(key)) {
         uniqueViolations.set(key, { ...v, evidence_html: affectedUrl });
       }
