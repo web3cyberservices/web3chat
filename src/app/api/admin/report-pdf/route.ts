@@ -17,9 +17,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const domain = searchParams.get('domain');
   
-  if (!domain) {
-    return NextResponse.json({ error: 'Domain parameter is required' }, { status: 400 });
-  }
+  if (!domain) return NextResponse.json({ error: 'Domain required' }, { status: 400 });
 
   let browser: any = null;
   try {
@@ -40,18 +38,15 @@ export async function GET(request: NextRequest) {
         created_at ASC
     `, [domain]);
 
-    if (res.rows.length === 0) {
-      return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
-    }
+    if (res.rows.length === 0) return NextResponse.json({ error: 'No audit data found' }, { status: 404 });
 
-    // RULE: V22.0 TRUTH-MAPPING & CONSOLIDATION
-    // Ensure "Missing" does not exist if URLs were found.
+    // RULE: V22.1 HARD CONSOLIDATION & BLOAT PURGE
     const consolidated = new Map();
     res.rows.forEach(row => {
-      const key = row.law_name; 
-      // Filter out redundant summary blocks
+      // Eliminate redundant "Transparency Framework" blocks
       if (row.issue_type.toLowerCase().includes('transparency framework')) return;
 
+      const key = row.law_name || row.issue_type; 
       if (!consolidated.has(key)) {
         const urls = row.page_url.split(',').map((u: string) => u.trim());
         consolidated.set(key, { ...row, urls: new Set(urls) });
@@ -66,9 +61,7 @@ export async function GET(request: NextRequest) {
     let logoBase64 = '';
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-      if (fs.existsSync(logoPath)) {
-        logoBase64 = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
-      }
+      if (fs.existsSync(logoPath)) logoBase64 = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
     } catch (e) {}
 
     const htmlContent = `
@@ -101,7 +94,7 @@ export async function GET(request: NextRequest) {
             <div class="logo-text">Humango Compliance Engine</div>
           </div>
           <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
-            Node: ${domain} | SENIOR ARCHITECT V22.0
+            Node: ${domain} | SENIOR ARCHITECT V22.1
           </div>
         </div>
 
@@ -109,24 +102,19 @@ export async function GET(request: NextRequest) {
           <h1 style="font-size:20px; color:#0f172a; margin:0 0 8px 0; font-weight:800">Statutory Compliance Audit</h1>
           <p style="color:#64748b; margin:0; font-size:10px">Executive Diagnostic Report for ${domain}.</p>
           <div class="term-box">
-            <strong>Diagnostic Glossary:</strong><br>
-            • <strong>Official Identity Card (Impressum):</strong> Mandatory EU company transparency info.<br>
-            • <strong>Data Protection Officer (DPO):</strong> The mandatory person responsible for your company's data security.<br>
-            • <strong>Static Code Analysis:</strong> Technical code audit identifying missing legal disclosures.
+            <strong>Glossary:</strong><br>
+            • <strong>Official Company Ownership (Impressum):</strong> Mandatory EU company identity info.<br>
+            • <strong>Data Protection Officer (DPO):</strong> The person responsible for your company's data security.<br>
+            • <strong>Static Code Analysis:</strong> Code audit identifying missing legal disclosures.
           </div>
         </div>
 
-        <div class="section-title">Consolidated Findings by Statutory Law</div>
+        <div class="section-title">Findings by Statutory Law</div>
 
         ${findings.map(v => {
           const urls = Array.from(v.urls);
-          const impact = v.business_impact && String(v.business_impact).toLowerCase() !== 'null' 
-            ? v.business_impact 
-            : "Business Risk: Immediate loss of marketing ROI as advertising platforms require valid compliance signals.";
-          
-          const liability = v.fine_amount && String(v.fine_amount).toLowerCase() !== 'null'
-            ? v.fine_amount
-            : "Fines up to €20,000,000 or 4% of annual turnover (Art. 83 GDPR).";
+          const impact = v.business_impact && v.business_impact !== 'null' ? v.business_impact : "Risk: Immediate loss of marketing ROI as ad platforms require valid compliance signals.";
+          const liability = v.fine_amount && v.fine_amount !== 'null' ? v.fine_amount : "Fines up to €20,000,000 or 4% of annual turnover (Art. 83 GDPR).";
 
           return `
             <div class="violation-card">
@@ -139,7 +127,7 @@ export async function GET(request: NextRequest) {
                 <div style="font-weight:800; font-size:10px; color:#0f172a">${v.law_name || 'GDPR Article 13'}</div>
                 <div style="color: #475569; font-size: 9px; margin-top: 5px;">${v.explanation || v.description}</div>
 
-                <span class="label">DIAGNOSTIC SUMMARY</span>
+                <span class="label">SUMMARY</span>
                 <div style="color:#334155; font-size:10px;">${v.description}</div>
 
                 <span class="label">BUSINESS IMPACT</span>
@@ -154,10 +142,10 @@ export async function GET(request: NextRequest) {
                 </ul>
 
                 <span class="label">STEP-BY-STEP CORRECTIVE ACTION</span>
-                <div class="action-box">${v.recommendation || 'ACTION: Copy and paste into footer: \'Data Controller: [Your Company Name]\''}</div>
+                <div class="action-box">${v.recommendation || 'INSERT THIS TEXT: \'Data Controller: [Your Company Name]\''}</div>
                 
                 <div style="margin-top:15px; font-size:7px; color:#94a3b8; text-transform:uppercase;">
-                  VERIFICATION: ${v.verification_method || 'Static Analysis'} | SENIOR ARCHITECT V22.0
+                  VERIFICATION: ${v.verification_method || 'Static Analysis'} | SENIOR ARCHITECT V22.1
                 </div>
               </div>
             </div>
@@ -165,14 +153,13 @@ export async function GET(request: NextRequest) {
         }).join('')}
 
         <div class="footer-note">
-          Confidential Audit &bull; Humango Compliance Engine &bull; SENIOR ARCHITECT V22.0
+          Confidential Audit &bull; Humango Compliance Engine &bull; SENIOR ARCHITECT V22.1
         </div>
       </body>
       </html>
     `;
 
     const executablePath = CHROME_PATHS.find(p => fs.existsSync(p));
-
     browser = await puppeteer.launch({ 
       executablePath: executablePath || undefined,
       headless: 'new', 
@@ -195,7 +182,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[PDF API ERROR]', error.stack);
-    return NextResponse.json({ error: 'Failed to generate report: ' + error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
   } finally {
     if (browser) await browser.close();
   }

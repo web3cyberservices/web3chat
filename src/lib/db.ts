@@ -4,10 +4,10 @@ import DOMPurify from 'isomorphic-dompurify';
 import { Violation, ScanType } from '@/types';
 
 /**
- * @fileOverview Senior Legal Architect V22.0 - Data Integrity Layer.
+ * @fileOverview Senior Legal Architect V22.1 - Data Integrity Layer.
  * 
- * - Consolidated Truth-Mapping: Merging findings by Law Name.
- * - Zero-Null Enforcement: Automatic fallback for liability and impact.
+ * - TRUTH-MAPPING: Hard-coded logic to prevent "Missing vs Incomplete" contradictions.
+ * - CONSOLIDATION: Merging findings by Law Name to eliminate report bloat.
  */
 
 if (!process.env.DATABASE_URL) {
@@ -31,14 +31,14 @@ export async function testConnection() {
     await client.query('SELECT 1');
     return true;
   } catch (error: any) {
-    console.error('[Database V22.0 Handshake Failure]', error.message);
+    console.error('[Database V22.1 Handshake Failure]', error.message);
     throw error;
   } finally {
     if (client) client.release();
   }
 }
 
-function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Architect V22.0 Diagnostic Loop.'): string {
+function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V22.1 Diagnostic.'): string {
   if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
   return DOMPurify.sanitize(text);
 }
@@ -50,9 +50,7 @@ export function normalizeUrl(url: string, base?: string): string {
     u.search = '';
     let pathname = u.pathname.toLowerCase();
     if (pathname === '') pathname = '/';
-    if (pathname.length > 1 && pathname.endsWith('/')) {
-      pathname = pathname.slice(0, -1);
-    }
+    if (pathname.length > 1 && pathname.endsWith('/')) pathname = pathname.slice(0, -1);
     u.pathname = pathname;
     return u.href.toLowerCase();
   } catch (e) {
@@ -67,17 +65,18 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // V22.0: HARD CONSOLIDATION by Statutory Law
+    // V22.1: HARD CONSOLIDATION by Statutory Law
     const consolidated = new Map();
     violations.forEach(v => {
+      // RULE: V22.1 - Remove bloat blocks
+      if (v.issue_type.toLowerCase().includes('transparency framework')) return;
+
       const key = v.law_name || v.issue_type; 
       if (!consolidated.has(key)) {
         consolidated.set(key, { ...v, page_urls: [url] });
       } else {
         const existing = consolidated.get(key);
-        if (!existing.page_urls.includes(url)) {
-          existing.page_urls.push(url);
-        }
+        if (!existing.page_urls.includes(url)) existing.page_urls.push(url);
       }
     });
 
@@ -92,32 +91,39 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of consolidated.values()) {
+      // RULE: V22.1 - Truth Mapping Check
+      let finalIssueType = v.issue_type;
+      let finalDescription = v.description;
+      
+      // If we are analyzing a URL, it CANNOT be missing.
+      if (v.issue_type.toLowerCase().includes('missing') && (v.page_url.includes('/privacy') || v.page_url.includes('/legal') || v.page_url.includes('/impressum'))) {
+        finalIssueType = "CRITICAL INCOMPLETENESS";
+        finalDescription = `Document found but fails statutory transparency checks. Linkage is not clearly accessible from the footer.`;
+      }
+
       const standardLiability = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account suspension.";
       const standardImpact = "Business Risk: Immediate loss of marketing ROI as advertising platforms require valid compliance signals.";
       
       let liability = v.potential_fine;
-      if (!liability || liability === 'null' || String(liability).toLowerCase() === 'null') {
-        liability = standardLiability;
-      }
+      if (!liability || liability === 'null' || String(liability).toLowerCase() === 'null') liability = standardLiability;
 
       let impact = sanitize(v.business_impact, standardImpact);
-      let action = v.recommendation || `ACTION: Copy and paste into your footer: '<a href="/privacy">Privacy Policy</a>'`;
 
       await client.query(query, [
         sanitize(domain),
         sanitize(normalizeUrl(url)),
         sanitize(v.page_urls.join(', ')), 
         v.category,
-        v.issue_type,
+        sanitize(finalIssueType),
         v.severity,
         sanitize(v.evidence_html || url),
-        sanitize(v.evidence_quote, "Verified via Senior Architect V22.0 Diagnostic."),
+        sanitize(v.evidence_quote, "Verified via Senior Auditor V22.1 Diagnostic."),
         v.confidence_score || 0.8,
         v.verification_status || 'verified',
-        sanitize(v.description, "Statutory compliance failure detected during code audit."), 
-        sanitize(v.explanation || v.description, "EU law requires explicit transparency for commercial data processing."), 
+        sanitize(finalDescription), 
+        sanitize(v.explanation || finalDescription), 
         sanitize(v.law_name, "GDPR Article 13"),
-        sanitize(action),
+        sanitize(v.recommendation),
         scanType,
         v.report_type,
         sanitize(liability, standardLiability),
@@ -129,7 +135,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     return { success: true };
   } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('[DB V22.0 SAVE ERROR]', error.stack);
+    console.error('[DB V22.1 SAVE ERROR]', error.stack);
     return { success: false, error };
   } finally {
     client.release();

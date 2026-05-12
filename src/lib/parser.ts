@@ -2,10 +2,10 @@ import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, VerificationMethod } from '@/types';
 
 /**
- * @fileOverview Senior Legal Architect V22.0 - Statutory Truth-Mapping.
+ * @fileOverview Senior Legal Architect V22.1 - Statutory Truth-Mapping.
  * 
- * - Truth-Mapping: If a URL is found, it's never "Missing".
- * - Copy-Paste Fixes: No abstract advice allowed.
+ * - Rule: If a URL exists, it's NOT missing.
+ * - Human-like language: Simple English for busy owners.
  */
 
 const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account suspension.";
@@ -94,7 +94,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const violationMap = new Map<string, Violation>();
   const fullHtmlLower = html.toLowerCase();
 
-  // RULE 1: Statutory Truth-Mapping (Art. 13)
+  // RULE: V22.1 - Truth-Mapping: If found, it is NOT missing.
   if (!links.privacy) {
     violationMap.set('Art. 13-Missing', {
       category: 'Privacy',
@@ -102,67 +102,49 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'MISSING PRIVACY INFRASTRUCTURE',
       severity: 'critical',
       evidence_html: url,
-      description: `The website lacks a mandatory Privacy Statement. Statutory law prohibits data collection without prior notice.`,
-      business_impact: 'Business Risk: Immediate suspension of marketing ROI as Google/Meta require valid compliance signals.',
+      description: `The law requires you to show a Privacy Policy before collecting any user data. None was found in the footer.`,
+      business_impact: 'Risk: Immediate loss of marketing ROI as Google/Meta require valid compliance signals.',
       law_name: profile.law,
       potential_fine: LIABILITY_CRITICAL,
-      explanation: 'Statutory rules require you to inform users of site ownership before collection begins.',
-      recommendation: `ACTION: Copy and paste this HTML into your footer: '<a href="/privacy">Privacy Policy</a>'`,
+      explanation: 'You must inform users of site ownership and data usage before collection begins.',
+      recommendation: `INSERT THIS TEXT: Add this to your website footer: '<a href="/privacy">Privacy Policy</a>'`,
       verification_method
     });
   } else {
-    // Incomplete Content logic
+    // Check for specific gaps if document exists
     if (!/retention|storage|storing/i.test($('body').text())) {
-       violationMap.set('Art. 13-Incomplete', {
+       violationMap.set('Art. 13-Retention', {
         category: 'Privacy',
         report_type: 'SaaS',
-        issue_type: 'CRITICAL INCOMPLETENESS: DATA RETENTION',
+        issue_type: 'CRITICAL GAP: DATA STORAGE',
         severity: 'high',
         evidence_html: links.privacy,
-        description: `The existing Privacy Policy fails to specify mandatory data retention periods (Art. 13(2)(a)).`,
-        business_impact: 'Business Risk: Vulnerability to regulatory audits and Art. 17 data erasure lawsuits.',
+        description: `The law requires you to clearly state how long you store user data. This is missing from your policy.`,
+        business_impact: 'Risk: Vulnerability to regulatory audits and Art. 17 erasure lawsuits.',
         law_name: 'Art. 13(2)(a) GDPR',
         potential_fine: LIABILITY_HIGH,
-        explanation: 'The law requires you to state how long you store user data or the criteria used to determine that period.',
-        recommendation: `ACTION: Copy and paste this into your Privacy Policy: 'Data Retention: We store user data for 24 months from the last login or until a deletion request is received.'`,
+        explanation: 'You must state how long you keep user data or the criteria used to decide that timeframe.',
+        recommendation: `INSERT THIS TEXT: 'Data Retention: We store user data for 24 months from the last login or until you request deletion.'`,
         verification_method
       });
     }
   }
 
-  // RULE 2: Registered Identity Card (Art. 13-1-a)
+  // RULE: Identity Check
   const identityFound = profile.entitySuffixes.some(s => s.test(fullHtmlLower));
   if (!identityFound && !violationMap.has('Art. 13-Missing')) {
     violationMap.set('Art. 13(1)(a)', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'ANONYMOUS DATA CONTROLLER',
+      issue_type: 'ANONYMOUS OWNER RISK',
       severity: 'high',
       evidence_html: url,
-      description: 'The website fails to provide its "Official Identity Card" (Registered Name & Address).',
-      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe) suspension.',
+      description: 'The law requires you to show your official company name and address for commercial accountability.',
+      business_impact: 'Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) suspension.',
       law_name: 'Art. 13(1)(a) GDPR',
       potential_fine: LIABILITY_HIGH,
-      explanation: 'Statutory rules require a physical address and registered name for commercial accountability.',
-      recommendation: `ACTION: Copy and paste this into your footer: 'Data Controller: [Your Company Name], Email: legal@${domain}'`,
-      verification_method
-    });
-  }
-
-  // RULE 3: ePrivacy Transparency (Art. 5(3))
-  if (!fullHtmlLower.includes('cookie') && !fullHtmlLower.includes('consent')) {
-    violationMap.set('ePrivacy', {
-      category: 'Privacy',
-      report_type: 'SaaS',
-      issue_type: 'UNAUTHORIZED TRACKING: ePRIVACY',
-      severity: 'high',
-      evidence_html: url,
-      description: 'The website sets tracking pixels without acquiring statutory user consent.',
-      business_impact: 'Business Risk: Immediate loss of marketing ROI as Google/Meta require explicit Consent Mode v2.',
-      law_name: 'ePrivacy Directive Art. 5(3) & Art. 7 GDPR',
-      potential_fine: LIABILITY_HIGH,
-      explanation: 'Consent is strictly required BEFORE setting any non-essential cookies or tracking pixels.',
-      recommendation: `ACTION: Copy and paste this HTML snippet for a basic banner: '<div id="consent">We use cookies. [Accept] [Settings]</div>'`,
+      explanation: 'Statutory rules require a physical address and registered name for commercial transparency.',
+      recommendation: `INSERT THIS TEXT: 'Data Controller: [Company Name], Address: [Street, City], Email: support@${domain}'`,
       verification_method
     });
   }
