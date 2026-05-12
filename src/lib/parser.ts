@@ -2,14 +2,14 @@ import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, VerificationMethod } from '@/types';
 
 /**
- * @fileOverview Statutory Diagnostic Layer V21.6.
+ * @fileOverview Ultimate Compliance Architect V21.7 - Statutory Truth-Mapping.
  * 
- * - Hard Consolidation: One Article = One Page.
- * - Logical Consistency: Avoids Missing/Incomplete contradictions.
+ * - Truth-Mapping: Document presence vs Incompleteness logic.
+ * - No-Advice Remediation: Copy-paste snippets only.
  */
 
-const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). Immediate risk of ad account suspension (Google/Meta).";
-const LIABILITY_HIGH = "Administrative penalties up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). Vulnerable to legal 'Abmahnung'.";
+const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate ad account suspension (Google/Meta).";
+const LIABILITY_HIGH = "Administrative penalties up to €20,000,000 (Art. 83 GDPR). Vulnerable to legal 'Abmahnung' notices.";
 
 interface JurisdictionProfile {
   name: string;
@@ -79,8 +79,8 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const $ = cheerio.load(html);
   const verification_method: VerificationMethod = isPuppeteer ? 'Dynamic Emulation' : 'Static Analysis';
   
-  const hostname = new URL(url).hostname;
-  const tld = hostname.split('.').pop()?.toUpperCase();
+  const domain = new URL(url).hostname;
+  const tld = domain.split('.').pop()?.toUpperCase();
   const profile = JURISDICTION_CONFIG[userInputCountry?.toUpperCase() || tld || ''] || JURISDICTION_CONFIG.DEFAULT;
 
   const links: Record<string, string | null> = { impressum: null, privacy: null };
@@ -94,7 +94,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const violationMap = new Map<string, Violation>();
   const fullHtmlLower = html.toLowerCase();
 
-  // RULE 1: Statutory Privacy Notice (Art. 13)
+  // RULE 1: Statutory Truth-Mapping (Art. 13)
   if (!links.privacy) {
     violationMap.set('Art. 13-Missing', {
       category: 'Privacy',
@@ -102,37 +102,36 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'MISSING PRIVACY INFRASTRUCTURE',
       severity: 'critical',
       evidence_html: url,
-      description: `The website lacks a mandatory Privacy Statement required for legal data processing.`,
-      business_impact: 'Business Risk: Immediate suspension of Google/Meta advertising accounts and total loss of tracking capability.',
+      description: `The website lacks the mandatory Privacy Statement required for legal data processing.`,
+      business_impact: 'Business Risk: Immediate suspension of advertising accounts (Google/Meta) and loss of tracking ROI.',
       law_name: profile.law,
       potential_fine: LIABILITY_CRITICAL,
-      explanation: 'Statutory rules require you to inform users of site ownership and data handling before collection begins.',
-      recommendation: `ACTION: Footer -> INSERT EXACTLY: '<a href="/privacy">Privacy Policy</a>'`,
+      explanation: 'Statutory rules require you to inform users of site ownership before collection begins.',
+      recommendation: `ACTION: Copy and paste this HTML into your footer: '<a href="/privacy">Official Privacy Statement</a>'`,
       verification_method
     });
   } else {
-    // Check for Incomplete Content
+    // Incomplete Content (Truth-Mapping: If link exists, it's never missing)
     const bodyText = $('body').text();
-    const hasRetention = /retention|storage|storing|storage period/i.test(bodyText);
-    if (!hasRetention) {
+    if (!/retention|storage|storing/i.test(bodyText)) {
        violationMap.set('Art. 13-Incomplete', {
         category: 'Privacy',
         report_type: 'SaaS',
-        issue_type: 'INCOMPLETE DATA RETENTION DISCLOSURE',
+        issue_type: 'CRITICAL INCOMPLETENESS: DATA RETENTION',
         severity: 'high',
         evidence_html: links.privacy,
-        description: `The Privacy Policy fails to specify statutory data retention periods required by Art. 13(2)(a).`,
-        business_impact: 'Business Risk: Vulnerability to GDPR regulatory audits and data subject erasure claims.',
+        description: `The existing Privacy Policy fails to specify mandatory data retention periods required by Art. 13(2)(a).`,
+        business_impact: 'Business Risk: Vulnerability to GDPR regulatory audits and data subject erasure lawsuits.',
         law_name: 'Art. 13(2)(a) GDPR',
         potential_fine: LIABILITY_HIGH,
-        explanation: 'Statutory rules require you to explicitly state exactly how long you store user data.',
-        recommendation: `ACTION: Privacy Policy -> INSERT EXACTLY: 'We store technical cookie data for 12 months from the date of consent.'`,
+        explanation: 'The law requires an exact timeframe or specific criteria for how long you store user data.',
+        recommendation: `ACTION: Copy and paste this into your Privacy Policy: 'Data Retention: We store user data for 24 months from last interaction or until a deletion request is received.'`,
         verification_method
       });
     }
   }
 
-  // RULE 2: Registered Identity (Art. 13-1-a)
+  // RULE 2: Registered Identity Card (Art. 13-1-a)
   const identityFound = profile.entitySuffixes.some(s => s.test(fullHtmlLower));
   if (!identityFound && !violationMap.has('Art. 13-Missing')) {
     violationMap.set('Art. 13(1)(a)', {
@@ -141,48 +140,30 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'ANONYMOUS DATA CONTROLLER',
       severity: 'high',
       evidence_html: url,
-      description: 'The website operator identity (registered name and street address) is missing or obscured.',
-      business_impact: 'Business Risk: Loss of customer trust and potential payment gateway (Stripe/PayPal) suspension.',
+      description: 'The website fails to provide official company ownership information (Registered Name & Address).',
+      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) suspension.',
       law_name: 'Art. 13(1)(a) GDPR',
       potential_fine: LIABILITY_HIGH,
-      explanation: 'Statutory rules require a physical address and registered entity name for commercial accountability.',
-      recommendation: `ACTION: Footer -> INSERT EXACTLY: 'Data Controller: [Your Company], Address: [Street, City, Postcode]'`,
+      explanation: 'Statutory rules require a physical address and registered name for commercial accountability.',
+      recommendation: `ACTION: Copy and paste this into your footer: 'Data Controller: [Your Company], Address: [Street, City, Postcode], Email: legal@${domain}'`,
       verification_method
     });
   }
 
-  // RULE 3: Company Identity Card (Impressum)
-  if (profile.requireImpressum && !links.impressum && !profile.excluded_checks.includes('impressum_check')) {
-    violationMap.set('TDDG', {
-      category: 'IMPRESSUM',
-      report_type: 'SaaS',
-      issue_type: 'MISSING STATUTORY IDENTITY CARD (IMPRESSUM)',
-      severity: 'critical',
-      evidence_html: url,
-      description: `Missing mandatory "Impressum" Legal Notice required for commercial transparency.`,
-      business_impact: 'Business Risk: Direct risk of legal "Abmahnung" (Cease and Desist) notices from competitors.',
-      law_name: profile.law.includes('TDDG') ? '§ 5 TDDG (Germany)' : 'Commercial Transparency Act',
-      potential_fine: LIABILITY_CRITICAL,
-      explanation: 'Every commercial website must have a Legal Notice listing ownership, address, and VAT ID.',
-      recommendation: `ACTION: Footer -> INSERT EXACTLY: '<a href="/legal">Legal Notice (Impressum)</a>'`,
-      verification_method
-    });
-  }
-
-  // RULE 4: ePrivacy & Cookies (Art. 5(3))
-  if (!fullHtmlLower.includes('cookie') && !fullHtmlLower.includes('tracking')) {
+  // RULE 3: ePrivacy Transparency (Art. 5(3))
+  if (!fullHtmlLower.includes('cookie') && !fullHtmlLower.includes('consent')) {
     violationMap.set('ePrivacy', {
       category: 'Privacy',
       report_type: 'SaaS',
-      issue_type: 'UNAUTHORIZED TRACKING (ePRIVACY)',
-      severity: 'medium',
+      issue_type: 'UNAUTHORIZED TRACKING: ePRIVACY',
+      severity: 'high',
       evidence_html: url,
-      description: 'The website sets tracking scripts without acquiring statutory user consent.',
-      business_impact: 'Business Risk: Immediate loss of marketing ROI as Meta and Google require explicit Consent Mode v2.',
+      description: 'The website sets tracking pixels without acquiring statutory user consent.',
+      business_impact: 'Business Risk: Immediate loss of marketing attribution as Google/Meta require explicit Consent Mode v2.',
       law_name: 'ePrivacy Directive Art. 5(3) & Art. 7 GDPR',
       potential_fine: LIABILITY_HIGH,
-      explanation: 'Consent is strictly required before setting non-essential cookies or tracking pixels.',
-      recommendation: `ACTION: Consent Banner -> INSERT EXACTLY: 'We use cookies for analytics. [Accept] [Settings]'`,
+      explanation: 'Consent is strictly required BEFORE setting non-essential cookies or tracking pixels.',
+      recommendation: `ACTION: Copy and paste this HTML snippet for a basic banner: '<div id="consent">We use cookies. [Accept] [Settings]</div>'`,
       verification_method
     });
   }

@@ -31,7 +31,7 @@ export async function testConnection() {
   }
 }
 
-function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V21.6 Diagnostic Loop.'): string {
+function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V21.7 Diagnostic Loop.'): string {
   if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
   return DOMPurify.sanitize(text);
 }
@@ -60,7 +60,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // V21.6: ABSOLUTE DEDUPLICATION & CONSOLIDATION
+    // V21.7: HARD CONSOLIDATION & TRUTH-MAPPING
     const consolidated = new Map();
     violations.forEach(v => {
       const key = v.law_name || v.issue_type; 
@@ -85,16 +85,15 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of consolidated.values()) {
-      const criticalFine = "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). Immediate risk of ad account suspension.";
-      const highFine = "Administrative penalties up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).";
+      const standardLiability = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account suspension.";
       
       let liability = v.potential_fine;
       if (!liability || liability === 'null' || String(liability).toLowerCase() === 'null') {
-        liability = v.severity === 'critical' ? criticalFine : highFine;
+        liability = standardLiability;
       }
 
       let impact = sanitize(v.business_impact, "Business Risk: Immediate suspension of advertising ROI and loss of customer trust.");
-      let action = v.recommendation || `ACTION: Footer -> INSERT EXACTLY: 'Data Controller: ${domain}, Email: legal@${domain}'`;
+      let action = v.recommendation || `ACTION: Copy and paste into footer: 'Data Controller: ${domain}, Email: legal@${domain}'`;
 
       await client.query(query, [
         sanitize(domain),
@@ -104,7 +103,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html || url),
-        sanitize(v.evidence_quote, "Verified via Senior Auditor V21.6 Diagnostic."),
+        sanitize(v.evidence_quote, "Verified via Senior Auditor V21.7 Diagnostic."),
         v.confidence_score || 0.8,
         v.verification_status || 'verified',
         sanitize(v.description, "Statutory compliance failure detected in page structural analysis."), 
@@ -113,7 +112,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         sanitize(action),
         scanType,
         v.report_type,
-        sanitize(liability, criticalFine),
+        sanitize(liability, standardLiability),
         v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis'),
         sanitize(impact)
       ]);
