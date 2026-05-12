@@ -64,44 +64,30 @@ const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
 };
 
 const DOC_KEYWORDS: Record<string, RegExp[]> = {
-  privacy: [
-    /privacy/i, /datenschutz/i, /confidentialité/i, /privacidad/i, /trattamento/i, /privacyverklaring/i,
-    /polityka prywatności/i, /rodo/i, /zásady ochrony/i, /adatkezelési/i, /integritetspolicy/i
-  ],
-  impressum: [
-    /impressum/i, /legal notice/i, /mentions légales/i, /aviso legal/i, /note legali/i, /rechtliche hinweise/i,
-    /notka prawna/i
-  ]
+  privacy: [/privacy/i, /datenschutz/i, /confidentialit/i, /privacidad/i, /trattamento/i, /privacyverklaring/i, /polityka prywatno/i, /rodo/i],
+  impressum: [/impressum/i, /legal notice/i, /mentions l/i, /aviso legal/i, /note legali/i, /rechtliche hinweise/i]
 };
 
 const PROCESSING_ACTIVITIES = [
   { name: 'Analytics & Usage', keywords: [/analytics/i, /tracking/i, /analyse/i, /analityka/i], article: 'Art. 6(1)(f)' },
-  { name: 'Fraud Prevention', keywords: [/fraud/i, /security/i, /sécurité/i, /oszustwom/i], article: 'Art. 6(1)(f)' },
-  { name: 'Marketing/Ads', keywords: [/marketing/i, /advertising/i, /publicité/i, /publicidad/i], article: 'Art. 6(1)(a)' }
+  { name: 'Fraud Prevention', keywords: [/fraud/i, /security/i, /s[ée]curit[ée]/i, /oszustwom/i], article: 'Art. 6(1)(f)' },
+  { name: 'Marketing/Ads', keywords: [/marketing/i, /advertising/i, /publicit[ée]/i, /publicidad/i], article: 'Art. 6(1)(a)' }
 ];
 
 function detectJurisdiction(html: string, url: string, userInput?: string): JurisdictionProfile {
   if (userInput && JURISDICTION_CONFIG[userInput.toUpperCase()]) {
     return JURISDICTION_CONFIG[userInput.toUpperCase()];
   }
-
   const fullText = html.substring(0, 50000);
   const hostname = new URL(url).hostname;
-  const tld = hostname.split('.').pop()?.toUpperCase();
-
-  // 1. Entity Suffix Detection
   for (const [code, profile] of Object.entries(JURISDICTION_CONFIG)) {
     if (profile.entitySuffixes.some(s => s.test(fullText))) return profile;
   }
-
-  // 2. Phone Prefix Detection
   for (const [code, profile] of Object.entries(JURISDICTION_CONFIG)) {
     if (profile.phonePrefixes.some(p => fullText.includes(p))) return profile;
   }
-
-  // 3. TLD Fallback
+  const tld = hostname.split('.').pop()?.toUpperCase();
   if (tld && JURISDICTION_CONFIG[tld]) return JURISDICTION_CONFIG[tld];
-
   return JURISDICTION_CONFIG.DEFAULT;
 }
 
@@ -114,9 +100,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const $ = cheerio.load(html);
   const verification_method: VerificationMethod = isPuppeteer ? 'Dynamic Emulation' : 'Static Analysis';
   const fullText = html.substring(0, 400000).toLowerCase();
-  
   const profile = detectJurisdiction(html, url, userInputCountry);
-  
   const links: Record<string, string | null> = { impressum: null, privacy: null };
   
   $('a').each((_, el) => {
@@ -129,7 +113,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
 
   const violations: Violation[] = [];
 
-  // SECTION I: MANDATORY INFRASTRUCTURE (Art. 13(1))
+  // 1. SYSTEMIC PRESENCE AUDIT
   if (!links.privacy) {
     violations.push({
       category: 'Privacy',
@@ -137,64 +121,67 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'SYSTEMIC TRANSPARENCY FAILURE (Art. 13)',
       severity: 'critical',
       evidence_html: url,
-      description: `The automated scan analyzed the ${profile.lang} infrastructure of the site and failed to locate a mandatory Privacy Policy. Under Art. 13 of GDPR, even basic landing pages must provide data processing transparency to all visitors.`,
+      description: `The audit system analyzed the ${profile.lang} version of the site infrastructure and failed to locate a mandatory statutory Privacy Policy. BUSINESS IMPACT: Operating without a visible privacy framework signals a systemic disregard for Art. 13 mandates, subjecting the entity to maximum regulatory exposure and potential site-blocking orders.`,
       law_name: profile.law,
       potential_fine: LIABILITY_TEXT,
-      explanation: 'Statutory compliance requires the immediate availability of transparency documents.',
+      explanation: 'Statutory compliance requires the immediate availability of transparency documents to all data subjects.',
       recommendation: `Implement a compliant Privacy Policy referencing ${profile.localGdprTerm} requirements immediately.`,
       verification_method
     });
   }
 
-  // SECTION II: JURISDICTIONAL MANDATES
+  // 2. JURISDICTIONAL TRANSPARENCY
   if (profile.requiresImpressum && !links.impressum) {
     violations.push({
       category: 'IMPRESSUM',
       report_type: 'SaaS',
-      issue_type: 'MISSING MANDATORY IMPRESSUM',
+      issue_type: 'MISSING MANDATORY IMPRESSUM (Art. 5 TDDG)',
       severity: 'critical',
       evidence_html: url,
-      description: `The system detected the controller's jurisdiction as ${profile.name} via entity metadata. According to § 5 TDDG (Germany), an Impressum is a mandatory technical requirement for commercial transparency.`,
+      description: `The legal analysis identified the controller's jurisdiction as ${profile.name}. Under § 5 TDDG, an Impressum is a mandatory technical and legal disclosure. BUSINESS IMPACT: Absence of provider identification is a high-visibility target for predatory litigation ('Abmahnung') in the DACH region.`,
       law_name: profile.law,
       potential_fine: LIABILITY_TEXT,
-      explanation: 'The Impressum provides essential provider identification as required by local TLD/owner laws.',
+      explanation: 'The Impressum provides essential provider identification required for commercial transparency.',
       recommendation: 'Establish a dedicated "Impressum" page with full legal registration and tax ID details.',
       verification_method
     });
   }
 
-  // SECTION III: CONTROLLER ACCOUNTABILITY (Art. 13(1)(a))
-  const hasIdentity = profile.entitySuffixes.some(s => s.test(fullText));
-  if (links.privacy && !hasIdentity) {
-    violations.push({
-      category: 'Privacy',
-      report_type: 'SaaS',
-      issue_type: 'CONTROLLER IDENTITY COMPLIANCE',
-      severity: 'high',
-      evidence_html: links.privacy,
-      description: "The automated scan performed a semantic and structural analysis of the website's legal documents and metadata. The system failed to identify the official legal name of the data controller, a registered physical address, or a specific registration number. Under Art. 13(1)(a), this information is mandatory for establishing accountability.",
-      law_name: 'Art. 13(1)(a) GDPR',
-      potential_fine: LIABILITY_TEXT,
-      explanation: 'Accountability requires clear identification of the entity responsible for data processing.',
-      recommendation: 'Append full legal company details (Name, Address, Registration) to the document body.',
-      verification_method
-    });
+  // 3. CONTROLLER ACCOUNTABILITY (Art. 13(1)(a))
+  // Only check for missing identity if the document was actually found (to avoid duplication)
+  if (links.privacy) {
+    const hasIdentity = profile.entitySuffixes.some(s => s.test(fullText));
+    if (!hasIdentity) {
+      violations.push({
+        category: 'Privacy',
+        report_type: 'SaaS',
+        issue_type: 'CONTROLLER IDENTITY COMPLIANCE (Art. 13(1)(a))',
+        severity: 'high',
+        evidence_html: links.privacy,
+        description: "The automated scan performed a semantic and structural analysis of the website's legal documents and metadata. The system failed to identify the official legal name of the data controller, a registered physical address, or a specific registration number. BUSINESS IMPACT: Lack of identity details renders the entity anonymous to regulators, automatically classifying any data processing as 'non-transparent' and high-risk.",
+        law_name: 'Art. 13(1)(a) GDPR',
+        potential_fine: LIABILITY_TEXT,
+        explanation: 'Accountability requires clear identification of the entity responsible for data processing.',
+        recommendation: 'Append full legal company details (Name, Address, Registration) to the document body. Note: Footer placement is considered secondary to document-body disclosure.',
+        verification_method
+      });
+    }
   }
 
-  // SECTION IV: PROCESSING AUDIT (Art. 13(1)(c))
+  // 4. PROCESSING AUDIT (Art. 13(1)(c))
   const detectedOps = PROCESSING_ACTIVITIES.filter(op => op.keywords.some(k => k.test(fullText)));
   if (links.privacy && detectedOps.length > 0) {
     violations.push({
       category: 'LEGAL_GROUNDS',
       report_type: 'SaaS',
-      issue_type: 'AUDIT OF PROCESSING OPERATIONS',
+      issue_type: 'AUDIT OF PROCESSING OPERATIONS (Art. 13(1)(c))',
       severity: 'high',
       evidence_html: links.privacy,
-      description: `The system analyzed the ${profile.lang} content and identified specific processing activities (${detectedOps.map(o => o.name).join(', ')}) but found no explicit correlation to Art. 6 legal bases. Art. 13(1)(c) requires each purpose to be linked to its specific statutory ground.`,
+      description: `Our legal analysis identified active processing operations (${detectedOps.map(o => o.name).join(', ')}) but found no explicit correlation to Art. 6 legal bases. BUSINESS IMPACT: Processing data without an explicitly stated legal basis is a fundamental breach that can nullify the legality of the entire dataset.`,
       law_name: 'Art. 13(1)(c) GDPR',
       potential_fine: LIABILITY_TEXT,
       explanation: 'Every data processing activity must be explicitly linked to a legal basis to be considered transparent.',
-      recommendation: 'Update the policy to include a table or section explicitly mapping each processing activity to its Article 6 legal basis.',
+      recommendation: 'Update the policy to include a structured table mapping each processing activity (Analytics, Marketing, Support) to its specific Article 6 legal basis.',
       verification_method
     });
   }
