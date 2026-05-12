@@ -22,26 +22,33 @@ const MANDATORY_CLUSTERS = {
     keywords: [/data controller/i, /verantwortlicher/i, /responsable du traitement/i, /identity of the controller/i, /legal disclosure/i, /registered office/i],
     law: "Art. 13(1)(a) GDPR",
     name: "Controller Identity",
-    remediation: "Include the full legal name and physical address of the data controller directly within the Privacy Policy body."
+    category: 'PRIVACY'
   },
   RIGHTS: {
     keywords: [/right to access/i, /right to erasure/i, /right to object/i, /auskunftsrecht/i, /löschungsrecht/i, /widerrufsrecht/i],
     law: "Art. 13(2)(b) GDPR",
     name: "Data Subject Rights",
-    remediation: "Explicitly list user rights (Access, Erasure, Objection) according to Article 15-21 GDPR."
+    category: 'PRIVACY'
   },
   RETENTION: {
     keywords: [/retention period/i, /speicherdauer/i, /durée de conservation/i, /how long we keep/i],
     law: "Art. 13(2)(a) GDPR",
     name: "Retention Periods",
-    remediation: "Define criteria or exact timeframes for how long user data is stored."
+    category: 'PRIVACY'
+  },
+  DPO: {
+    keywords: [/data protection officer/i, /datenschutzbeauftragter/i, /dpo/i, /délégué à la protection des données/i],
+    law: "Art. 13(1)(b) GDPR",
+    name: "DPO Contact",
+    category: 'PRIVACY'
   }
 };
 
 const PROCESSING_ACTIVITIES = [
-  { name: 'Analyzing usage', keywords: [/analytics/i, /tracking/i, /usage analysis/i], defaultBasis: 'Art. 6(1)(f) (Legitimate Interests)' },
-  { name: 'Marketing / Ads', keywords: [/marketing/i, /advertising/i], defaultBasis: 'Art. 6(1)(a) (Consent)' },
-  { name: 'Fraud prevention', keywords: [/fraud/i, /security/i, /bot detection/i], defaultBasis: 'Art. 6(1)(f) (Legitimate Interests)' }
+  { name: 'Usage Analysis', keywords: [/analytics/i, /tracking/i, /usage analysis/i], defaultBasis: 'Art. 6(1)(f) (Legitimate Interests)' },
+  { name: 'Marketing / Advertising', keywords: [/marketing/i, /advertising/i, /remarketing/i], defaultBasis: 'Art. 6(1)(a) (Consent)' },
+  { name: 'Fraud Prevention', keywords: [/fraud/i, /security/i, /bot detection/i], defaultBasis: 'Art. 6(1)(f) (Legitimate Interests)' },
+  { name: 'Customer Support', keywords: [/customer support/i, /contact form/i, /ticketing/i], defaultBasis: 'Art. 6(1)(b) (Contractual Performance)' }
 ];
 
 const LEGAL_BASES = [
@@ -98,80 +105,83 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         verification_method
       });
     } else {
-      // Lex-Analyzer for cluster verification
-      Object.entries(MANDATORY_CLUSTERS).forEach(([clusterKey, cluster]) => {
-        const clusterFound = cluster.keywords.some(k => k.test(fullText));
-        
-        if (clusterKey === 'CONTROLLER') {
-          const inFooter = cluster.keywords.some(k => k.test(footerText));
-          if (!clusterFound && inFooter) {
-            violations.push({
-              category: doc.category as Category,
-              report_type: 'SaaS',
-              issue_type: `INCOMPLETE DISCLOSURE: ${cluster.name.toUpperCase()}`,
-              severity: 'low',
-              evidence_html: url,
-              description: `Controller Identity found in website footer but absent from Privacy Policy body.`,
-              law_name: cluster.law,
-              potential_fine: LIABILITY_DATABASE[doc.category],
-              explanation: `Art. 13 GDPR mandates explicit disclosure. Data was detected in the footer, but statutory transparency standards require inclusion inside the policy document body.`,
-              recommendation: `Status: Detected in website footer. Requirement: While present in the footer, Article 13 transparency principles require this information to be explicitly included within the main body of the Privacy Policy document.`,
-              verification_method
-            });
-          } else if (!clusterFound) {
-            violations.push({
-              category: doc.category as Category,
-              report_type: 'SaaS',
-              issue_type: `INCOMPLETE DISCLOSURE: ${cluster.name.toUpperCase()}`,
-              severity: 'high',
-              evidence_html: foundUrl,
-              description: `Mandatory cluster [${cluster.name}] was not detected within the policy document.`,
-              law_name: cluster.law,
-              potential_fine: LIABILITY_DATABASE[doc.category],
-              explanation: `${cluster.law} mandates explicit disclosure regarding the identity and contact details of the controller.`,
-              recommendation: `Corrective Action (Art. 13 Compliance): Append the full legal name and physical address of the data controller to the policy body.`,
-              verification_method
-            });
-          }
-        } else if (!clusterFound) {
-          violations.push({
-            category: doc.category as Category,
-            report_type: 'SaaS',
-            issue_type: `INCOMPLETE DISCLOSURE: ${cluster.name.toUpperCase()}`,
-            severity: 'high',
-            evidence_html: foundUrl,
-            description: `Violation of ${cluster.law}. Cluster [${cluster.name}] missing.`,
-            law_name: cluster.law,
-            potential_fine: LIABILITY_DATABASE[doc.category],
-            explanation: `${cluster.law} mandates explicit disclosure regarding ${cluster.name}.`,
-            recommendation: `Explicitly cite ${cluster.name} and provide details required by ${cluster.law}.`,
-            verification_method
-          });
+      // 1. Controller Identity Audit (Special Case for Footer)
+      const controllerCluster = MANDATORY_CLUSTERS.CONTROLLER;
+      const clusterFoundInPolicy = controllerCluster.keywords.some(k => k.test(fullText));
+      const clusterFoundInFooter = controllerCluster.keywords.some(k => k.test(footerText));
+
+      if (!clusterFoundInPolicy) {
+        violations.push({
+          category: 'PRIVACY',
+          report_type: 'SaaS',
+          issue_type: `INCOMPLETE DISCLOSURE: CONTROLLER IDENTITY`,
+          severity: clusterFoundInFooter ? 'low' : 'high',
+          evidence_html: clusterFoundInFooter ? url : foundUrl,
+          description: clusterFoundInFooter 
+            ? `Controller Identity found in website footer but absent from Privacy Policy text.`
+            : `Mandatory cluster [Controller Identity] not detected in policy document.`,
+          law_name: controllerCluster.law,
+          potential_fine: LIABILITY_DATABASE.PRIVACY,
+          explanation: `${controllerCluster.law} mandates explicit disclosure regarding the identity of the controller.`,
+          recommendation: clusterFoundInFooter 
+            ? `Status: Detected in footer. Requirement: To meet Article 13 transparency standards, you must also include this identity information directly within the main body of the Privacy Policy document.`
+            : `Append the full legal name and physical address of the data controller to the policy body.`,
+          verification_method
+        });
+      }
+
+      // 2. CONSOLIDATED TRANSPARENCY FRAMEWORK AUDIT (Rights, Retention, DPO)
+      const transparencyIssues: string[] = [];
+      const transparencyLaws: Set<string> = new Set();
+      
+      ['RIGHTS', 'RETENTION', 'DPO'].forEach(key => {
+        const cluster = MANDATORY_CLUSTERS[key as keyof typeof MANDATORY_CLUSTERS];
+        if (!cluster.keywords.some(k => k.test(fullText))) {
+          transparencyIssues.push(cluster.name);
+          transparencyLaws.add(cluster.law);
         }
       });
 
-      // Art. 13(1)(c) Audit: Processing Purposes to Legal Bases Mapping
+      if (transparencyIssues.length > 0) {
+        violations.push({
+          category: 'PRIVACY',
+          report_type: 'SaaS',
+          issue_type: `INCOMPLETE TRANSPARENCY FRAMEWORK`,
+          severity: 'high',
+          evidence_html: foundUrl,
+          description: `Policy document is missing core transparency segments required by Articles 13/14.`,
+          law_name: Array.from(transparencyLaws).join(', '),
+          potential_fine: LIABILITY_DATABASE.PRIVACY,
+          explanation: `The following mandatory clusters were not detected: ${transparencyIssues.join(', ')}. This indicates a structural failure in data subject communication.`,
+          recommendation: `Update the Privacy Policy to include explicit sections for: ${transparencyIssues.join(', ')}.`,
+          verification_method
+        });
+      }
+
+      // 3. CONSOLIDATED PROCESSING BASIS AUDIT (Art. 13(1)(c))
       if (doc.key === 'privacy') {
-        const missingBases: string[] = [];
+        const missingBasisActivities: string[] = [];
         PROCESSING_ACTIVITIES.forEach(activity => {
           if (activity.keywords.some(k => k.test(fullText))) {
             const hasBasis = LEGAL_BASES.some(basis => basis.keywords.some(k => k.test(fullText)));
-            if (!hasBasis) missingBases.push(activity.name);
+            if (!hasBasis) {
+              missingBasisActivities.push(`${activity.name} -> Missing link to Art. 6 (e.g. ${activity.defaultBasis})`);
+            }
           }
         });
 
-        if (missingBases.length > 0) {
+        if (missingBasisActivities.length > 0) {
           violations.push({
             category: 'LEGAL_GROUNDS',
             report_type: 'SaaS',
-            issue_type: `LACK OF EXPLICIT LEGAL BASES (ART. 13(1)(C))`,
+            issue_type: `AUDIT OF PROCESSING OPERATIONS (ART. 13(1)(c))`,
             severity: 'critical',
             evidence_html: foundUrl,
-            description: `The website mentions specific processing operations but fails to link them to an Article 6 legal basis.`,
+            description: `Website performs specific processing operations without explicitly linking them to a statutory legal basis.`,
             law_name: 'Art. 13(1)(c) GDPR',
             potential_fine: LIABILITY_DATABASE.LEGAL_GROUNDS,
-            explanation: `Art. 13(1)(c) requires explicit correlation between processing purposes and legal bases. For example: Processing activities like '${missingBases[0]}' must be explicitly linked to Art. 6(1)(f) (Legitimate Interests) or Art. 6(1)(a) (Consent).`,
-            recommendation: `REMEDIATION BLUEPRINT: Explicitly state the legal basis for each processing activity. Example: "Processing for '${missingBases[0]}' is based on Art. 6(1)(f) (Legitimate Interests)."`,
+            explanation: `Art. 13(1)(c) requires a purpose-to-basis mapping. The following detected activities lack a clear Article 6 reference:\n\n* ${missingBasisActivities.join('\n* ')}`,
+            recommendation: `REMEDIATION: Explicitly cite the legal basis for every processing purpose. Example: "Processing for usage analysis is based on Art. 6(1)(f) (Legitimate Interests)."`,
             verification_method
           });
         }
@@ -184,7 +194,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
     discoveredLinks: [],
     meta: { hasCMP: false, legal_links: links },
     compliance_report: {
-      score: Math.max(0, 100 - (violations.length * 10)),
+      score: Math.max(0, 100 - (violations.length * 15)),
       verdict: violations.length > 0 ? 'RISKY' : 'COMPLIANT',
       nav_scout: { found_links: [], missing_critical: [], discovery_score: 100 },
       lex_analyzer: { has_vat_id: true, has_contact_info: true, has_mandatory_terms: true, content_truncated: false, missing_clusters: [] },

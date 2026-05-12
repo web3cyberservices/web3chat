@@ -26,14 +26,15 @@ export async function GET(request: Request) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found for this target.' }, { status: 404 });
 
-    // MANDATORY HYBRID DE-DUPLICATION ENGINE
-    // Groups violations by their core Diagnostic Title and Legal Basis
+    // ENHANCED HYBRID CONSOLIDATION ENGINE
+    // Groups violations by type, category, and law to eliminate page duplicates
     const consolidatedFindings: Record<string, any> = {};
     
     res.rows.forEach(row => {
       const type = (row.issue_type || 'VIOLATION').trim().toUpperCase();
       const law = (row.law_name || 'GDPR').trim().toUpperCase();
-      const key = `${type}_${law}`;
+      const cat = (row.category || 'GENERAL').trim();
+      const key = `${cat}_${type}_${law}`;
 
       if (!consolidatedFindings[key]) {
         consolidatedFindings[key] = {
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
         };
       } else {
         consolidatedFindings[key].affected_urls.add(row.page_url);
-        // If methods differ, mark as Hybrid
+        // Mark as Hybrid if methods differ
         if (consolidatedFindings[key].verification_method !== row.verification_method) {
           consolidatedFindings[key].verification_method = 'Hybrid (Dynamic + Static)';
         }
@@ -51,8 +52,11 @@ export async function GET(request: Request) {
     });
 
     const allFindings = Object.values(consolidatedFindings);
-    const coreViolations = allFindings.filter(v => v.category !== 'LEGAL_GROUNDS');
-    const legalGroundsIssues = allFindings.filter(v => v.category === 'LEGAL_GROUNDS');
+    
+    // Split findings into dense thematic sections
+    const coreViolations = allFindings.filter(v => ['PRIVACY', 'IMPRESSUM', 'COOKIES'].includes(v.category) && !v.issue_type.includes('TRANSPARENCY'));
+    const processingOperations = allFindings.filter(v => v.category === 'LEGAL_GROUNDS' || v.issue_type.includes('PROCESSING'));
+    const transparencyFramework = allFindings.filter(v => v.issue_type.includes('TRANSPARENCY'));
 
     let logoBase64 = '';
     try {
@@ -67,102 +71,129 @@ export async function GET(request: Request) {
         <meta charset="utf-8">
         <style>
           body { font-family: 'Helvetica', sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; background: #ffffff; }
-          .header { border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
-          .logo-text { font-size: 24px; font-weight: bold; color: #0f172a; }
-          .title-section { margin-bottom: 30px; }
-          .title { font-size: 22px; font-weight: bold; color: #0f172a; border-left: 4px solid #3b82f6; padding-left: 15px; }
-          .section-title { font-size: 16px; font-weight: bold; color: #3b82f6; margin-top: 40px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
-          .domain-badge { background: #eff6ff; color: #3b82f6; padding: 4px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
-          .violation-item { border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 25px; page-break-inside: avoid; background: #ffffff; overflow: hidden; }
-          .violation-header { background: #f8fafc; padding: 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-          .violation-type { font-weight: bold; font-size: 14px; color: #0f172a; text-transform: uppercase; }
-          .violation-body { padding: 20px; }
-          .severity-badge { font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; display: inline-block; margin-bottom: 12px; }
+          .header { border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .logo-text { font-size: 22px; font-weight: bold; color: #0f172a; }
+          .title-section { margin-bottom: 25px; }
+          .title { font-size: 20px; font-weight: bold; color: #0f172a; border-left: 4px solid #3b82f6; padding-left: 12px; }
+          .section-title { font-size: 14px; font-weight: bold; color: #3b82f6; margin-top: 30px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+          .domain-badge { background: #eff6ff; color: #3b82f6; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+          .violation-item { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 20px; page-break-inside: avoid; background: #ffffff; overflow: hidden; }
+          .violation-header { background: #f8fafc; padding: 12px 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+          .violation-type { font-weight: bold; font-size: 13px; color: #0f172a; text-transform: uppercase; }
+          .violation-body { padding: 15px 20px; }
+          .severity-badge { font-size: 8px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 99px; display: inline-block; margin-bottom: 10px; }
           .critical { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
           .high { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
           .low { background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
-          .label { font-size: 10px; font-weight: bold; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
-          .fine { font-size: 12px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ef4444; }
-          .resource-list { font-size: 10px; color: #64748b; background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-family: 'Courier New', monospace; word-break: break-all; }
-          .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b; }
-          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; border-bottom: 1px solid #3b82f6; }
+          .label { font-size: 9px; font-weight: bold; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
+          .fine { font-size: 11px; font-weight: bold; color: #ef4444; background: #fef2f2; padding: 10px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #ef4444; }
+          .resource-list { font-size: 9px; color: #64748b; background: #f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-family: 'Courier New', monospace; word-break: break-all; }
+          .footer { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #64748b; }
+          .contact-link { color: #3b82f6; font-weight: bold; text-decoration: none; }
+          .explanation-text { font-size: 11px; margin-bottom: 12px; white-space: pre-line; }
+          .blueprint-box { background:#ecfdf5; border:1px solid #d1fae5; padding:12px; border-radius:6px; color:#065f46; font-size: 10px; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div style="display:flex; align-items:center; gap:10px">
-            ${logoBase64 ? `<img src="${logoBase64}" style="width:40px; height:40px">` : ''}
+          <div style="display:flex; align-items:center; gap:8px">
+            ${logoBase64 ? `<img src="${logoBase64}" style="width:35px; height:35px">` : ''}
             <div class="logo-text">Humango Compliance</div>
           </div>
-          <div style="text-align:right; font-size:10px; color:#64748b">
-            Official Audit Intelligence Report<br>Generated: ${new Date().toLocaleDateString('en-GB')}
+          <div style="text-align:right; font-size:9px; color:#64748b">
+            Enterprise Audit Intelligence<br>Generated: ${new Date().toLocaleDateString('en-GB')}
           </div>
         </div>
 
         <div class="title-section">
-          <div class="title">Enterprise Compliance Assessment</div>
-          <div style="margin-top:15px">Audit Target: <span class="domain-badge">${domain}</span></div>
+          <div class="title">Compliance Assessment Report</div>
+          <div style="margin-top:12px">Target: <span class="domain-badge">${domain}</span></div>
         </div>
 
-        <div class="section-title">Core Legal Infrastructure</div>
-        ${coreViolations.map(item => `
-          <div class="violation-item">
-            <div class="violation-header">
-              <span class="violation-type">${item.issue_type}</span>
-              <span style="font-size:9px; color:#64748b">${item.verification_method}</span>
-            </div>
-            <div class="violation-body">
-              <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
-              
-              <span class="label">Diagnostic Explanation</span>
-              <div style="font-size:12px; margin-bottom:15px">${item.explanation}</div>
-              
-              <span class="label">Statutory Basis</span>
-              <div style="font-size:11px; font-weight:bold; margin-bottom:15px; color:#0f172a">${item.law_name}</div>
-              
-              <span class="label">Administrative Liability (Art. 83 GDPR)</span>
-              <div class="fine">${item.fine_amount || '€20,000,000 or 4% of global turnover'}</div>
-              
-              <span class="label">Targeted Resource(s)</span>
-              <div class="resource-list">
-                ${Array.from(item.affected_urls).join('<br>')}
-              </div>
-
-              <span class="label">REMEDIATION BLUEPRINT</span>
-              <div style="background:#ecfdf5; border:1px solid #d1fae5; padding:15px; border-radius:8px; color:#065f46; font-size:11px">
-                ${item.recommendation}
-              </div>
-            </div>
-          </div>
-        `).join('')}
-
-        ${legalGroundsIssues.length > 0 ? `
-          <div class="section-title">Processing Operations & Legal Grounds</div>
-          ${legalGroundsIssues.map(item => `
+        ${coreViolations.length > 0 ? `
+          <div class="section-title">Core Legal Infrastructure</div>
+          ${coreViolations.map(item => `
             <div class="violation-item">
               <div class="violation-header">
                 <span class="violation-type">${item.issue_type}</span>
-                <span style="font-size:9px; color:#64748b">${item.verification_method}</span>
+                <span style="font-size:8px; color:#64748b">${item.verification_method}</span>
+              </div>
+              <div class="violation-body">
+                <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
+                
+                <span class="label">Diagnostic Explanation</span>
+                <div class="explanation-text">${item.explanation}</div>
+                
+                <span class="label">Statutory Basis</span>
+                <div style="font-size:10px; font-weight:bold; margin-bottom:12px; color:#0f172a">${item.law_name}</div>
+                
+                <span class="label">Liability (Art. 83 GDPR)</span>
+                <div class="fine">${item.fine_amount || '€20,000,000 or 4% of global turnover'}</div>
+                
+                <span class="label">Targeted Resource(s)</span>
+                <div class="resource-list">${Array.from(item.affected_urls).join('<br>')}</div>
+
+                <span class="label">REMEDIATION BLUEPRINT</span>
+                <div class="blueprint-box">${item.recommendation}</div>
+              </div>
+            </div>
+          `).join('')}
+        ` : ''}
+
+        ${processingOperations.length > 0 ? `
+          <div class="section-title">Processing Operations & Legal Grounds</div>
+          ${processingOperations.map(item => `
+            <div class="violation-item">
+              <div class="violation-header">
+                <span class="violation-type">${item.issue_type}</span>
+                <span style="font-size:8px; color:#64748b">${item.verification_method}</span>
               </div>
               <div class="violation-body">
                 <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
                 
                 <span class="label">Purpose-to-Basis Mapping Diagnostic</span>
-                <div style="font-size:12px; margin-bottom:15px">${item.explanation}</div>
+                <div class="explanation-text">${item.explanation}</div>
                 
                 <span class="label">Statutory Accountability</span>
-                <div style="font-size:11px; font-weight:bold; margin-bottom:15px; color:#0f172a">${item.law_name}</div>
+                <div style="font-size:10px; font-weight:bold; margin-bottom:12px; color:#0f172a">${item.law_name}</div>
                 
                 <span class="label">Administrative Liability</span>
                 <div class="fine">€20,000,000 or 4% of global turnover</div>
 
                 <span class="label">Targeted Resource(s)</span>
-                <div class="resource-list">
-                    ${Array.from(item.affected_urls).join('<br>')}
-                </div>
+                <div class="resource-list">${Array.from(item.affected_urls).join('<br>')}</div>
 
                 <span class="label">REMEDIATION BLUEPRINT</span>
-                <div style="background:#fff7ed; border:1px solid #ffedd5; padding:15px; border-radius:8px; color:#9a3412; font-size:11px">
+                <div class="blueprint-box" style="background:#fff7ed; border-color:#ffedd5; color:#9a3412;">
+                  ${item.recommendation}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        ` : ''}
+
+        ${transparencyFramework.length > 0 ? `
+          <div class="section-title">Transparency Framework & Disclosure</div>
+          ${transparencyFramework.map(item => `
+            <div class="violation-item">
+              <div class="violation-header">
+                <span class="violation-type">${item.issue_type}</span>
+                <span style="font-size:8px; color:#64748b">${item.verification_method}</span>
+              </div>
+              <div class="violation-body">
+                <span class="severity-badge ${item.severity}">${item.severity} Risk</span>
+                
+                <span class="label">Structural Analysis</span>
+                <div class="explanation-text">${item.explanation}</div>
+                
+                <span class="label">Statutory Grounds</span>
+                <div style="font-size:10px; font-weight:bold; margin-bottom:12px; color:#0f172a">${item.law_name}</div>
+                
+                <span class="label">Liability</span>
+                <div class="fine">${item.fine_amount || '€20,000,000 or 4% of global turnover'}</div>
+
+                <span class="label">REMEDIATION BLUEPRINT</span>
+                <div class="blueprint-box" style="background:#f0f9ff; border-color:#e0f2fe; color:#0369a1;">
                   ${item.recommendation}
                 </div>
               </div>
@@ -173,9 +204,9 @@ export async function GET(request: Request) {
         <div class="footer">
           <div>
             &copy; ${new Date().getFullYear()} Humango Limited • London • Policy v2.9<br>
-            Verification & Legal Inquiries: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
+            Verification: <a href="mailto:abuse@humango.app" class="contact-link">abuse@humango.app</a>
           </div>
-          ${logoBase64 ? `<img src="${logoBase64}" style="width:30px; opacity:0.3">` : ''}
+          ${logoBase64 ? `<img src="${logoBase64}" style="width:25px; opacity:0.3">` : ''}
         </div>
       </body>
       </html>
@@ -192,7 +223,7 @@ export async function GET(request: Request) {
     const pdfBuffer = await page.pdf({ 
       format: 'A4', 
       printBackground: true,
-      margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' }
+      margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' }
     });
 
     return new NextResponse(pdfBuffer, { 
