@@ -2,14 +2,14 @@ import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, VerificationMethod } from '@/types';
 
 /**
- * @fileOverview Ultimate Compliance Architect V21.7 - Statutory Truth-Mapping.
+ * @fileOverview Senior Legal Architect V22.0 - Statutory Truth-Mapping.
  * 
- * - Truth-Mapping: Document presence vs Incompleteness logic.
- * - No-Advice Remediation: Copy-paste snippets only.
+ * - Truth-Mapping: If a URL is found, it's never "Missing".
+ * - Copy-Paste Fixes: No abstract advice allowed.
  */
 
-const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate ad account suspension (Google/Meta).";
-const LIABILITY_HIGH = "Administrative penalties up to €20,000,000 (Art. 83 GDPR). Vulnerable to legal 'Abmahnung' notices.";
+const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of annual global turnover (Art. 83 GDPR). High risk of immediate ad account suspension.";
+const LIABILITY_HIGH = "Administrative penalties up to €20,000,000 (Art. 83 GDPR). Vulnerable to competitor 'Abmahnung' notices.";
 
 interface JurisdictionProfile {
   name: string;
@@ -66,7 +66,7 @@ const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
 };
 
 const DOC_KEYWORDS: Record<string, RegExp[]> = {
-  privacy: [/privacy/i, /datenschutz/i, /confidentialit/i, /privacidad/i, /trattamento/i, /rodo/i],
+  privacy: [/privacy/i, /datenschutz/i, /confidentialit/i, /privacidad/i, /rodo/i],
   impressum: [/impressum/i, /legal notice/i, /mentions l/i, /aviso legal/i]
 };
 
@@ -102,30 +102,29 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'MISSING PRIVACY INFRASTRUCTURE',
       severity: 'critical',
       evidence_html: url,
-      description: `The website lacks the mandatory Privacy Statement required for legal data processing.`,
-      business_impact: 'Business Risk: Immediate suspension of advertising accounts (Google/Meta) and loss of tracking ROI.',
+      description: `The website lacks a mandatory Privacy Statement. Statutory law prohibits data collection without prior notice.`,
+      business_impact: 'Business Risk: Immediate suspension of marketing ROI as Google/Meta require valid compliance signals.',
       law_name: profile.law,
       potential_fine: LIABILITY_CRITICAL,
       explanation: 'Statutory rules require you to inform users of site ownership before collection begins.',
-      recommendation: `ACTION: Copy and paste this HTML into your footer: '<a href="/privacy">Official Privacy Statement</a>'`,
+      recommendation: `ACTION: Copy and paste this HTML into your footer: '<a href="/privacy">Privacy Policy</a>'`,
       verification_method
     });
   } else {
-    // Incomplete Content (Truth-Mapping: If link exists, it's never missing)
-    const bodyText = $('body').text();
-    if (!/retention|storage|storing/i.test(bodyText)) {
+    // Incomplete Content logic
+    if (!/retention|storage|storing/i.test($('body').text())) {
        violationMap.set('Art. 13-Incomplete', {
         category: 'Privacy',
         report_type: 'SaaS',
         issue_type: 'CRITICAL INCOMPLETENESS: DATA RETENTION',
         severity: 'high',
         evidence_html: links.privacy,
-        description: `The existing Privacy Policy fails to specify mandatory data retention periods required by Art. 13(2)(a).`,
-        business_impact: 'Business Risk: Vulnerability to GDPR regulatory audits and data subject erasure lawsuits.',
+        description: `The existing Privacy Policy fails to specify mandatory data retention periods (Art. 13(2)(a)).`,
+        business_impact: 'Business Risk: Vulnerability to regulatory audits and Art. 17 data erasure lawsuits.',
         law_name: 'Art. 13(2)(a) GDPR',
         potential_fine: LIABILITY_HIGH,
-        explanation: 'The law requires an exact timeframe or specific criteria for how long you store user data.',
-        recommendation: `ACTION: Copy and paste this into your Privacy Policy: 'Data Retention: We store user data for 24 months from last interaction or until a deletion request is received.'`,
+        explanation: 'The law requires you to state how long you store user data or the criteria used to determine that period.',
+        recommendation: `ACTION: Copy and paste this into your Privacy Policy: 'Data Retention: We store user data for 24 months from the last login or until a deletion request is received.'`,
         verification_method
       });
     }
@@ -140,12 +139,12 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       issue_type: 'ANONYMOUS DATA CONTROLLER',
       severity: 'high',
       evidence_html: url,
-      description: 'The website fails to provide official company ownership information (Registered Name & Address).',
-      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) suspension.',
+      description: 'The website fails to provide its "Official Identity Card" (Registered Name & Address).',
+      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe) suspension.',
       law_name: 'Art. 13(1)(a) GDPR',
       potential_fine: LIABILITY_HIGH,
       explanation: 'Statutory rules require a physical address and registered name for commercial accountability.',
-      recommendation: `ACTION: Copy and paste this into your footer: 'Data Controller: [Your Company], Address: [Street, City, Postcode], Email: legal@${domain}'`,
+      recommendation: `ACTION: Copy and paste this into your footer: 'Data Controller: [Your Company Name], Email: legal@${domain}'`,
       verification_method
     });
   }
@@ -159,10 +158,10 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       severity: 'high',
       evidence_html: url,
       description: 'The website sets tracking pixels without acquiring statutory user consent.',
-      business_impact: 'Business Risk: Immediate loss of marketing attribution as Google/Meta require explicit Consent Mode v2.',
+      business_impact: 'Business Risk: Immediate loss of marketing ROI as Google/Meta require explicit Consent Mode v2.',
       law_name: 'ePrivacy Directive Art. 5(3) & Art. 7 GDPR',
       potential_fine: LIABILITY_HIGH,
-      explanation: 'Consent is strictly required BEFORE setting non-essential cookies or tracking pixels.',
+      explanation: 'Consent is strictly required BEFORE setting any non-essential cookies or tracking pixels.',
       recommendation: `ACTION: Copy and paste this HTML snippet for a basic banner: '<div id="consent">We use cookies. [Accept] [Settings]</div>'`,
       verification_method
     });

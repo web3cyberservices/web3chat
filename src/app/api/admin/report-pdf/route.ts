@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No audit data found for this domain.' }, { status: 404 });
     }
 
-    // RULE: V21.7 TRUTH-MAPPING & CONSOLIDATION
+    // RULE: V22.0 TRUTH-MAPPING & CONSOLIDATION
     // Ensure "Missing" does not exist if URLs were found.
     const consolidated = new Map();
     res.rows.forEach(row => {
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
             <div class="logo-text">Humango Compliance Engine</div>
           </div>
           <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
-            Node: ${domain} | ULTIMATE ARCHITECT V21.7
+            Node: ${domain} | SENIOR ARCHITECT V22.0
           </div>
         </div>
 
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
           const urls = Array.from(v.urls);
           const impact = v.business_impact && String(v.business_impact).toLowerCase() !== 'null' 
             ? v.business_impact 
-            : "Business Risk: Immediate loss of marketing attribution and vulnerability to regulatory fines.";
+            : "Business Risk: Immediate loss of marketing ROI as advertising platforms require valid compliance signals.";
           
           const liability = v.fine_amount && String(v.fine_amount).toLowerCase() !== 'null'
             ? v.fine_amount
@@ -154,10 +154,10 @@ export async function GET(request: NextRequest) {
                 </ul>
 
                 <span class="label">STEP-BY-STEP CORRECTIVE ACTION</span>
-                <div class="action-box">${v.recommendation || 'ACTION: Copy and paste into footer: \'Data Controller: [Your Company]\''}</div>
+                <div class="action-box">${v.recommendation || 'ACTION: Copy and paste into footer: \'Data Controller: [Your Company Name]\''}</div>
                 
                 <div style="margin-top:15px; font-size:7px; color:#94a3b8; text-transform:uppercase;">
-                  VERIFICATION: ${v.verification_method || 'Static Analysis'} | SENIOR AUDITOR V21.7
+                  VERIFICATION: ${v.verification_method || 'Static Analysis'} | SENIOR ARCHITECT V22.0
                 </div>
               </div>
             </div>
@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
         }).join('')}
 
         <div class="footer-note">
-          Confidential Audit &bull; Humango Compliance Engine &bull; ULTIMATE ARCHITECT V21.7
+          Confidential Audit &bull; Humango Compliance Engine &bull; SENIOR ARCHITECT V22.0
         </div>
       </body>
       </html>
