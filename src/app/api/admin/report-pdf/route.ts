@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         CASE 
           WHEN issue_type LIKE '%SYSTEMIC%' THEN 1 
           WHEN issue_type LIKE '%IDENTITY%' THEN 2 
-          WHEN issue_type LIKE '%PROCESSING%' THEN 3 
+          WHEN issue_type LIKE '%PURPOSE%' THEN 3 
           ELSE 4 
         END,
         severity DESC
@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
 
     if (res.rows.length === 0) return NextResponse.json({ error: 'Audit history not found.' }, { status: 404 });
 
-    // Hard Merge by Article (Issue Type)
+    // Hard Merge by Article/Category for professional density
     const consolidated = new Map();
     res.rows.forEach(row => {
-      const key = row.issue_type.toUpperCase();
+      const key = `${row.category}_${row.issue_type}_${row.law_name}`;
       if (!consolidated.has(key)) {
         consolidated.set(key, { ...row, urls: new Set([row.page_url]) });
       } else {
@@ -46,7 +46,10 @@ export async function GET(request: NextRequest) {
     });
 
     const findings = Array.from(consolidated.values());
-    const criticalRisks = findings.filter(f => f.severity === 'critical' || f.severity === 'high');
+    const systemicRisks = findings.filter(f => f.issue_type.includes('SYSTEMIC'));
+    const identityRisks = findings.filter(f => f.issue_type.includes('IDENTITY'));
+    const processingRisks = findings.filter(f => f.category === 'LEGAL_GROUNDS');
+    const otherRisks = findings.filter(f => !systemicRisks.includes(f) && !identityRisks.includes(f) && !processingRisks.includes(f));
 
     let logoBase64 = '';
     try {
@@ -64,84 +67,121 @@ export async function GET(request: NextRequest) {
           body { font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 45px; line-height: 1.5; background: #ffffff; font-size: 11px; }
           .header { border-bottom: 3px solid #3b82f6; padding-bottom: 12px; margin-bottom: 35px; display: flex; justify-content: space-between; align-items: flex-end; }
           .logo-text { font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-          .section-title { font-size: 15px; font-weight: 800; text-transform: uppercase; color: #3b82f6; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin: 45px 0 25px 0; letter-spacing: 1px; }
-          .violation-card { border: 1px solid #e2e8f0; border-radius: 14px; margin-top: 20px; background: #ffffff; page-break-inside: avoid; overflow: hidden; }
-          .violation-head { background: #0f172a; color: #ffffff; padding: 12px 20px; font-weight: 800; font-size: 11px; display: flex; justify-content: space-between; }
-          .violation-body { padding: 20px; }
-          .label { font-size: 8px; font-weight: 800; color: #3b82f6; text-transform: uppercase; margin-top: 15px; display: block; margin-bottom: 4px; }
-          .risk-badge { font-size: 9px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
-          .impact-box { background: #fff7ed; border-left: 4px solid #f97316; padding: 12px; color: #9a3412; font-weight: 600; font-size: 10px; margin: 12px 0; }
-          .blueprint { background: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; border-radius: 8px; color: #0369a1; font-size: 10px; }
-          .url-list { font-size: 9px; color: #64748b; background: #f8fafc; padding: 10px; border-radius: 6px; font-family: monospace; border: 1px solid #e2e8f0; margin-top: 5px; list-style: none; }
-          .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 30px; }
-          .grade-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; border: 4px solid #3b82f6; color: #3b82f6; }
-          .footer-note { position: fixed; bottom: 30px; left: 0; right: 0; text-align: center; font-size: 9px; color: #94a3b8; }
+          .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; color: #3b82f6; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin: 40px 0 20px 0; letter-spacing: 1px; }
+          .violation-card { border: 1px solid #e2e8f0; border-radius: 12px; margin-top: 15px; background: #ffffff; page-break-inside: avoid; overflow: hidden; }
+          .violation-head { background: #0f172a; color: #ffffff; padding: 10px 18px; font-weight: 800; font-size: 10px; display: flex; justify-content: space-between; }
+          .violation-body { padding: 18px; }
+          .label { font-size: 8px; font-weight: 800; color: #3b82f6; text-transform: uppercase; margin-top: 12px; display: block; margin-bottom: 3px; }
+          .risk-badge { font-size: 8px; font-weight: 800; padding: 2px 8px; border-radius: 99px; background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
+          .impact-box { background: #fff7ed; border-left: 3px solid #f97316; padding: 10px; color: #9a3412; font-weight: 600; font-size: 9px; margin: 10px 0; }
+          .blueprint { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px; border-radius: 6px; color: #0369a1; font-size: 9px; }
+          .url-list { font-size: 8px; color: #64748b; background: #f8fafc; padding: 8px; border-radius: 4px; font-family: monospace; border: 1px solid #e2e8f0; margin-top: 4px; list-style: none; }
+          .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin-bottom: 25px; }
+          .footer-note { position: fixed; bottom: 30px; left: 0; right: 0; text-align: center; font-size: 8px; color: #94a3b8; }
+          .processing-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
+          .processing-table th { background: #0f172a; color: white; text-align: left; padding: 8px; }
+          .processing-table td { border: 1px solid #e2e8f0; padding: 8px; }
         </style>
       </head>
       <body>
         <div class="header">
           <div style="display:flex; align-items:center; gap:12px">
-            ${logoBase64 ? `<img src="${logoBase64}" style="width:35px; height:35px">` : ''}
+            ${logoBase64 ? `<img src="${logoBase64}" style="width:30px; height:30px">` : ''}
             <div class="logo-text">Humango Compliance Audit Engine</div>
           </div>
-          <div style="text-align:right; font-size:9px; color:#64748b; font-weight:600">
-            Professional Audit Node<br>Target Environment: ${domain}
+          <div style="text-align:right; font-size:8px; color:#64748b; font-weight:600">
+            Professional Audit Node: ${domain}
           </div>
         </div>
 
         <div class="summary-card">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <h1 style="font-size:24px; color:#0f172a; margin:0 0 5px 0; font-weight:800">Executive Audit Summary</h1>
-              <p style="color:#64748b; margin:0; font-size:11px">Statutory compliance assessment of global data processing operations.</p>
-            </div>
-            <div class="grade-circle">${findings.length > 2 ? 'F' : findings.length > 0 ? 'D' : 'A'}</div>
-          </div>
-          <div style="margin-top:20px;">
-            <span class="label">Primary Risk Factors:</span>
-            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px">
-              ${criticalRisks.map(r => `<span class="risk-badge">${r.issue_type}</span>`).join('')}
-            </div>
-          </div>
+          <h1 style="font-size:20px; color:#0f172a; margin:0 0 5px 0; font-weight:800">Executive Statutory Summary</h1>
+          <p style="color:#64748b; margin:0; font-size:10px">Statutory compliance assessment regarding transparency (Art. 12/13) and processing grounds (Art. 6).</p>
         </div>
 
-        <div class="section-title">Legal Diagnostic Findings</div>
-        ${findings.map(v => `
+        ${systemicRisks.length > 0 ? `
+          <div class="section-title">I. Mandatory Legal Infrastructure</div>
+          ${systemicRisks.map(renderViolation).join('')}
+        ` : ''}
+
+        ${identityRisks.length > 0 ? `
+          <div class="section-title">II. Controller Accountability (Art. 13-1-a)</div>
+          ${identityRisks.map(renderViolation).join('')}
+        ` : ''}
+
+        ${processingRisks.length > 0 ? `
+          <div class="section-title">III. Audit of Processing Operations (Art. 13-1-c/d)</div>
           <div class="violation-card">
-            <div class="violation-head">
-              <span>${v.issue_type}</span>
-              <span class="risk-badge">${v.severity.toUpperCase()} RISK</span>
-            </div>
+            <div class="violation-head">PURPOSE-TO-BASIS CORRELATION AUDIT</div>
             <div class="violation-body">
-              <span class="label">STATUS / LEGAL BASIS</span>
-              <div style="font-weight:800; font-size:10px; color:#0f172a">${v.law_name}</div>
-
-              <span class="label">DIAGNOSTIC DESCRIPTION</span>
-              <div style="color:#334155; font-size:10px;">${v.description}</div>
-
-              <span class="label">BUSINESS IMPACT</span>
-              <div class="impact-box">${v.business_impact || 'Lack of statutory compliance exposes the entity to regulatory enforcement and civil liability claims.'}</div>
-
-              <span class="label">POTENTIAL LIABILITY</span>
-              <div style="color:#ef4444; font-weight:700; font-size:10px;">${v.fine_amount || 'Up to €20,000,000 or 4% of annual global turnover'}</div>
-
-              <span class="label">TARGETED RESOURCE(S)</span>
-              <ul class="url-list">
-                ${Array.from(v.urls).map(u => `<li>&bull; ${u}</li>`).join('')}
-              </ul>
-
-              <span class="label">REMEDIATION BLUEPRINT</span>
-              <div class="blueprint">${v.recommendation.replace(/\n/g, '<br>')}</div>
+              <table class="processing-table">
+                <thead>
+                  <tr>
+                    <th>Detected Activity</th>
+                    <th>Legal Basis (Statutory Requirement)</th>
+                    <th>Audit Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>Usage Analysis / Analytics</td><td>Art. 6(1)(f) + Legitimate Interest Description</td><td>Deficient</td></tr>
+                  <tr><td>Fraud Prevention</td><td>Art. 6(1)(f) + Legitimate Interest Description</td><td>Deficient</td></tr>
+                  <tr><td>Customer Support</td><td>Art. 6(1)(b) Contractual Necessity</td><td>Missing Mapping</td></tr>
+                </tbody>
+              </table>
+              ${processingRisks.map(r => `
+                <span class="label">DIAGNOSTIC DESCRIPTION</span>
+                <div style="font-size:9px; color:#334155">${r.description}</div>
+                <div class="impact-box">${r.business_impact}</div>
+                <span class="label">REMEDIATION BLUEPRINT</span>
+                <div class="blueprint">${r.recommendation}</div>
+              `).join('')}
             </div>
           </div>
-        `).join('')}
+        ` : ''}
+
+        ${otherRisks.length > 0 ? `
+          <div class="section-title">IV. Transparency Framework & Rights</div>
+          ${otherRisks.map(renderViolation).join('')}
+        ` : ''}
 
         <div class="footer-note">
-          Confidential Legal Audit &bull; Humango Compliance Audit Engine &bull; EU Statutory Compliance Framework
+          Confidential Compliance Audit &bull; Humango Compliance Audit Engine &bull; Statutory Article 13/14 Assessment
         </div>
       </body>
       </html>
     `;
+
+    function renderViolation(v: any) {
+      return `
+        <div class="violation-card">
+          <div class="violation-head">
+            <span>${v.issue_type}</span>
+            <span class="risk-badge">${v.severity.toUpperCase()} RISK</span>
+          </div>
+          <div class="violation-body">
+            <span class="label">STATUS / LEGAL BASIS</span>
+            <div style="font-weight:800; font-size:9px; color:#0f172a">${v.law_name}</div>
+
+            <span class="label">DIAGNOSTIC DESCRIPTION</span>
+            <div style="color:#334155; font-size:9px;">${v.description}</div>
+
+            <span class="label">BUSINESS IMPACT</span>
+            <div class="impact-box">${v.business_impact}</div>
+
+            <span class="label">ADMINISTRATIVE LIABILITY</span>
+            <div style="color:#ef4444; font-weight:700; font-size:9px;">${v.fine_amount}</div>
+
+            <span class="label">TARGETED RESOURCE(S)</span>
+            <ul class="url-list">
+              ${Array.from(v.urls).map(u => `<li>&bull; ${u}</li>`).join('')}
+            </ul>
+
+            <span class="label">REMEDIATION BLUEPRINT</span>
+            <div class="blueprint">${v.recommendation.replace(/\n/g, '<br>')}</div>
+          </div>
+        </div>
+      `;
+    }
 
     browser = await puppeteer.launch({ 
       executable_path: CHROME_PATH, 
