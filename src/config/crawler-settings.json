@@ -1,6 +1,6 @@
 
 {
-  "userAgent": "Humango Compliance Audit Engine/5.0 (+https://bot.humango.app)",
+  "userAgent": "HumangoBot/1.0 (+https://bot.humango.app)",
   "timeout": 30000,
   "maxConcurrency": 5,
   "proxyEnabled": false,

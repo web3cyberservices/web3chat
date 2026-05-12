@@ -9,7 +9,7 @@
       "strategy": "Multi-jurisdiction queue rotation"
     },
     "bot_identification": {
-      "user_agent_format": "Humango Compliance Audit Engine/5.0 (+https://bot.humango.app)",
+      "user_agent_format": "HumangoBot/1.0 (+https://bot.humango.app)",
       "identity": "Humango Compliance Bot",
       "gpc_support": true,
       "dnt_enabled": true
