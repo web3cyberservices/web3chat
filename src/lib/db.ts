@@ -31,7 +31,7 @@ export async function testConnection() {
   }
 }
 
-function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V21.4 Diagnostic Loop.'): string {
+function sanitize(text: string | null | undefined, fallback: string = 'Information verified via Senior Auditor V21.5 Diagnostic Loop.'): string {
   if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
   return DOMPurify.sanitize(text);
 }
@@ -60,9 +60,10 @@ export async function saveAuditResults(domain: string, url: string, violations: 
   try {
     await client.query('BEGIN');
     
-    // RULE: DEDUPLICATION & CONSOLIDATION (1 Law = 1 Entry)
+    // V21.5: ABSOLUTE DEDUPLICATION & CONSOLIDATION
     const consolidated = new Map();
     violations.forEach(v => {
+      // Group by statutory law name to ensure One Article = One Page
       const key = v.law_name || v.issue_type; 
       if (!consolidated.has(key)) {
         consolidated.set(key, { ...v, page_urls: [url] });
@@ -71,6 +72,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         if (!existing.page_urls.includes(url)) {
           existing.page_urls.push(url);
         }
+        // Take the more detailed description if available
         if (v.confidence_score > (existing.confidence_score || 0)) {
            const urls = existing.page_urls;
            consolidated.set(key, { ...v, page_urls: urls });
@@ -89,7 +91,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
     `;
 
     for (const v of consolidated.values()) {
-      // RULE: CONCRETE LIABILITY FALLBACK - NO NULLS ALLOWED
+      // RULE: CONCRETE LIABILITY FALLBACK
       const criticalFine = "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate regulatory intervention.";
       const highFine = "Administrative fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR).";
       
@@ -98,17 +100,13 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         liability = v.severity === 'critical' ? criticalFine : highFine;
       }
 
-      // RULE: CONCRETE BUSINESS IMPACT FALLBACK
-      let impact = sanitize(v.business_impact, "Business Risk: Immediate suspension of advertising accounts (Google/Meta) and loss of customer trust.");
+      // RULE: CONCRETE BUSINESS IMPACT FALLBACK (Wallet & Reputation focus)
+      let impact = sanitize(v.business_impact, "Business Risk: Immediate suspension of advertising accounts (Google/Meta) and loss of customer trust due to identity anonymity.");
       
       // RULE: ACTIONABLE STEP FALLBACK
       let action = v.recommendation || "";
       if (!action || action === 'null' || action.trim() === '') {
-        action = `FIX: Footer -> Insert this text: 'Data Controller: ${domain}, Registered Address: [Your Full Office Address], Contact: [Support Email]'`;
-      }
-      
-      if (!action.startsWith('FIX:')) {
-        action = `FIX: Resource Page -> ${action}`;
+        action = `FIX: Footer -> Insert this text: 'Data Controller: ${domain}, Address: [Registered Address], Email: support@${domain}'`;
       }
 
       await client.query(query, [
@@ -119,7 +117,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         v.issue_type,
         v.severity,
         sanitize(v.evidence_html || url),
-        sanitize(v.evidence_quote, "Verified via Senior Auditor Static Diagnostic V21.4."),
+        sanitize(v.evidence_quote, "Verified via Senior Auditor Static Diagnostic V21.5."),
         v.confidence_score || 0.8,
         v.verification_status || 'verified',
         sanitize(v.description, "Statutory compliance failure detected in page structural analysis."), 

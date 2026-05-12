@@ -88,26 +88,47 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
   const fullHtmlLower = html.toLowerCase();
 
   // RULE 1: Statutory Privacy Notice (Art. 13)
-  if (!links.privacy && !fullHtmlLower.includes('privacy policy')) {
-    violationMap.set('Art. 13', {
+  // V21.5 Integrity: Don't report as missing if link exists
+  if (!links.privacy) {
+    violationMap.set('Art. 13-Missing', {
       category: 'Privacy',
       report_type: 'SaaS',
       issue_type: 'MISSING PRIVACY INFRASTRUCTURE',
       severity: 'critical',
       evidence_html: url,
       description: `The website lacks a mandatory Privacy Statement required for legal data processing.`,
-      business_impact: 'Business Risk: Immediate suspension of advertising accounts (Google Ads, Meta Ads) and total loss of marketing tracking capability.',
+      business_impact: 'Business Risk: Immediate suspension of Google/Meta advertising accounts and total loss of tracking capability.',
       law_name: profile.law,
       potential_fine: LIABILITY_CRITICAL,
       explanation: 'GDPR Art. 13 requires companies to inform users of who owns the website and how data is handled before collection begins.',
-      recommendation: `FIX: Footer -> Insert this text: 'Privacy Policy: [Link to Document], Data Controller: ${hostname}, Contact: support@${hostname}'`,
+      recommendation: `FIX: Footer -> Insert this text: '<a href="/privacy">Privacy Policy</a>'`,
       verification_method
     });
+  } else {
+    // Check for "Incomplete" content if link exists
+    const bodyText = $('body').text();
+    const hasRetention = /retention|storage|storing|storage period/i.test(bodyText);
+    if (!hasRetention) {
+       violationMap.set('Art. 13-Incomplete', {
+        category: 'Privacy',
+        report_type: 'SaaS',
+        issue_type: 'INCOMPLETE DATA RETENTION DISCLOSURE',
+        severity: 'high',
+        evidence_html: links.privacy,
+        description: `The Privacy Policy found at ${links.privacy} fails to specify statutory data retention periods.`,
+        business_impact: 'Business Risk: High vulnerability to GDPR regulatory audits and data subject erasure requests.',
+        law_name: 'Art. 13(2)(a) GDPR',
+        potential_fine: LIABILITY_HIGH,
+        explanation: 'Statutory rules require you to explicitly state exactly how long you store user data.',
+        recommendation: `FIX: Privacy Policy -> Insert this text: 'We store technical cookie data for exactly 12 months from the date of consent.'`,
+        verification_method
+      });
+    }
   }
 
   // RULE 2: Registered Identity (Art. 13-1-a)
   const identityFound = profile.entitySuffixes.some(s => s.test(fullHtmlLower));
-  if (!identityFound && !violationMap.has('Art. 13')) {
+  if (!identityFound && !violationMap.has('Art. 13-Missing')) {
     violationMap.set('Art. 13(1)(a)', {
       category: 'Privacy',
       report_type: 'SaaS',
@@ -115,11 +136,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       severity: 'high',
       evidence_html: url,
       description: 'The website operator identity (registered name and street address) is missing or obscured.',
-      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) suspension due to identity verification failure.',
+      business_impact: 'Business Risk: Loss of B2B trust and potential payment gateway (Stripe/PayPal) suspension.',
       law_name: 'Art. 13(1)(a) GDPR',
       potential_fine: LIABILITY_HIGH,
       explanation: 'Statutory rules require a physical street address and registered entity name for commercial accountability.',
-      recommendation: `FIX: Contact Page -> Insert this text: 'Official Operator: [Your Legal Entity Name], Registered Address: [Your Full Street Address]'`,
+      recommendation: `FIX: Footer -> Insert this text: 'Official Operator: [Your Company Name], Registered Address: [Street, City, Postcode]'`,
       verification_method
     });
   }
@@ -133,11 +154,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       severity: 'critical',
       evidence_html: url,
       description: `Missing mandatory "Impressum" Legal Notice required for commercial transparency in the EU.`,
-      business_impact: 'Business Risk: Legal "Abmahnung" (Cease and Desist) risk from EU competitors. Direct vulnerability to specialized litigation bots.',
+      business_impact: 'Business Risk: Direct vulnerability to legal "Abmahnung" (Cease and Desist) claims from EU competitors.',
       law_name: profile.law.includes('TDDG') ? '§ 5 TDDG (Germany)' : 'Commercial Transparency Act',
       potential_fine: LIABILITY_CRITICAL,
-      explanation: 'Every commercial website in jurisdictions like Germany must have an Impressum listing the owner and VAT ID.',
-      recommendation: `FIX: Legal Notice Page -> Insert this text: 'Managing Director: [Names], VAT ID: [Your ID], Registration: [City/Court]'`,
+      explanation: 'Every commercial website in jurisdictions like Germany must have a Legal Notice listing owner and VAT ID.',
+      recommendation: `FIX: Footer -> Insert this text: '<a href="/legal">Legal Notice (Impressum)</a>'`,
       verification_method
     });
   }
@@ -151,11 +172,11 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       severity: 'medium',
       evidence_html: url,
       description: 'The website sets tracking scripts without acquiring statutory user consent first.',
-      business_impact: 'Business Risk: Total loss of marketing ROI as Meta and Google now require explicit "Consent Mode v2" for tracking.',
+      business_impact: 'Business Risk: Immediate loss of marketing ROI as Meta and Google require explicit Consent Mode v2.',
       law_name: 'ePrivacy Directive Art. 5(3) & Art. 7 GDPR',
       potential_fine: LIABILITY_HIGH,
       explanation: 'Legal consent is strictly required before setting any non-essential cookies or tracking pixels.',
-      recommendation: `FIX: Cookie Banner -> Insert this text: 'We use cookies to analyze traffic. We store your choice for exactly 12 months.'`,
+      recommendation: `FIX: Cookie Banner -> Insert this text: 'We use cookies to analyze traffic. We store your choice for 12 months.'`,
       verification_method
     });
   }
