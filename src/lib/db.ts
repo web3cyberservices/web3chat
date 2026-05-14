@@ -27,12 +27,12 @@ export const pool = new Pool({
 
 /**
  * Очистка текста с использованием DOMPurify.
- * Мы используем импорт напрямую, но в App Router Next.js 15 
- * эти пакеты должны быть в serverComponentsExternalPackages.
+ * Мы используем ESM-совместимую очистку.
  */
 function sanitize(text: string | null | undefined, fallback: string = 'Information verified via bot.humango.app.'): string {
   if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
   try {
+    // В серверной среде Next.js 15+ это должно работать благодаря externalization в next.config.ts
     return DOMPurify.sanitize(String(text).trim());
   } catch (e) {
     // Резервный вариант на случай проблем с JSDOM в определенных средах
