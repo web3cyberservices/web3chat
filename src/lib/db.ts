@@ -25,10 +25,19 @@ export const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
+/**
+ * Очистка текста с использованием DOMPurify.
+ * Мы используем импорт напрямую, но в App Router Next.js 15 
+ * эти пакеты должны быть в serverComponentsExternalPackages.
+ */
 function sanitize(text: string | null | undefined, fallback: string = 'Information verified via bot.humango.app.'): string {
   if (text === null || text === undefined || text === 'null' || String(text).trim() === '') return fallback;
-  // Use a safe version of DOMPurify that works in both Node (ESM) and Browser
-  return DOMPurify.sanitize(String(text).trim());
+  try {
+    return DOMPurify.sanitize(String(text).trim());
+  } catch (e) {
+    // Резервный вариант на случай проблем с JSDOM в определенных средах
+    return String(text).trim().replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "");
+  }
 }
 
 export function normalizeUrl(url: string, base?: string): string {
