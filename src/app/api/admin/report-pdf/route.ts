@@ -4,16 +4,15 @@ import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import { z } from 'zod';
-import DOMPurify from 'isomorphic-dompurify';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 /**
  * @fileOverview V30.0 Secure PDF Generation Engine
- * Implements strict Zod domain validation and DOMPurify sanitization to prevent RCE/XSS.
+ * Implements strict Zod domain validation and dynamic DOMPurify sanitization.
  */
 
-// Strict regex for domain validation to prevent shell/command injection
 const DomainSchema = z.string().min(3).max(255).regex(/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/);
 
 const CHROME_PATHS = [
@@ -35,11 +34,13 @@ export async function GET(request: NextRequest) {
   }
 
   const domain = validation.data;
-  // Security Gate 2: Secondary Sanitization
-  const safeDomain = DOMPurify.sanitize(domain);
 
   let browser: any = null;
   try {
+    // Dynamic import to avoid ERR_REQUIRE_ESM during build
+    const DOMPurify = (await import('isomorphic-dompurify')).default;
+    const safeDomain = DOMPurify.sanitize(domain);
+
     const res = await pool.query(`
       SELECT 
         issue_type, page_url, severity, category, description, business_impact,
@@ -93,7 +94,6 @@ export async function GET(request: NextRequest) {
       if (fs.existsSync(logoPath)) logoBase64 = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
     } catch (e) {}
 
-    // Security Gate 3: Sanitized HTML Generation
     const htmlContent = `
       <!DOCTYPE html>
       <html>
