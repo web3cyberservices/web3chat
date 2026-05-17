@@ -1,9 +1,8 @@
 
 import 'dotenv/config';
 /**
- * @fileOverview Автономная точка входа для фонового воркера.
+ * @fileOverview Autonomous entry point for the background worker.
  */
-
 import { startEngine } from '../lib/crawler/engine';
 
 if (!process.env.DATABASE_URL) {
