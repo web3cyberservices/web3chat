@@ -118,6 +118,15 @@ export async function getBotStatus(): Promise<boolean> {
   }
 }
 
+export async function setBotStatus(isActive: boolean) {
+  try {
+    await pool.query('UPDATE bot_settings SET is_active = $1, updated_at = NOW() WHERE id = 1', [isActive]);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
 export async function getNextQueueItem() {
   const client = await pool.connect();
   try {
@@ -163,6 +172,29 @@ export async function getViolations(limit = 100) {
     FROM site_violations ORDER BY created_at DESC LIMIT $1
   `, [limit]);
   return res.rows || [];
+}
+
+export async function getBotEvents(limit: number = 50) {
+  try {
+    const res = await pool.query('SELECT id, type, message, timestamp FROM bot_events ORDER BY timestamp DESC LIMIT $1', [limit]);
+    return res.rows;
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function saveValidationLog(url: string, iteration: number, status: string, findings: any, confidence: number) {
+  try {
+    const domain = new URL(url).hostname;
+    await pool.query(
+      `INSERT INTO validation_logs (domain, url, attempt, status, findings, confidence_score, timestamp) 
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+      [domain, url, iteration, status, JSON.stringify(findings), confidence]
+    );
+    return { success: true };
+  } catch (error) {
+    return { success: false, error };
+  }
 }
 
 export async function saveAuditLog(domain: string, statusCode: number, errorMessage: string | null) {
