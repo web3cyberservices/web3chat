@@ -24,6 +24,7 @@ module.exports = {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://bot_user:Web3p00d123@localhost:5432/humango_db',
         GEMINI_API_KEY: 'AIzaSyA4BC-KiMnz_XVmIns4W5JuzTUqgWebEvU',
+        GOOGLE_API_KEY: 'AIzaSyA4BC-KiMnz_XVmIns4W5JuzTUqgWebEvU',
         SMTP_HOST: 'smtp.humango.app',
         SMTP_PORT: '587',
         SMTP_USER: 'abuse@humango.app',
