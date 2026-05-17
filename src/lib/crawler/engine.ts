@@ -21,11 +21,14 @@ const IDLE_WAIT = 15000;
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
+  secure: false, // true для 465, false для других портов
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false // Помогает избежать проблем с сертификатами на некоторых серверах
+  }
 });
 
 async function sleep(ms: number) {
@@ -61,6 +64,10 @@ async function handleAuditDelivery(domain: string, userEmail: string) {
     return true;
   } catch (error: any) {
     logger.error(`[Worker Delivery Error] ${domain}: ${error.message}`);
+    // Если ошибка аутентификации SMTP, логируем это как критическое событие
+    if (error.message.includes('535')) {
+      await saveBotEvent('ERROR', `SMTP Auth Failed: Please check App Password for ${process.env.SMTP_USER}`);
+    }
     return false;
   }
 }
@@ -115,6 +122,7 @@ async function runWorker(workerId: number) {
           await updateQueueStatus(task.id, 'completed');
           await saveBotEvent('SUCCESS', `Audit completed and sent for ${currentDomain}`);
         } else {
+          // Даже если почта не ушла, помечаем как failed, чтобы пользователь не ждал бесконечно
           await updateQueueStatus(task.id, 'failed');
           await saveBotEvent('ERROR', `Audit completed but delivery failed for ${currentDomain}`);
         }
@@ -137,6 +145,17 @@ async function runWorker(workerId: number) {
 export async function startEngine() {
   try {
     await testConnection();
+    
+    // Проверка связи с SMTP сервером при старте
+    transporter.verify((error, success) => {
+      if (error) {
+        logger.error(`[SMTP] Connection verification failed: ${error.message}`);
+        saveBotEvent('ERROR', `SMTP Connection Error: ${error.message}`);
+      } else {
+        logger.info(`[SMTP] Server is ready to take our messages`);
+      }
+    });
+
     await saveBotEvent('SUCCESS', `Engine started with ${settings.maxConcurrency} workers.`);
   } catch (err: any) {
     logger.error(`FATAL: Database unreachable: ${err.message}`);

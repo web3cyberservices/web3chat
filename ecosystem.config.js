@@ -5,8 +5,7 @@ module.exports = {
       name: 'humango-app',
       // В режиме standalone Next.js генерирует отдельный сервер. 
       // Запуск должен производиться через node из папки standalone.
-      script: 'server.js',
-      cwd: '.next/standalone',
+      script: '.next/standalone/server.js',
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
@@ -29,7 +28,7 @@ module.exports = {
         SMTP_HOST: 'smtp.gmail.com',
         SMTP_PORT: 587,
         SMTP_USER: 'abuse@humango.app',
-        SMTP_PASS: 'mQ0c33Yn!W6i'
+        SMTP_PASS: 'mQ0c33Yn!W6i' // Убедитесь, что это "Пароль приложения" из настроек Google
       }
     }
   ]
