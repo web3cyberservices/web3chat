@@ -93,13 +93,13 @@ async function runWorker(workerId: number) {
         const url = new URL(urlStr);
         currentDomain = url.hostname.toLowerCase();
       } catch (e: any) {
-        await updateQueueStatus(task.id, 'failed');
+        if (currentTaskId) await updateQueueStatus(currentTaskId, 'failed');
         continue;
       }
       
       const robotsCheck = await isUrlAllowed(urlStr);
       if (!robotsCheck.allowed) {
-        await updateQueueStatus(task.id, 'failed');
+        if (currentTaskId) await updateQueueStatus(currentTaskId, 'failed');
         continue;
       }
 
@@ -115,7 +115,6 @@ async function runWorker(workerId: number) {
           await updateQueueStatus(task.id, 'completed');
           await saveBotEvent('SUCCESS', `Audit completed and sent for ${currentDomain}`);
         } else {
-          // Even if email fails, the audit is technically done, but for user feedback we might mark failed if it's a priority task
           await updateQueueStatus(task.id, 'failed');
           await saveBotEvent('ERROR', `Audit completed but delivery failed for ${currentDomain}`);
         }
