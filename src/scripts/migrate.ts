@@ -18,10 +18,11 @@ async function migrate() {
   const client = await pool.connect();
   try {
     console.log('==================================================');
-    console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR V33.0     ');
-    console.log('   Target: Priority Queue & User Integration      ');
+    console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR V33.1     ');
+    console.log('   Action: Fixing Missing Columns & Relations     ');
     console.log('==================================================');
     
+    // 1. Создание базовых таблиц (если не существуют)
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.bot_settings (
         id int DEFAULT 1 PRIMARY KEY, 
@@ -95,28 +96,33 @@ async function migrate() {
       );
     `);
 
-    // Ensure columns exist for V33.0
+    // 2. Гарантированное добавление колонок в существующие таблицы (на случай, если они были созданы ранее)
     const columnsToEnsure = [
-      { table: 'scan_queue', name: 'user_email', type: 'varchar(255)', default: 'NULL' },
-      { table: 'scan_queue', name: 'priority', type: 'int', default: '0' },
-      { table: 'site_violations', name: 'business_impact', type: 'text', default: 'NULL' }
+      { table: 'scan_queue', name: 'user_email', type: 'varchar(255)' },
+      { table: 'scan_queue', name: 'priority', type: 'int' },
+      { table: 'site_violations', name: 'business_impact', type: 'text' },
+      { table: 'site_violations', name: 'report_type', type: 'varchar(20)' }
     ];
 
     for (const col of columnsToEnsure) {
+      console.log(`[Migration] Checking ${col.table}.${col.name}...`);
       await client.query(`
         DO $$ 
         BEGIN 
           IF NOT EXISTS (
             SELECT 1 FROM information_schema.columns 
-            WHERE table_name='${col.table}' AND column_name='${col.name}'
+            WHERE table_schema = 'public' 
+            AND table_name = '${col.table}' 
+            AND column_name = '${col.name}'
           ) THEN
-            EXECUTE 'ALTER TABLE public.${col.table} ADD COLUMN ${col.name} ${col.type} DEFAULT ${col.default}';
+            EXECUTE 'ALTER TABLE public.${col.table} ADD COLUMN ${col.name} ${col.type}';
+            RAISE NOTICE 'Added column ${col.name} to ${col.table}';
           END IF;
         END $$;
       `);
     }
     
-    console.log('[Migration] SUCCESS: Database schema V33.0 deployed.');
+    console.log('[Migration] SUCCESS: Database schema V33.1 synchronized.');
   } catch (err: any) {
     console.error('[Migration] CRITICAL ERROR:', err.message);
     process.exit(1);
