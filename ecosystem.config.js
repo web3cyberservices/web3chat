@@ -7,7 +7,7 @@ module.exports = {
       args: 'start --port 3000',
       env: {
         NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://admin:password@localhost:5432/compliance_db',
+        DATABASE_URL: 'postgresql://bot_user:Web3p00d123@localhost:5432/humango_db',
         GEMINI_API_KEY: 'AIzaSyA4BC-KiMnz_XVmIns4W5JuzTUqgWebEvU',
         GOOGLE_API_KEY: 'AIzaSyA4BC-KiMnz_XVmIns4W5JuzTUqgWebEvU',
         SMTP_HOST: 'smtp.humango.app',
@@ -22,7 +22,7 @@ module.exports = {
       script: 'npx tsx src/scripts/worker.ts',
       env: {
         NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://admin:password@localhost:5432/compliance_db',
+        DATABASE_URL: 'postgresql://bot_user:Web3p00d123@localhost:5432/humango_db',
         GEMINI_API_KEY: 'AIzaSyA4BC-KiMnz_XVmIns4W5JuzTUqgWebEvU',
         SMTP_HOST: 'smtp.humango.app',
         SMTP_PORT: '587',
