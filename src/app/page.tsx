@@ -80,22 +80,26 @@ export default function Home() {
     
     if (isScanning && pollingUrl && activeStates.includes(scanStatus)) {
       interval = setInterval(async () => {
-        const res = await checkAuditStatus(pollingUrl);
-        if (res.success) {
-          const currentStatus = res.status as any;
-          if (currentStatus === 'completed') {
-            setScanStatus('completed');
-            setIsScanning(false);
-            clearInterval(interval);
-            toast({ title: "Audit Finished!", description: "The PDF report has been sent to your email and is ready for download." });
-          } else if (currentStatus === 'failed') {
-            setScanStatus('failed');
-            setIsScanning(false);
-            clearInterval(interval);
-            toast({ variant: "destructive", title: "Audit Failed", description: "The bot encountered an error scanning this site. Please try again later." });
-          } else if (currentStatus !== scanStatus) {
-            setScanStatus(currentStatus);
+        try {
+          const res = await checkAuditStatus(pollingUrl);
+          if (res.success) {
+            const currentStatus = res.status as any;
+            if (currentStatus === 'completed') {
+              setScanStatus('completed');
+              setIsScanning(false);
+              clearInterval(interval);
+              toast({ title: "Audit Finished!", description: "The PDF report has been sent to your email and is ready for download." });
+            } else if (currentStatus === 'failed') {
+              setScanStatus('failed');
+              setIsScanning(false);
+              clearInterval(interval);
+              toast({ variant: "destructive", title: "Audit Failed", description: "The bot encountered an error scanning this site. Please try again later." });
+            } else if (currentStatus !== scanStatus) {
+              setScanStatus(currentStatus);
+            }
           }
+        } catch (err) {
+          console.error("Polling error:", err);
         }
       }, 5000);
     }
