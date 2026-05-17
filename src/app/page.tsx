@@ -34,7 +34,7 @@ export default function Home() {
   const [url, setUrl] = useState('');
   const [email, setEmail] = useState('');
   const [isScanning, setIsScanning] = useState(false);
-  const [scanStatus, setScanStatus] = useState<'idle' | 'queued' | 'processing' | 'completed' | 'failed'>('idle');
+  const [scanStatus, setScanStatus] = useState<'idle' | 'pending' | 'queued' | 'processing' | 'completed' | 'failed'>('idle');
   const [pollingUrl, setPollingUrl] = useState('');
   const [displayDomain, setDisplayDomain] = useState('');
   const { toast } = useToast();
@@ -49,9 +49,9 @@ export default function Home() {
     setIsScanning(true);
     setScanStatus('queued');
     
-    // Extract hostname just for visual display
     try {
-      const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
+      const normalizedInput = url.startsWith('http') ? url : `https://${url}`;
+      const host = new URL(normalizedInput).hostname;
       setDisplayDomain(host);
     } catch (e) {
       setDisplayDomain(url);
@@ -60,7 +60,7 @@ export default function Home() {
     try {
       const result = await startCrawlAction(url, email);
       if (result.status === 'success' && result.url) {
-        setPollingUrl(result.url); // Use the exact normalized URL from the DB
+        setPollingUrl(result.url); 
         toast({ title: "Audit Queued", description: "Your request is now in the priority audit queue." });
       } else {
         toast({ variant: "destructive", title: "Audit Failed", description: result.reason || "Could not queue the scan." });
@@ -76,7 +76,9 @@ export default function Home() {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isScanning && pollingUrl && (scanStatus === 'queued' || scanStatus === 'processing')) {
+    const activeStates = ['queued', 'pending', 'processing'];
+    
+    if (isScanning && pollingUrl && activeStates.includes(scanStatus)) {
       interval = setInterval(async () => {
         const res = await checkAuditStatus(pollingUrl);
         if (res.success) {
@@ -95,9 +97,9 @@ export default function Home() {
             setScanStatus(currentStatus);
           }
         }
-      }, 4000);
+      }, 5000);
     }
-    return () => clearInterval(interval);
+    return () => { if (interval) clearInterval(interval); };
   }, [isScanning, scanStatus, pollingUrl, toast]);
 
   return (
@@ -180,7 +182,7 @@ export default function Home() {
                   </div>
                   <div>
                     <h3 className="font-bold text-white uppercase tracking-widest text-sm">
-                      {scanStatus === 'queued' ? 'Initializing Secure Connection...' : 'AI Legal Analysis in Progress...'}
+                      {scanStatus === 'processing' ? 'AI Legal Analysis in Progress...' : 'Initializing Secure Connection...'}
                     </h3>
                     <p className="text-xs text-slate-500 mt-2 max-w-sm">
                       The HumangoBot is crawling {displayDomain} and mapping findings to GDPR articles. This usually takes 30-60 seconds.
@@ -202,7 +204,7 @@ export default function Home() {
                       </div>
                     </div>
                     <Button className="bg-white text-primary hover:bg-slate-100 font-bold gap-2" asChild>
-                      <a href={`/api/admin/report-pdf?domain=${new URL(pollingUrl).hostname}`} target="_blank">
+                      <a href={`/api/admin/report-pdf?domain=${displayDomain}`} target="_blank">
                         <Download className="w-4 h-4" /> Download PDF
                       </a>
                     </Button>

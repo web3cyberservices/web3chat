@@ -2,143 +2,121 @@
 import puppeteer from 'puppeteer';
 import { Pool } from 'pg';
 import * as dotenv from 'dotenv';
+import fs from 'fs';
 
 dotenv.config();
-
-/**
- * @fileOverview HUMANGO GLOBAL SMB DISCOVERY V4.0
- * Масштабируемый сборщик целей для аудита.
- * Охватывает Германию, Францию, Италию и Австрию по ключевым B2B секторам.
- */
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Домены, которые точно не являются сайтами малого бизнеса
 const BLACKLIST = [
-  'gelbeseiten.de', 'pagesjaunes.fr', 'paginegialle.it', 'herold.at',
-  'google.', 'facebook.', 'instagram.', 'twitter.', 'linkedin.', 
-  'youtube.', 'apple.', 'microsoft.', 'amazon.', 'wikipedia.',
-  'timmone.', 'goyellow.', 'sundon.', 'w-medien.', 'link.', 'maps.',
-  'yelp.', 'tripadvisor.', 'xing.', 'pinterest.', 'tiktok.'
+  'gelbeseiten.de', 'google.', 'facebook.com', 'instagram.com', 'twitter.com', 'x.com',
+  'linkedin.com', 'pinterest.', 'tiktok.com', 'youtube.com', 'apple.com', 'android.com',
+  'dastelefonbuch.de', 'dasoertliche.de', 'timmone.de', 'goyellow.de', 'sundon.de',
+  'w-medien.de', 'surveymonkey.', 'yelp.', 'tripadvisor.', 'xing.', 'maps.'
 ];
 
-const INDUSTRIES = ['software', 'it-service', 'marketing', 'consulting', 'produktion', 'ecommerce'];
-
-const SOURCES = [
-  { name: 'DE', url: (kw: string, p: number) => `https://www.gelbeseiten.de/suche/${kw}/seite-${p}` },
-  { name: 'FR', url: (kw: string, p: number) => `https://www.pagesjaunes.fr/recherche?quoiqui=${kw}&page=${p}` },
-  { name: 'IT', url: (kw: string, p: number) => `https://www.paginegialle.it/ricerca/${kw}/${p}` },
-  { name: 'AT', url: (kw: string, p: number) => `https://www.herold.at/gelbe-seiten/suche/?was=${kw}&seite=${p}` }
+const CHROME_PATHS = [
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
+  '/root/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 ];
 
-async function runGlobalDiscovery() {
+async function getExecutablePath() {
+  for (const p of CHROME_PATHS) {
+    if (fs.existsSync(p)) return p;
+  }
+  return undefined;
+}
+
+async function runAutonomousExtractor() {
   console.log('==================================================');
-  console.log('   HUMANGO GLOBAL SMB DISCOVERY V4.0              ');
-  console.log('   Method: Cross-Border Multi-Industry Crawl      ');
+  console.log('   HUMANGO GERMAN TARGET EXTRACTOR V3.7           ');
+  console.log('   Method: Deep External Host Filtering (Puppeteer)');
   console.log('==================================================');
 
   const dbClient = await pool.connect();
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
+  const executablePath = await getExecutablePath();
+  const browser = await puppeteer.launch({ 
+    executablePath,
+    headless: true, 
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
   });
 
   try {
     const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
     
-    for (const source of SOURCES) {
-      for (const keyword of INDUSTRIES) {
-        // Берем по 5 страниц для каждой комбинации Страна + Индустрия
-        for (let p = 1; p <= 5; p++) {
-          const targetUrl = source.url(keyword, p);
-          console.log(`[Discovery] [${source.name}] [${keyword}] Скан страницы ${p}: ${targetUrl}`);
+    for (let i = 1; i <= 10; i++) {
+      const catalogUrl = `https://www.gelbeseiten.de/suche/software/seite-${i}`;
+      console.log(`[GelbeSeiten] Сканируем страницу ${i}: ${catalogUrl}`);
+      
+      try {
+        await page.goto(catalogUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+        
+        const allLinks = await page.evaluate(() => {
+          const links = Array.from(document.querySelectorAll('a[href*="http"]'));
+          return links.map(a => (a as HTMLAnchorElement).href);
+        });
 
-          try {
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-            
-            // Ждем немного для прогрузки динамических элементов
-            await new Promise(r => setTimeout(r, Math.random() * 3000 + 2000));
-
-            // Собираем все ссылки, которые могут вести на сайты компаний
-            const links = await page.evaluate(() => {
-              const results: string[] = [];
-              const allLinks = Array.from(document.querySelectorAll('a[href*="http"]'));
-              
-              allLinks.forEach(a => {
-                const href = (a as HTMLAnchorElement).href;
-                const text = a.textContent?.toLowerCase() || '';
-                const html = a.innerHTML.toLowerCase();
-                
-                // Ищем маркеры корпоративного сайта
-                const isLikelyWebsite = 
-                  text.includes('webseite') || 
-                  text.includes('homepage') || 
-                  text.includes('visit') ||
-                  text.includes('visiter') ||
-                  text.includes('sito') ||
-                  html.includes('website') ||
-                  html.includes('icon-homepage');
-
-                if (isLikelyWebsite) {
-                  results.push(href);
-                }
-              });
-              
-              return results;
-            });
-
-            const filtered = [...new Set(links)].filter(href => {
-              try {
-                const host = new URL(href).hostname.toLowerCase();
-                return !BLACKLIST.some(b => host.includes(b));
-              } catch {
-                return false;
-              }
-            });
-
-            console.log(`  -> Найдено уникальных целей: ${filtered.length}`);
-
-            let added = 0;
-            for (const siteUrl of filtered) {
-              try {
-                const cleanUrl = new URL(siteUrl).origin.toLowerCase();
-                const res = await dbClient.query(
-                  `INSERT INTO public.scan_queue (url, status, priority) 
-                   VALUES ($1, 'pending', 1) 
-                   ON CONFLICT (url) DO NOTHING;`,
-                  [cleanUrl]
-                );
-                if (res.rowCount && res.rowCount > 0) {
-                  console.log(`     [+] Добавлен: ${cleanUrl}`);
-                  added++;
-                }
-              } catch (e) {}
+        const filteredSites = allLinks
+          .filter(href => {
+            if (!href) return false;
+            try {
+              const hostname = new URL(href).hostname.toLowerCase();
+              return !BLACKLIST.some(badDomain => hostname.includes(badDomain));
+            } catch {
+              return false;
             }
-            console.log(`  -> Успешно занесено в очередь: ${added}`);
+          })
+          .map(href => {
+            try {
+              return new URL(href).origin.toLowerCase();
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean) as string[];
 
-          } catch (pageErr: any) {
-            console.warn(`  [!] Ошибка на ${targetUrl}: ${pageErr.message}`);
-          }
-          
-          // Пауза между запросами для имитации человека
-          await new Promise(r => setTimeout(r, 2000));
+        const uniquePageSites = [...new Set(filteredSites)];
+        console.log(`  -> Найдено потенциальных бизнес-сайтов: ${uniquePageSites.length}`);
+
+        let addedCount = 0;
+        for (const cleanUrl of uniquePageSites) {
+          try {
+            const res = await dbClient.query(
+              `INSERT INTO public.scan_queue (url, status, priority) 
+               VALUES ($1, 'pending', 1) 
+               ON CONFLICT (url) DO NOTHING;`,
+              [cleanUrl]
+            );
+            
+            if (res.rowCount && res.rowCount > 0) {
+              console.log(`     [+] Добавлен в очередь: ${cleanUrl}`);
+              addedCount++;
+            }
+          } catch (e) {}
         }
+        console.log(`  -> Успешно занесено новых целей: ${addedCount}`);
+      } catch (pageErr: any) {
+        console.warn(`  [!] Ошибка на странице ${i}: ${pageErr.message}`);
       }
+      
+      await new Promise(r => setTimeout(r, 2000));
     }
   } catch (err: any) {
-    console.error('[Critical Discovery Error]:', err.message);
+    console.error('[Critical Error]:', err.message);
   } finally {
     await browser.close();
     dbClient.release();
     await pool.end();
     console.log('==================================================');
-    console.log('[Discovery] Глобальная сессия завершена.');
+    console.log('[Extractor] Сессия завершена.');
   }
 }
 
-runGlobalDiscovery();
+runAutonomousExtractor();
