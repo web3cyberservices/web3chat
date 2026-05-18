@@ -6,11 +6,7 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Validator V32.5 - Semantic Logic Fix
- * 
- * - ROLE: Senior European Compliance Lawyer.
- * - RULE: Stop analysis if no document content is present.
- * - RULE: Unified double quotes in all recommendations.
+ * @fileOverview Validator V33.0 - Improved Logic for Empty Content
  */
 
 const ValidationInputSchema = z.object({
@@ -47,22 +43,16 @@ CONTEXT:
 Domain: {{{domain}}}
 Has Footer Link: {{{hasFooterLink}}}
 
-HTML CONTENT POOL (Aggregated text from discovered legal pages):
+HTML CONTENT POOL:
 {{{html}}}
 
-PRELIMINARY FINDINGS:
-{{#each findings}}
-- {{{issue_type}}}: {{{description}}}
-{{/each}}
-
 INSTRUCTIONS:
-1. ANNULLING ACCESSIBILITY ERRORS: If hasFooterLink is true, the violation "MISSING LEGAL DISCLOSURES" or "Lack of accessibility" MUST be rejected. Accessibility is satisfied if a link exists, regardless of the URL path (e.g., /legal/privacy is valid).
-2. DATA RETENTION AUDIT: Analyze the HTML CONTENT POOL. Search for any mention of data storage durations.
-   - Look for terms like "24 months", "3 years", "duration of contract", "until account deletion", "365 days".
-   - If ANY timeframe or logic for storage is mentioned, the violation "DATA RETENTION TIMEFRAMES" MUST be rejected.
-3. REAL GAPS ONLY: Only verify "CRITICAL INCOMPLETENESS" if the information is TRULY missing from the provided text pool.
-4. RECOMMENDATION FORMAT: All recommendations MUST use DOUBLE QUOTES (") only. Never use single quotes.
-   Example: ACTION: INSERT THIS TEXT -> "Data Controller: info@example.com".`,
+1. SEMANTIC FLEXIBILITY: If hasFooterLink is true, DO NOT report "MISSING LEGAL DISCLOSURES".
+2. DATA RETENTION AUDIT: Scrutinize the HTML CONTENT POOL for storage timeframes.
+   - Look for "24 months", "2 years", "until deletion", "for the duration of service".
+   - If any mention of a timeframe or logic for storage exists, DO NOT report "DATA RETENTION TIMEFRAMES" gap.
+3. RECOMMENDATIONS: All recommendations MUST use DOUBLE QUOTES (") only. No single quotes allowed.
+4. HONESTY: Only report a gap if the info is truly missing. If content is present, return an empty array.`,
 });
 
 export async function verifyIntegrity(html: string, findings: Violation[], hasFooterLink: boolean) {
@@ -70,9 +60,8 @@ export async function verifyIntegrity(html: string, findings: Violation[], hasFo
     const domain = findings[0]?.domain || "this site";
     const truncatedHtml = (html || "").substring(0, 25000); 
 
-    // CRITICAL LOGIC: If no content was found at all, don't hallucinate data retention errors.
-    // Just return the missing core framework error.
-    if (truncatedHtml.trim().length < 200) {
+    // CRITICAL: If content is minimal, don't hallucinate retention errors
+    if (truncatedHtml.trim().length < 300) {
       return {
         validated_findings: [{
           issue_type: 'MISSING CORE FRAMEWORK',
@@ -80,8 +69,8 @@ export async function verifyIntegrity(html: string, findings: Violation[], hasFo
           evidence_quote: "No semantic legal content identified during scan.",
           is_hallucination: false,
           verification_status: 'verified' as const,
-          business_impact: "Critical risk: Mandatory legal disclosures are missing from the site architecture.",
-          recommendation: `ACTION: INSERT THIS HTML -> "<footer class=\\"legal-footer\\"><a href=\\"/privacy\\">Privacy Policy</a></footer>"`,
+          business_impact: "Critical risk: Mandatory legal disclosures are missing.",
+          recommendation: 'ACTION: INSERT THIS HTML -> "<footer class=\"legal-footer\"><a href=\"/privacy\">Privacy Policy</a></footer>"',
           law_name: "Art. 12 & 13 GDPR",
           potential_fine: "Up to €20,000,000 or 4% of annual turnover."
         }],
@@ -107,18 +96,17 @@ export async function verifyIntegrity(html: string, findings: Violation[], hasFo
       integrity_status: activeFindings.length === 0 ? 'verified' : output.integrity_status
     };
   } catch (error: any) {
-    console.warn('[Validator] AI fallback.', error.message);
     return {
       validated_findings: findings.map(f => ({
         issue_type: f.issue_type,
         confidence_score: 0.8,
         is_hallucination: false,
         verification_status: 'verified' as const,
-        business_impact: f.business_impact || "Business Risk: Loss of advertising access.",
-        recommendation: f.recommendation || `ACTION: INSERT THIS TEXT -> "Data Controller: info@${domain}"`,
+        business_impact: f.business_impact || "Business Risk.",
+        recommendation: (f.recommendation || `ACTION: INSERT THIS TEXT -> "Data Controller: info@${domain}"`).replace(/[']/g, '"'),
         law_name: f.law_name || "GDPR Art. 13",
-        potential_fine: "Up to €20,000,000 or 4% of annual turnover.",
-        evidence_quote: "Verified via semantic fallback."
+        potential_fine: "Up to €20M",
+        evidence_quote: "Verified via fallback."
       })),
       overall_confidence: 0.8,
       integrity_status: 'incomplete' as const

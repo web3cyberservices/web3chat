@@ -11,7 +11,7 @@ import { performance } from 'perf_hooks';
 const urlSchema = z.string().url();
 
 /**
- * The Loop Architecture (V32.5) - Semantic Deep Analysis & Fallback Discovery
+ * The Loop Architecture (V33.0) - Semantic Deep Analysis & Failback Discovery
  */
 export async function runCrawlTask(seedUrl: string, iteration: number = 1): Promise<CrawlResult> {
   const startTime = performance.now();
@@ -49,10 +49,20 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     // PHASE 2: SEMANTIC DEEP DIVE (FOLLOWING LEGAL CANDIDATES)
     const legalLinks = { ...initialParsed.meta.legal_links };
     
-    // SMART FALLBACK: If semantic analysis missed the link (e.g. JS rendered), try common paths
-    const baseUrl = initialNormalized.endsWith('/') ? initialNormalized.slice(0, -1) : initialNormalized;
+    // SMART FALLBACK: If semantic analysis missed the link, try common paths explicitly
+    const origin = new URL(initialNormalized).origin;
     if (!legalLinks.privacy) {
-      legalLinks.privacy = `${baseUrl}/legal/privacy`;
+      // Check standard fallback endpoints
+      const fallbacks = [`${origin}/legal/privacy`, `${origin}/privacy`, `${origin}/datenschutz`];
+      for (const fb of fallbacks) {
+        try {
+          const check = await fetch(fb, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+          if (check.ok) {
+            legalLinks.privacy = fb;
+            break;
+          }
+        } catch (e) {}
+      }
     }
 
     const candidates = Object.entries(legalLinks).filter(([_, href]) => !!href);
@@ -61,7 +71,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     let aggregatedLegalContent = scrape.html; 
 
     if (hasAnyFooterLink) {
-      await saveBotEvent('SUCCESS', `Semantic Discovery: Found potential legal paths. Fetching content...`);
+      await saveBotEvent('SUCCESS', `Semantic Discovery: Found legal paths. Fetching content...`);
       
       for (const [type, href] of candidates) {
           const deepUrl = normalizeUrl(href!, initialNormalized);
@@ -72,25 +82,46 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
             if (deepScrape.status === 'success') {
                 aggregatedLegalContent += `\n\n--- DOCUMENT: ${type.toUpperCase()} AT ${deepUrl} ---\n\n` + deepScrape.html;
             }
-          } catch (e) {
-            // Silently skip failed fallback paths
-          }
+          } catch (e) {}
       }
     }
 
-    // PHASE 3: AI VERIFICATION (ANALYSING CONTENT POOL)
-    const validationResult = await verifyIntegrity(aggregatedLegalContent, initialParsed.violations, hasAnyFooterLink);
+    // PHASE 3: AI VERIFICATION
+    // If we have no content from discovered documents, we intercept here to avoid AI hallucinations
+    let verifiedFindings: Violation[] = [];
+    let validationResult: any;
+
+    if (aggregatedLegalContent.trim().length < 500 && !hasAnyFooterLink) {
+       // INTERCEPT: Document is clearly missing. No AI call needed.
+       verifiedFindings = [{
+         category: 'Privacy',
+         report_type: 'SaaS',
+         issue_type: 'MISSING CORE FRAMEWORK',
+         severity: 'critical',
+         evidence_html: initialNormalized,
+         description: 'No statutory legal disclosure links or content (Privacy Policy/Impressum) were identified in the site architecture.',
+         business_impact: 'Critical risk: Meta and Google advertising accounts may be suspended due to missing compliance signals.',
+         law_name: 'Art. 12 & 13 GDPR',
+         potential_fine: 'Up to €20,000,000 or 4% of global turnover.',
+         explanation: 'The law requires a visible and accessible privacy policy on all commercial websites.',
+         recommendation: 'ACTION: INSERT THIS HTML -> "<footer class=\"legal-footer\"><a href=\"/privacy\">Privacy Policy</a></footer>"',
+         confidence_score: 1.0,
+         verification_status: 'verified'
+       }];
+       validationResult = { integrity_status: 'incomplete', overall_confidence: 1.0 };
+    } else {
+       validationResult = await verifyIntegrity(aggregatedLegalContent, initialParsed.violations, hasAnyFooterLink);
+       verifiedFindings = validationResult.validated_findings;
+    }
     
-    await saveValidationLog(initialNormalized, iteration, validationResult.integrity_status, validationResult.validated_findings, validationResult.overall_confidence);
+    await saveValidationLog(initialNormalized, iteration, validationResult.integrity_status, verifiedFindings, validationResult.overall_confidence);
 
     // PHASE 4: FINALIZATION
     await saveAuditLog(domain, 200, null);
-    
-    const verifiedFindings = validationResult.validated_findings;
     await saveAuditResults(domain, initialNormalized, verifiedFindings, iteration > 1 ? 'deep' : 'basic');
     
     const total_ms = Math.round(performance.now() - startTime);
-    await saveBotEvent('SUCCESS', `Loop Finished: ${domain} | Confidence: ${validationResult.overall_confidence} | Issues: ${verifiedFindings.length}`);
+    await saveBotEvent('SUCCESS', `Loop Finished: ${domain} | Findings: ${verifiedFindings.length}`);
 
     return {
       url: initialNormalized,
