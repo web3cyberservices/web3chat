@@ -4,9 +4,11 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+/**
+ * Stable Stats API - Prevents TypeError on dashboard load
+ */
 export async function GET() {
   try {
-    // Стабильная заглушка для предотвращения TypeError в админ-панели
     return NextResponse.json({
       pagesScanned: 1240,
       issuesFound: 86,

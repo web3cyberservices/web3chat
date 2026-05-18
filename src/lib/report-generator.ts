@@ -1,5 +1,5 @@
 
-import { pool } from './db'; // Используем относительный путь
+import { pool } from './db';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
@@ -30,12 +30,12 @@ export async function generatePdfReport(domain: string, providedFindings?: any[]
       findings = res.rows;
     }
 
-    // Логическая очистка
+    // Logic filter: If core framework is missing, ignore sub-issues to prevent logical contradiction
     if (findings.some((f: any) => (f.issue_type || '').toUpperCase().includes('MISSING CORE FRAMEWORK'))) {
       findings = findings.filter((f: any) => (f.issue_type || '').toUpperCase().includes('MISSING CORE FRAMEWORK'));
     }
 
-    // Нормализация кавычек
+    // Force double quotes for recommendations for cleanliness
     findings = findings.map((v: any) => ({
       ...v,
       recommendation: (v.recommendation || v.action || '').replace(/[']/g, '"')
@@ -53,19 +53,23 @@ export async function generatePdfReport(domain: string, providedFindings?: any[]
           .severity-badge { font-size: 10px; font-weight: bold; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
           .footer { position: fixed; bottom: 30px; left: 40px; right: 40px; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 10px; }
           .recommendation-box { background: #f8fafc; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 11px; color: #334155; border: 1px solid #f1f5f9; word-break: break-all; }
+          .compliant-box { text-align: center; padding: 40px; }
         </style>
       </head>
       <body>
         <div class="header">
           <div style="font-size: 16px; font-weight: 800;">Humango<span style="color:#3b82f6">Compliance</span></div>
-          <div style="text-align:right; font-size:10px; color:#64748b">STATUTORY REPORT</div>
+          <div style="text-align:right; font-size:10px; color:#64748b">STATUTORY AUDIT REPORT</div>
         </div>
 
         <h1>Diagnostic Analysis</h1>
-        <p>Infrastructure: <strong>${safeDomain}</strong></p>
+        <p>Target Infrastructure: <strong>${safeDomain}</strong></p>
 
         ${findings.length === 0 ? `
-          <div class="card" style="text-align:center;"><h2>No Violations Detected</h2></div>
+          <div class="card compliant-box">
+            <h2 style="color: #10b981;">STATUS: COMPLIANT</h2>
+            <p>The audit engine found no technical statutory violations on the target domain.</p>
+          </div>
         ` : findings.map((v: any) => `
           <div class="card">
             <div style="display:flex; justify-content:space-between; margin-bottom: 10px;">
@@ -73,7 +77,7 @@ export async function generatePdfReport(domain: string, providedFindings?: any[]
               <span class="severity-badge">CRITICAL</span>
             </div>
             <p style="font-size:13px;">${v.description || v.summary}</p>
-            <div style="font-size:10px; font-weight:bold; color:#3b82f6; margin-bottom:5px;">ACTION:</div>
+            <div style="font-size:10px; font-weight:bold; color:#3b82f6; margin-bottom:5px;">RECOMMENDED ACTION:</div>
             <div class="recommendation-box">${v.recommendation || v.action}</div>
           </div>
         `).join('')}
