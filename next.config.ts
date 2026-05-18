@@ -3,10 +3,6 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  // Фиксированный Build ID предотвращает ChunkLoadError при несинхронном обновлении файлов на сервере
-  generateBuildId: async () => {
-    return 'humango-production-v31';
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

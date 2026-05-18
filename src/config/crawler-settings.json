@@ -2,7 +2,7 @@
 {
   "userAgent": "HumangoBot/1.0 (+https://bot.humango.app)",
   "timeout": 30000,
-  "maxConcurrency": 5,
+  "maxConcurrency": 2,
   "proxyEnabled": false,
   "scanIntervalMs": 30000,
   "complianceRules": [
