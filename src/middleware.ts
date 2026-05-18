@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/request';
+import type { NextRequest } from 'next/server';
 
 /**
  * Middleware для защиты терминала и обработки путей.
@@ -8,7 +8,16 @@ import type { NextRequest } from 'next/request';
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
   
-  // Разрешаем публичный доступ к PDF-отчетам
+  // Пропускаем все статические файлы и внутренние запросы Next.js
+  if (
+    url.pathname.startsWith('/_next/') ||
+    url.pathname.startsWith('/static/') ||
+    url.pathname.includes('.') ||
+    url.pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
+  }
+
   const isReportPdf = url.pathname.startsWith('/api/admin/report-pdf');
   const isAdminPath = url.pathname.startsWith('/api/admin');
   

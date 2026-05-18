@@ -4,6 +4,7 @@ module.exports = {
     {
       name: 'humango-app',
       script: '.next/standalone/server.js',
+      cwd: '/var/www/bot.humango.app',
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
@@ -15,8 +16,9 @@ module.exports = {
     },
     {
       name: 'humango-worker',
-      script: './node_modules/.bin/tsx',
+      script: 'node_modules/.bin/tsx',
       args: 'src/scripts/worker.ts',
+      cwd: '/var/www/bot.humango.app',
       env: {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://bot_user:Web3p00d123@localhost:5432/humango_db',
