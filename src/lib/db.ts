@@ -15,6 +15,9 @@ function sanitize(text: string | null | undefined, fallback: string = ''): strin
   return String(text).trim().replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "");
 }
 
+/**
+ * Robust URL normalization to prevent malformed domains.
+ */
 export function normalizeUrl(url: string, base?: string): string {
   try {
     let target = url.trim();
@@ -27,33 +30,36 @@ export function normalizeUrl(url: string, base?: string): string {
     u.hash = ''; u.search = '';
     return u.href.toLowerCase();
   } catch (e) {
-    return 'invalid-target';
+    return url.startsWith('http') ? url : `https://${url}`;
   }
 }
 
 export async function queueTask(url: string, email: string, priority: number = 0) {
   const cleanUrl = normalizeUrl(url);
   await pool.query(
-    `INSERT INTO public.scan_queue (url, status, priority, user_email, created_at) VALUES ($1, 'pending', $2, $3, NOW()) ON CONFLICT (url) DO UPDATE SET status = 'pending', priority = $2, user_email = $3;`,
+    `INSERT INTO public.scan_queue (url, status, priority, user_email, created_at) 
+     VALUES ($1, 'pending', $2, $3, NOW()) 
+     ON CONFLICT (url) DO UPDATE SET status = 'pending', priority = $2, user_email = $3;`,
     [cleanUrl, priority, email]
   );
   return cleanUrl;
 }
 
 export async function getTaskStatus(url: string) {
-  const res = await pool.query('SELECT status FROM public.scan_queue WHERE url = $1', [normalizeUrl(url)]);
+  const cleanUrl = normalizeUrl(url);
+  const res = await pool.query('SELECT status FROM public.scan_queue WHERE url = $1', [cleanUrl]);
   return res.rows[0] || null;
 }
 
 export async function saveAuditResults(domain: string, url: string, violations: any[], scanType: string = 'basic') {
-  let filteredViolations = violations;
-  if (violations.some(v => v.issue_type === 'MISSING CORE FRAMEWORK')) {
-    filteredViolations = violations.filter(v => v.issue_type === 'MISSING CORE FRAMEWORK');
-  }
-
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // If missing core framework, we only save that to prevent contradictions
+    const filteredViolations = violations.some(v => v.type === 'MISSING_CORE_FRAMEWORK') 
+      ? violations.filter(v => v.type === 'MISSING_CORE_FRAMEWORK')
+      : violations;
+
     for (const v of filteredViolations) {
       await client.query(`
         INSERT INTO site_violations (
@@ -64,10 +70,10 @@ export async function saveAuditResults(domain: string, url: string, violations: 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), $13, $14)`,
         [
           sanitize(domain), sanitize(url), sanitize(url), v.category || 'Privacy', 
-          v.issue_type, v.severity || 'critical', sanitize(url), 
-          sanitize(v.description || v.summary), sanitize(v.law_name), 
-          sanitize(v.recommendation || v.action), scanType, 
-          v.report_type || 'SaaS', sanitize(v.business_impact), sanitize(v.explanation || v.description)
+          v.type || v.issue_type, v.level || v.severity || 'critical', sanitize(url), 
+          sanitize(v.summary || v.description), sanitize(v.basis || v.law_name), 
+          sanitize(v.action || v.recommendation), scanType, 
+          v.report_type || 'SaaS', sanitize(v.risk || v.business_impact), sanitize(v.explanation || v.description)
         ]
       );
     }
@@ -91,33 +97,8 @@ export async function getBotStatus(): Promise<boolean> {
 }
 
 export async function setBotStatus(isActive: boolean) {
-  try {
-    await pool.query('UPDATE public.bot_settings SET is_active = $1, updated_at = NOW() WHERE id = 1', [isActive]);
-    return { success: true };
-  } catch (error) {
-    return { success: false };
-  }
-}
-
-export async function getNextQueueItem() {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const res = await client.query("SELECT id, url, user_email FROM scan_queue WHERE status = 'pending' ORDER BY priority DESC, id ASC LIMIT 1 FOR UPDATE SKIP LOCKED");
-    const task = res.rows[0];
-    if (task) await client.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
-    await client.query('COMMIT');
-    return task || null;
-  } catch (e) {
-    await client.query('ROLLBACK');
-    return null;
-  } finally {
-    client.release();
-  }
-}
-
-export async function updateQueueStatus(id: number, status: string) {
-  await pool.query('UPDATE scan_queue SET status = $1 WHERE id = $2', [status, id]);
+  await pool.query('UPDATE public.bot_settings SET is_active = $1, updated_at = NOW() WHERE id = 1', [isActive]);
+  return { success: true };
 }
 
 export async function getBotEvents(limit: number = 50) {
@@ -129,10 +110,8 @@ export async function getViolations(limit: number = 100) {
   const res = await pool.query(`
     SELECT 
       id, domain, url, page_url, category, issue_type as type, severity as level, 
-      evidence_html, evidence_quote, confidence_score, verification_status, 
-      snippet, description, explanation as summary, law_name, fine_amount, 
-      recommendation, scan_type, report_type, verification_method, 
-      business_impact, created_at as date
+      evidence_html, description, explanation as summary, law_name, 
+      recommendation, scan_type, report_type, business_impact, created_at as date
     FROM public.site_violations 
     ORDER BY created_at DESC LIMIT $1
   `, [limit]);

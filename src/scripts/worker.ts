@@ -3,9 +3,15 @@ import { Pool } from 'pg';
 import * as nodemailer from 'nodemailer';
 import puppeteer from 'puppeteer';
 import * as fs from 'fs';
-import * as path from 'path';
+import { generatePdfReport } from '../lib/report-generator';
 
-// Use environment variables for DB connection
+/**
+ * DETERMINISTIC WORKER V5.2
+ * - No AI dependency to avoid Quota Exceeded.
+ * - Robust Puppeteer discovery.
+ * - Multi-language Regex detection for Data Retention.
+ */
+
 const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
@@ -17,7 +23,7 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS, // Use App Password for Gmail
+    pass: process.env.SMTP_PASS, 
   },
   tls: {
     rejectUnauthorized: false
@@ -41,62 +47,6 @@ async function getExecutablePath() {
 
 const USER_AGENT = "HumangoBot/1.0 (+https://bot.humango.app)";
 
-async function generateLocalPdf(domain: string, findings: any[]) {
-  let browser: any = null;
-  try {
-    const executablePath = await getExecutablePath();
-    browser = await puppeteer.launch({ 
-      executablePath,
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
-          .header { border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px; font-weight: 800; display: flex; justify-content: space-between; }
-          .card { border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 20px; background: #fff; }
-          .badge { background: #fef2f2; color: #ef4444; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
-          .footer { position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 9px; color: #94a3b8; }
-          .rec-box { background: #f8fafc; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 11px; margin-top: 10px; border: 1px solid #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <span>Humango<span style="color:#3b82f6">Compliance</span></span>
-          <span style="font-size:10px; color:#64748b">STATUTORY AUDIT REPORT</span>
-        </div>
-        <h1>Audit Results for ${domain}</h1>
-        ${findings.length === 0 ? '<div class="card" style="text-align:center"><h2 style="color:#10b981">STATUS: COMPLIANT</h2><p>No technical statutory violations were detected on the target infrastructure.</p></div>' : findings.map(f => `
-          <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <div style="font-weight:bold">${f.type || f.issue_type}</div>
-              <span class="badge">CRITICAL</span>
-            </div>
-            <p style="font-size:13px; color:#475569">${f.summary || f.description}</p>
-            <div style="font-size:10px; color:#3b82f6; font-weight:bold; margin-top:15px; text-transform:uppercase">Recommended Action:</div>
-            <div class="rec-box">${(f.action || f.recommendation || '').replace(/'/g, '"')}</div>
-          </div>
-        `).join('')}
-        <div class="footer">bot.humango.app | Statutory Compliance Verified | ${new Date().toLocaleDateString()}</div>
-      </body>
-      </html>
-    `;
-
-    await page.setContent(htmlContent);
-    return await page.pdf({ format: 'A4', printBackground: true });
-  } catch (e) {
-    return null;
-  } finally {
-    if (browser) await browser.close();
-  }
-}
-
 async function executeDeterministicAudit(domain: string, userEmail: string) {
   let browser: any = null;
   try {
@@ -104,7 +54,7 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
     browser = await puppeteer.launch({ 
       executablePath,
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
@@ -116,9 +66,10 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
     console.log(`[Worker] Auditing: ${originUrl}`);
     
     let legalText = '';
-    let hasFooterLink = false;
+    let hasFoundDoc = false;
 
     try {
+      // 1. Scan Homepage for links
       await page.goto(originUrl, { waitUntil: 'networkidle2', timeout: 35000 });
       const links = await page.evaluate(() => {
         return Array.from(document.querySelectorAll('a')).map(a => ({
@@ -129,49 +80,63 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
 
       const legalKeywords = ['privacy', 'policy', 'legal', 'datenschutz', 'impressum', 'terms', 'confidentialite'];
       let foundTarget = links.find(link => 
-        legalKeywords.some(keyword => link.href.includes(keyword) || link.text.includes(keyword))
+        legalKeywords.some(keyword => (link.href || '').includes(keyword) || (link.text || '').includes(keyword))
       );
 
+      // 2. Fallback check for known paths if semantic search fails
       if (!foundTarget) {
-        console.log(`[Worker] Semantic search failed. Trying fallback paths...`);
+        console.log(`[Worker] No links found on homepage. Trying direct fallback...`);
         const fallbackUrl = new URL('/legal/privacy', originUrl).href;
         const res = await page.goto(fallbackUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
         if (res && res.status() === 200) {
           legalText = await page.evaluate(() => document.body.innerText);
-          hasFooterLink = true;
+          hasFoundDoc = true;
         }
       } else {
-        hasFooterLink = true;
+        hasFoundDoc = true;
+        console.log(`[Worker] Found doc link: ${foundTarget.href}`);
         await page.goto(foundTarget.href, { waitUntil: 'domcontentloaded', timeout: 35000 });
         legalText = await page.evaluate(() => document.body.innerText);
       }
     } catch (e: any) {
-      console.warn(`[Worker] Crawl Warning: ${e.message}`);
+      console.warn(`[Worker] Scan Warning for ${originUrl}: ${e.message}`);
     }
 
     let findings = [];
+
+    // DETERMINISTIC EVALUATION
     if (!legalText || legalText.trim().length < 250) {
+      console.log(`[Worker] Violation Confirmed: MISSING_CORE_FRAMEWORK`);
       findings.push({
         type: 'MISSING_CORE_FRAMEWORK',
         summary: 'No statutory legal disclosures (Privacy Policy/Impressum) were identified in the site architecture. This violates transparency standards under Art. 12 & 13 GDPR.',
-        action: 'Add a "Privacy Policy" link to your website footer and provide the mandatory legal disclosures.'
+        action: 'Add a "Privacy Policy" link to your website footer and provide the mandatory legal disclosures.',
+        basis: 'Art. 13 GDPR',
+        risk: 'High risk of ad account suspension and regulatory fines.'
       });
     } else {
+      console.log(`[Worker] Content Found (${legalText.length} chars). Checking Retention...`);
+      // Regex for data retention periods (EN, DE, RU)
       const retentionRegex = /(storage|retention|store|keep|retain|hold|period|months|years|days|24\s*months|3\s*years|\d+\s*(month|year|day|месяц|год|лет|дня|продолжительно))/i;
-      const hasRetentionMention = retentionRegex.test(legalText);
+      const hasRetention = retentionRegex.test(legalText);
 
-      if (!hasRetentionMention) {
+      if (!hasRetention) {
+        console.log(`[Worker] Violation Confirmed: DATA_RETENTION_TIMEFRAMES`);
         findings.push({
           type: 'DATA_RETENTION_TIMEFRAMES',
           summary: 'The policy fails to state specific data retention periods as required by Art. 13 GDPR. Users must be informed about how long their data is stored.',
-          action: 'Insert text: "Personal data is stored for 24 months from the last interaction or until account deletion is requested."'
+          action: 'INSERT THIS TEXT > "Personal data is stored for a period of 24 months from the last interaction or until account deletion is requested."',
+          basis: 'Art. 13(2)(a) GDPR',
+          risk: 'Non-compliance with transparency duties.'
         });
       }
     }
 
-    const pdfBuffer = await generateLocalPdf(originUrl, findings);
+    // Generate PDF directly from worker findings
+    const pdfBuffer = await generatePdfReport(originUrl, findings);
 
     if (userEmail && pdfBuffer) {
+      console.log(`[Worker] Sending report to ${userEmail}...`);
       await transporter.sendMail({
         from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
         to: userEmail,
@@ -181,6 +146,7 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
       });
     }
 
+    // Update DB status
     await pool.query("UPDATE public.scan_queue SET status = 'completed' WHERE url = $1", [domain]);
 
   } catch (err: any) {
@@ -193,8 +159,8 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
 
 async function startWorker() {
   console.log("==================================================");
-  console.log("[Deterministic Worker] Service started successfully.");
-  console.log("[Status] Monitoring scan_queue for pending tasks...");
+  console.log("[Deterministic Worker] Service active.");
+  console.log("[User-Agent] " + USER_AGENT);
   console.log("==================================================");
   
   while (true) {
@@ -211,6 +177,7 @@ async function startWorker() {
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     } catch (e: any) {
+      console.error("[Worker Loop Error]", e.message);
       await new Promise(resolve => setTimeout(resolve, 10000));
     }
   }

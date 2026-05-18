@@ -1,7 +1,7 @@
 
 'use server';
 
-import { queueTask, getTaskStatus } from '@/lib/db';
+import { queueTask, getTaskStatus, normalizeUrl } from '@/lib/db';
 import { z } from 'zod';
 
 const StartScanSchema = z.object({
@@ -9,6 +9,9 @@ const StartScanSchema = z.object({
   email: z.string().email()
 });
 
+/**
+ * Isolated server action for starting the crawl.
+ */
 export async function startCrawlAction(rawUrl: string, rawEmail: string) {
   const validation = StartScanSchema.safeParse({ url: rawUrl, email: rawEmail });
   if (!validation.success) {
@@ -16,21 +19,18 @@ export async function startCrawlAction(rawUrl: string, rawEmail: string) {
   }
 
   let { url, email } = validation.data;
-  
-  // Normalize protocol if missing
-  if (!url.startsWith('http')) {
-    url = `https://${url}`;
-  }
+  const cleanUrl = normalizeUrl(url);
   
   try {
-    const cleanUrl = await queueTask(url, email, 10); // Priority 10 for user requests
+    const queuedUrl = await queueTask(cleanUrl, email, 10);
     return { 
       status: 'success', 
-      url: cleanUrl,
-      message: 'Audit added to priority queue. Bot is processing...' 
+      url: queuedUrl,
+      message: 'Audit added to priority queue. Processing...' 
     };
   } catch (e: any) {
-    return { status: 'failed', reason: e.message };
+    console.error('[Action Error] startCrawlAction failed:', e.message);
+    return { status: 'failed', reason: 'Internal system error while queuing audit.' };
   }
 }
 
