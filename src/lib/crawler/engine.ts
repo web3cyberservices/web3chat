@@ -7,8 +7,7 @@ import {
   getNextQueueItem, 
   updateQueueStatus, 
   saveBotEvent, 
-  testConnection,
-  pool
+  testConnection
 } from '@/lib/db';
 import settings from '@/config/crawler-settings.json';
 import { isUrlAllowed } from '@/config/robots-rules';
@@ -19,12 +18,12 @@ import { generatePdfReport } from '../report-generator';
 const IDLE_WAIT = 15000;    
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
+  host: process.env.SMTP_HOST || 'smtp.beget.com',
+  port: parseInt(process.env.SMTP_PORT || '2525'), // UPDATED TO 2525
   secure: false, 
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS, // NOTE: Best practice is to use App Password here
+    pass: process.env.SMTP_PASS,
   },
   tls: {
     rejectUnauthorized: false
@@ -37,108 +36,42 @@ async function sleep(ms: number) {
 
 async function handleAuditDelivery(domain: string, userEmail: string) {
   try {
-    logger.info(`[Worker] Starting PDF generation for ${domain}...`);
     const pdfBuffer = await generatePdfReport(domain);
-    
-    if (!pdfBuffer) {
-      throw new Error("PDF generator returned null buffer");
-    }
+    if (!pdfBuffer) throw new Error("PDF failed");
 
     if (userEmail && userEmail.trim() !== '') {
-      logger.info(`[Worker] Attempting to send email to: ${userEmail}`);
-      
-      const mailOptions = {
+      await transporter.sendMail({
         from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
         to: userEmail,
-        subject: `Statutory Compliance Audit Report for ${domain}`,
-        text: `Hello,\n\nYour automated statutory compliance audit for ${domain} is complete. Please find your detailed PDF diagnostic report attached to this email.\n\nBest regards,\nHumango Limited`,
-        attachments: [
-          {
-            filename: `Humango_Audit_${domain}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }
-        ]
-      };
-
-      await transporter.sendMail(mailOptions);
-      logger.info(`[Worker] Email sent successfully to ${userEmail}`);
+        subject: `Audit Report: ${domain}`,
+        text: `The statutory audit for ${domain} is complete. Attached is your PDF report.`,
+        attachments: [{ filename: `Humango_Audit_${domain}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+      });
     }
     return true;
   } catch (error: any) {
-    const errorMsg = error.message || 'Unknown SMTP error';
-    logger.error(`[Worker Delivery Error] Domain: ${domain} | Error: ${errorMsg}`);
-    
-    if (errorMsg.includes('535') || errorMsg.includes('BadCredentials')) {
-      await saveBotEvent('ERROR', `SMTP AUTH FAILED: Invalid App Password or security block for ${process.env.SMTP_USER}.`);
-    } else {
-      await saveBotEvent('ERROR', `Email delivery failed for ${domain}: ${errorMsg}`);
-    }
-    
+    logger.error(`[Delivery Error] ${domain}: ${error.message}`);
     return false;
   }
 }
 
 async function runWorker(workerId: number) {
-  logger.info(`[Worker ${workerId}] Priority Engine Active.`);
-  
   while (true) {
-    let currentTaskId: number | null = null;
-    let currentDomain: string = 'unknown';
-
     try {
       const active = await getBotStatus();
-      if (!active) {
-        await sleep(5000);
-        continue;
-      }
+      if (!active) { await sleep(5000); continue; }
 
       const task = await getNextQueueItem();
-      if (!task) {
-        await sleep(IDLE_WAIT); 
-        continue;
-      }
+      if (!task) { await sleep(IDLE_WAIT); continue; }
 
-      currentTaskId = task.id;
-      const urlStr = task.url;
-      const userEmail = task.user_email;
-      
-      try {
-        const url = new URL(urlStr);
-        currentDomain = url.hostname.toLowerCase();
-      } catch (e: any) {
-        if (currentTaskId) await updateQueueStatus(currentTaskId, 'failed');
-        continue;
-      }
-      
-      const robotsCheck = await isUrlAllowed(urlStr);
-      if (!robotsCheck.allowed) {
-        if (currentTaskId) await updateQueueStatus(currentTaskId, 'failed');
-        continue;
-      }
-
-      logger.info(`[Worker ${workerId}] Auditing: ${currentDomain}`);
-      await saveBotEvent('START', `Compliance Scan [Worker ${workerId}]: ${currentDomain}`);
-      
       const result = await runCrawlTask(task.url);
-      
       if (result.status === 'success') {
-        const deliverySuccess = await handleAuditDelivery(currentDomain, userEmail);
+        await handleAuditDelivery(new URL(task.url).hostname, task.user_email);
         await updateQueueStatus(task.id, 'completed');
-        
-        if (deliverySuccess) {
-          await saveBotEvent('SUCCESS', `Audit completed and sent for ${currentDomain}`);
-        }
       } else {
         await updateQueueStatus(task.id, 'failed');
-        await saveBotEvent('ERROR', `Crawl failed for ${currentDomain}: ${result.reason}`);
       }
-
     } catch (error: any) {
-      logger.error(`[Worker ${workerId}] Engine Loop Error: ${error.message}`);
-      if (currentTaskId) {
-        await updateQueueStatus(currentTaskId, 'failed').catch(() => {});
-      }
       await sleep(10000);
     }
     await sleep(1000);
@@ -146,29 +79,7 @@ async function runWorker(workerId: number) {
 }
 
 export async function startEngine() {
-  try {
-    await testConnection();
-    
-    transporter.verify((error, success) => {
-      if (error) {
-        logger.error(`[SMTP] Verification failed: ${error.message}`);
-        saveBotEvent('ERROR', `SMTP VERIFICATION FAILED: ${error.message}.`);
-      } else {
-        logger.info(`[SMTP] Server is ready`);
-        saveBotEvent('SUCCESS', `SMTP Server connected for ${process.env.SMTP_USER}`);
-      }
-    });
-
-    await saveBotEvent('SUCCESS', `Engine started with ${settings.maxConcurrency} workers.`);
-  } catch (err: any) {
-    logger.error(`FATAL: Database unreachable: ${err.message}`);
-    return;
-  }
-
+  await testConnection();
   const concurrency = settings.maxConcurrency || 1;
-  const workers = [];
-  for (let i = 0; i < concurrency; i++) {
-    workers.push(runWorker(i + 1));
-  }
-  await Promise.all(workers);
+  for (let i = 0; i < concurrency; i++) runWorker(i + 1);
 }

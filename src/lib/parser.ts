@@ -3,143 +3,136 @@ import * as cheerio from 'cheerio';
 import { Violation, ComplianceReport, VerificationMethod } from '@/types';
 
 /**
- * @fileOverview Automated Legal Fixer V32.0 - Semantic Intelligence.
- * 
- * - Rule: Identify links by Anchor Text across multiple languages.
- * - Rule: Collect keywords from all anchors to find deep legal pages.
+ * @fileOverview Intelligent Legal Parser
+ * - Handles country-specific jurisdictions (Germany, Poland, etc.)
+ * - Identifies legal markers for statutory audits.
  */
 
-const LIABILITY_CRITICAL = "Fines up to €20,000,000 or 4% of global annual turnover (Art. 83 GDPR). High risk of immediate regulatory intervention and ad account suspension.";
+const LIABILITY_GDPR = "Administrative fines up to €20,000,000 or 4% of global annual turnover under Art. 83 GDPR.";
 
-interface JurisdictionProfile {
+interface JurisdictionConfig {
   name: string;
-  law: string;
-  authority: string;
-  lang: string;
-  localGdprTerm: string;
-  requireImpressum: boolean;
-  excluded_checks: string[];
-  entitySuffixes: RegExp[];
+  laws: {
+    privacy: string;
+    impressum: string;
+    terms: string;
+  };
+  keywords: {
+    privacy: RegExp[];
+    impressum: RegExp[];
+    terms: RegExp[];
+  };
+  mandatory_impressum: boolean;
 }
 
-const JURISDICTION_CONFIG: Record<string, JurisdictionProfile> = {
-  'DE': { 
+const JURISDICTIONS: Record<string, JurisdictionConfig> = {
+  'DE': {
     name: 'Germany',
-    law: 'Art. 13 GDPR & § 5 TDDG', 
-    authority: 'BfDI', 
-    lang: 'German', 
-    requireImpressum: true, 
-    excluded_checks: [],
-    localGdprTerm: 'DSGVO',
-    entitySuffixes: [/GmbH/i, /AG/i, /e\.V\./i, /UG/i, /GmbH & Co\. KG/i]
+    laws: { privacy: 'Art. 13 GDPR', impressum: '§ 5 TDDG (Digitale-Dienste-Gesetz)', terms: 'BGB § 305' },
+    keywords: {
+      privacy: [/datenschutz/i, /privacy/i],
+      impressum: [/impressum/i, /legal notice/i, /anbieterkennzeichnung/i],
+      terms: [/agb/i, /terms/i, /nutzungsbedingungen/i]
+    },
+    mandatory_impressum: true
   },
-  'DEFAULT': { 
+  'PL': {
+    name: 'Poland',
+    laws: { privacy: 'RODO (Art. 13)', impressum: 'Art. 5 UŚUDE', terms: 'Regulamin' },
+    keywords: {
+      privacy: [/polityka prywatności/i, /rodo/i],
+      impressum: [/o nas/i, /kontakt/i],
+      terms: [/regulamin/i]
+    },
+    mandatory_impressum: true
+  },
+  'DEFAULT': {
     name: 'European Union',
-    law: 'GDPR Article 13', 
-    authority: 'Data Protection Authority', 
-    lang: 'English', 
-    requireImpressum: false, 
-    excluded_checks: [],
-    localGdprTerm: 'GDPR',
-    entitySuffixes: [/Limited/i, /Ltd/i, /LLC/i, /PLC/i]
+    laws: { privacy: 'Art. 13 GDPR', impressum: 'ePrivacy Directive', terms: 'Consumer Protection Law' },
+    keywords: {
+      privacy: [/privacy/i, /policy/i, /cookies/i],
+      impressum: [/impressum/i, /legal/i, /notice/i],
+      terms: [/terms/i, /conditions/i]
+    },
+    mandatory_impressum: false
   }
 };
 
-const DOC_KEYWORDS: Record<string, RegExp[]> = {
-  privacy: [
-    /privacy/i, /datenschutz/i, /confidentialit/i, /privacidad/i, /rodo/i, 
-    /data protection/i, /protection des données/i, /polityka prywatności/i,
-    /cookie/i, /kekse/i, /trattamento dati/i, /prywatność/i
-  ],
-  impressum: [
-    /impressum/i, /legal notice/i, /mentions l/i, /aviso legal/i, 
-    /site notice/i, /identification/i, /anbieterkennzeichnung/i,
-    /contact/i, /kontakt/i, /note legali/i
-  ],
-  terms: [
-    /terms/i, /conditions/i, /agb/i, /cgv/i, /usage/i, /service/i,
-    /nutzungsbedingungen/i, /tos/i, /t&c/i, /condizioni/i, /warunki/i
-  ]
-};
-
-export function parseHtmlContent(html: string, url: string, headers: any = {}, screenshot?: string, isPuppeteer: boolean = false, userInputCountry?: string): {
+export function parseHtmlContent(html: string, url: string, headers: any = {}, screenshot?: string, isPuppeteer: boolean = false): {
   violations: Violation[],
   discoveredLinks: string[],
   meta: { hasCMP: boolean, legal_links: Record<string, string | null> },
   compliance_report: ComplianceReport
 } {
   const $ = cheerio.load(html);
-  const verification_method: VerificationMethod = isPuppeteer ? 'Dynamic Emulation' : 'Static Analysis';
-  
   const domain = new URL(url).hostname;
-  const tld = domain.split('.').pop()?.toUpperCase();
-  const profile = JURISDICTION_CONFIG[userInputCountry?.toUpperCase() || tld || ''] || JURISDICTION_CONFIG.DEFAULT;
+  const tld = domain.split('.').pop()?.toUpperCase() || '';
+  const config = JURISDICTIONS[tld] || JURISDICTIONS.DEFAULT;
 
   const links: Record<string, string | null> = { impressum: null, privacy: null, terms: null };
-  const allDiscoveredLinks: string[] = [];
+  const allLinks: string[] = [];
 
-  // SEMANTIC ANCHOR ANALYSIS
   $('a').each((_, el) => {
     const text = $(el).text().trim().toLowerCase();
     const href = $(el).attr('href') || '';
-    if (!href || href.startsWith('javascript:') || href.startsWith('#')) return;
+    if (!href || href.startsWith('javascript:')) return;
+    
+    allLinks.push(href);
 
-    allDiscoveredLinks.push(href);
-
-    // Prioritize shorter anchor texts as they are more likely to be standard footer links
-    if (DOC_KEYWORDS.privacy.some(k => k.test(text))) {
-      if (!links.privacy || text.length < 30) links.privacy = href;
-    }
-    if (DOC_KEYWORDS.impressum.some(k => k.test(text))) {
-      if (!links.impressum || text.length < 30) links.impressum = href;
-    }
-    if (DOC_KEYWORDS.terms.some(k => k.test(text))) {
-      if (!links.terms || text.length < 30) links.terms = href;
-    }
+    if (config.keywords.privacy.some(k => k.test(text))) links.privacy = href;
+    if (config.keywords.impressum.some(k => k.test(text))) links.impressum = href;
+    if (config.keywords.terms.some(k => k.test(text))) links.terms = href;
   });
 
-  const violationMap = new Map<string, Violation>();
-  const bodyText = $('body').text().toLowerCase();
-  const identityFound = profile.entitySuffixes.some(s => s.test(bodyText));
-  
-  // If NO legal footer links are discovered semantically, that is a potential failure.
-  if (!links.privacy && !links.impressum) {
-    violationMap.set('Art. 12-Missing', {
+  const violations: Violation[] = [];
+
+  if (!links.privacy) {
+    violations.push({
       category: 'Privacy',
-      report_type: 'SaaS',
-      issue_type: 'MISSING LEGAL DISCLOSURES',
+      issue_type: 'MISSING_PRIVACY_POLICY',
       severity: 'critical',
       evidence_html: url,
-      description: `No semantic legal disclosure links (Privacy, Impressum, or Terms) were identified in the site architecture. This violates mandatory transparency requirements under Art. 12 GDPR.`,
-      business_impact: 'Business Risk: Critical compliance failure. Advertising platforms often suspend accounts when mandatory legal links are missing.',
-      law_name: 'Art. 12 GDPR',
-      potential_fine: LIABILITY_CRITICAL,
-      explanation: 'Statutory law requires that legal documents be accessible from any page, usually via a clearly labeled footer.',
-      recommendation: `ACTION: INSERT THIS HTML -> "<footer class=\"legal-footer\"><a href=\"/privacy\">Privacy Policy</a> | <a href=\"/legal\">Legal Notice</a></footer>"`,
-      verification_method
+      description: `The domain ${domain} lacks a visible link to a Privacy Policy, violating mandatory transparency requirements under ${config.laws.privacy}.`,
+      business_impact: 'High risk of ad account suspension (Meta/Google) and regulatory audits.',
+      law_name: config.laws.privacy,
+      potential_fine: LIABILITY_GDPR,
+      recommendation: 'ACTION: Implement a dedicated Privacy Policy page and link it in the global site footer.',
+      explanation: 'Statutory laws require users to be informed about data processing before any collection occurs.',
+      confidence_score: 1.0,
+      report_type: 'SaaS'
     });
   }
 
-  const violations = Array.from(violationMap.values());
-  const score = Math.max(0, 100 - (violations.length * 25));
+  if (config.mandatory_impressum && !links.impressum) {
+    violations.push({
+      category: 'IMPRESSUM',
+      issue_type: 'MISSING_IMPRESSUM',
+      severity: 'high',
+      evidence_html: url,
+      description: `For commercial entities in ${config.name}, a detailed Impressum (Legal Notice) is strictly mandatory under ${config.laws.impressum}.`,
+      business_impact: 'Risk of Abmahnung (legal warning) and fines up to €50,000 in Germany.',
+      law_name: config.laws.impressum,
+      potential_fine: "Up to €50,000 for administrative non-compliance.",
+      recommendation: 'ACTION: Add a "Legal Notice" or "Impressum" link containing your registered company address, VAT ID, and registration number.',
+      explanation: 'Transparency of ownership is a core requirement for digital services in many EU member states.',
+      confidence_score: 1.0,
+      report_type: 'SaaS'
+    });
+  }
 
   return {
     violations,
-    discoveredLinks: allDiscoveredLinks,
+    discoveredLinks: allLinks,
     meta: { hasCMP: false, legal_links: links },
     compliance_report: {
-      score,
-      grade: score > 90 ? 'A' : score > 70 ? 'C' : 'F',
+      score: Math.max(0, 100 - (violations.length * 30)),
+      grade: violations.length === 0 ? 'A' : 'F',
       verdict: violations.length > 0 ? 'RISKY' : 'COMPLIANT',
-      jurisdiction: profile.name,
-      top_risks: violations.slice(0, 3).map(v => v.issue_type),
+      jurisdiction: config.name,
+      top_risks: violations.map(v => v.issue_type),
       validation_status: 'incomplete',
-      nav_scout: { 
-          found_links: Object.values(links).filter(Boolean) as string[], 
-          missing_critical: Object.entries(links).filter(([_, v]) => !v).map(([k]) => k),
-          discovery_score: score 
-      },
-      lex_analyzer: { has_vat_id: true, has_contact_info: identityFound, has_mandatory_terms: !!links.terms, content_truncated: false, missing_clusters: [] },
+      nav_scout: { found_links: Object.values(links).filter(Boolean) as string[], missing_critical: [], discovery_score: 100 },
+      lex_analyzer: { has_vat_id: false, has_contact_info: false, has_mandatory_terms: !!links.terms, content_truncated: false, missing_clusters: [] },
       cmp_detect: { detected_provider: null, is_active: false }
     }
   };

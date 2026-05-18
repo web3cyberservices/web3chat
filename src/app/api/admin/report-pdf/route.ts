@@ -24,17 +24,7 @@ export async function GET(request: NextRequest) {
     .split('/')[0];
 
   try {
-    // 1. Check if the audit exists
-    const queueCheck = await pool.query(
-      "SELECT status FROM public.scan_queue WHERE url ILIKE $1",
-      [`%${domain}%`]
-    );
-
-    if (queueCheck.rows.length === 0) {
-      return NextResponse.json({ error: 'Audit not requested for this domain.' }, { status: 404 });
-    }
-
-    // 2. Fetch ALL findings from the database to ensure rich PDF content
+    // 1. Fetch ALL findings from the database including specific fields
     const violationsRes = await pool.query(
       `SELECT issue_type, category, severity, description, law_name, recommendation, business_impact, potential_fine 
        FROM public.site_violations WHERE domain = $1`,
@@ -43,11 +33,11 @@ export async function GET(request: NextRequest) {
 
     const findings = violationsRes.rows;
 
-    // 3. Generate PDF (unified design)
+    // 2. Generate PDF (unified design)
     const pdfBuffer = await generatePdfReport(domain, findings);
     
     if (!pdfBuffer) {
-      return NextResponse.json({ error: 'Failed to generate PDF. System engine error.' }, { status: 500 });
+      return NextResponse.json({ error: 'PDF Generation Failed' }, { status: 500 });
     }
 
     return new NextResponse(pdfBuffer, { 
@@ -59,6 +49,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[PDF API ERROR]', error);
-    return NextResponse.json({ error: 'Internal server error during report generation.' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import fs from 'fs';
 
 /**
  * Professional PDF Report Generator - Standardized for Web & Email
+ * Unified design with logo, company info, and liability blocks.
  */
 
 const CHROME_PATHS = [
@@ -37,7 +38,7 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
   try {
     const safeDomain = domain.toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
     
-    // Filter duplicates by type
+    // Filter duplicates by type to avoid "messy" reports
     const uniqueFindingsMap = new Map();
     findings.forEach(f => {
       const type = f.issue_type || 'UNKNOWN_ISSUE';
@@ -74,23 +75,23 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
           }
           .logo-box { display: flex; align-items: center; gap: 12px; }
           .logo-circle {
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             background: #3b82f6;
-            border-radius: 10px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
-            font-size: 20px;
+            font-size: 22px;
           }
-          .logo-text { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
+          .logo-text { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
           .logo-text span { color: #3b82f6; }
-          .company-details { text-align: right; font-size: 10px; color: #64748b; line-height: 1.5; }
+          .company-details { text-align: right; font-size: 10px; color: #64748b; line-height: 1.6; }
           
           .report-meta { margin-bottom: 40px; }
-          .report-title { font-size: 34px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.03em; }
+          .report-title { font-size: 36px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.03em; }
           .target-info { font-size: 14px; color: #64748b; margin-top: 10px; font-weight: 500; }
           
           .finding-card { 
@@ -120,7 +121,7 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
             border: 1px solid #fecaca;
             margin-bottom: 20px;
           }
-          .liability-text { color: #be123c; font-size: 12px; font-weight: 600; }
+          .liability-text { color: #be123c; font-size: 12px; font-weight: 700; }
 
           .recommendation-box { 
             background: #f8fafc; 
@@ -163,22 +164,22 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
             <div class="logo-text">Humango<span>Compliance</span></div>
           </div>
           <div class="company-details">
-            <strong>Humango Limited</strong> | Co. No: 16750477<br>
-            182-184 High Street North, London, E6 2JA<br>
-            Contact: abuse@humango.app | RFC 9309 Audit Node
+            <strong>Operator: Humango Limited</strong> | Co. No: 16750477<br>
+            Address: 182-184 High Street North, London, E6 2JA<br>
+            Verification Contact: abuse@humango.app | RFC 9309 Audit Node
           </div>
         </div>
 
         <div class="report-meta">
           <h1 class="report-title">Statutory Audit Report</h1>
-          <div class="target-info">Target Domain: <strong>${safeDomain}</strong> | Issued: ${new Date().toLocaleDateString('en-GB')}</div>
+          <div class="target-info">Domain: <strong>${safeDomain}</strong> | Timestamp: ${new Date().toLocaleString('en-GB')}</div>
         </div>
 
         ${isCompliant ? `
           <div class="compliant-hero">
             <div class="compliant-icon">✓</div>
-            <div class="compliant-status">SYSTEM COMPLIANT</div>
-            <p class="compliant-desc">No high-risk tracking behaviors, unauthorized data transmissions, or missing legal frameworks were detected during this automated statutory audit session.</p>
+            <div class="compliant-status">STATUTORY COMPLIANCE VERIFIED</div>
+            <p class="compliant-desc">No high-risk tracking behaviors, illegal cross-border data transmissions, or missing legal frameworks were identified during this automated statutory audit session.</p>
           </div>
         ` : cleanFindings.map(v => `
           <div class="finding-card">
@@ -194,7 +195,7 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
 
             <div class="content-block">
               <div class="section-title">Legal Foundation</div>
-              <div class="desc-text" style="font-weight: 600;">${v.law_name || 'GDPR Compliance Standards'}</div>
+              <div class="desc-text" style="font-weight: 600;">${v.law_name || 'GDPR Statutory Requirements'}</div>
             </div>
 
             ${v.potential_fine ? `
@@ -205,8 +206,8 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
             ` : ''}
 
             <div class="recommendation-box">
-              <div class="section-title" style="color: #3b82f6;">Recommended Remediation</div>
-              <div style="font-weight: 500;">${v.recommendation}</div>
+              <div class="section-title" style="color: #3b82f6;">Required Remediation</div>
+              <div style="font-weight: 600;">${v.recommendation}</div>
             </div>
           </div>
         `).join('')}
