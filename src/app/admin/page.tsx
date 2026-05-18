@@ -215,7 +215,7 @@ export default function AdminDashboard() {
       <aside className="w-64 border-r border-white/5 bg-[#0b1120] hidden md:flex flex-col">
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
           <Image src="/logo.png" alt="Logo" width={32} height={32} />
-          <span className="font-bold text-lg">Humango Hub</span>
+          <span className="font-bold text-lg">Compliance Hub</span>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <Button variant="secondary" className="w-full justify-start gap-3 bg-primary/10 text-primary"><LayoutDashboard className="w-4 h-4" /> Dashboard</Button>
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-primary border-primary/20">Compliance Hub</Badge>
+            <Badge variant="outline" className="text-primary border-primary/20">Operational Terminal</Badge>
             {lastSync && <span className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">Last Sync: {lastSync}</span>}
           </div>
           <div className="flex items-center gap-4 bg-white/5 px-4 py-1.5 rounded-full border border-white/10">
@@ -246,11 +246,11 @@ export default function AdminDashboard() {
         <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card className="bg-white/[0.03] border-white/10">
-              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase tracking-widest">Pages Scanned</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase tracking-widest">Domains Audited</CardTitle></CardHeader>
               <CardContent><div className="text-3xl font-bold tabular-nums">{metrics.pagesScanned}</div></CardContent>
             </Card>
             <Card className="bg-white/[0.03] border-white/10 border-amber-500/20">
-              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase tracking-widest">Violations</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase tracking-widest">Total Violations</CardTitle></CardHeader>
               <CardContent><div className="text-3xl font-bold text-amber-500 tabular-nums">{metrics.issuesFound}</div></CardContent>
             </Card>
             <Card className="bg-white/[0.03] border-white/10">
@@ -259,14 +259,14 @@ export default function AdminDashboard() {
             </Card>
             <Card className="bg-white/[0.03] border-white/10">
               <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase tracking-widest">Active Managers</CardTitle></CardHeader>
-              <CardContent><div className="text-3xl font-bold text-blue-400">{managerStats.length} Staff</div></CardContent>
+              <CardContent><div className="text-3xl font-bold text-blue-400">{managerStats.length}</div></CardContent>
             </Card>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             <Card className="xl:col-span-2 bg-white/[0.03] border-white/10">
               <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-4">
-                <CardTitle className="text-sm font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /> Recent Incidents & CRM Control</CardTitle>
+                <CardTitle className="text-sm font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /> Recent Incidents & CRM Status</CardTitle>
                 <div className="flex items-center gap-2">
                   <Filter className="w-3 h-3 text-slate-500" />
                   <Select value={filterManager} onValueChange={setFilterManager}>
@@ -287,7 +287,7 @@ export default function AdminDashboard() {
                   <TableHeader className="bg-[#0b1120] sticky top-0 z-10">
                     <TableRow className="border-white/5">
                       <TableHead className="text-[9px]">DOMAIN</TableHead>
-                      <TableHead className="text-[9px]">CONTROL CRM</TableHead>
+                      <TableHead className="text-[9px]">CONTROL STATUS</TableHead>
                       <TableHead className="text-[9px]">PROGRESS</TableHead>
                       <TableHead className="text-right text-[9px]">SINCE</TableHead>
                     </TableRow>
@@ -300,19 +300,19 @@ export default function AdminDashboard() {
                           {issue.assignedTo ? (
                             <div className="flex flex-col gap-0.5">
                               <Badge className="bg-emerald-500/10 text-emerald-400 text-[8px] border-emerald-500/20 max-w-fit">
-                                В работе у: {issue.managerName}
+                                Assigned to: {issue.managerName}
                               </Badge>
                               <span className="text-[7px] text-slate-600 font-mono">
                                 Locked: {new Date(issue.assignedAt).toLocaleTimeString()}
                               </span>
                             </div>
                           ) : (
-                            <Badge variant="secondary" className="text-[7px] bg-slate-500/10 text-slate-500">Свободно</Badge>
+                            <Badge variant="secondary" className="text-[7px] bg-slate-500/10 text-slate-500">Available</Badge>
                           )}
                         </TableCell>
                         <TableCell>
-                           {issue.status === 'done' ? (
-                             <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[7px] gap-1"><CheckCircle2 className="w-2.5 h-2.5" /> COMPLETED</Badge>
+                           {issue.status === 'done' || issue.status === 'completed' ? (
+                             <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[7px] gap-1"><CheckCircle2 className="w-2.5 h-2.5" /> DONE</Badge>
                            ) : issue.assignedTo ? (
                              <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[7px] gap-1"><Clock className="w-2.5 h-2.5" /> {issue.status?.toUpperCase()}</Badge>
                            ) : (
@@ -330,7 +330,7 @@ export default function AdminDashboard() {
             <div className="space-y-8">
               <Card className="bg-white/[0.03] border-white/10">
                 <CardHeader className="border-b border-white/5 py-4">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2"><Users className="w-4 h-4 text-primary" /> Manager Performance</CardTitle>
+                  <CardTitle className="text-sm font-bold flex items-center gap-2"><Users className="w-4 h-4 text-primary" /> Manager Statistics</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                   {managerStats.length === 0 ? (
@@ -339,7 +339,7 @@ export default function AdminDashboard() {
                     <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 group hover:border-primary/20 transition-all">
                       <div className="space-y-1">
                         <p className="text-xs font-bold text-white">{mgr.name}</p>
-                        <p className="text-[9px] text-slate-500 uppercase tracking-tighter">Locked Tasks: {mgr.task_count}</p>
+                        <p className="text-[9px] text-slate-500 uppercase tracking-tighter">Tasks in Work: {mgr.task_count}</p>
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-bold text-emerald-500">{mgr.completed_count}</div>
@@ -352,7 +352,7 @@ export default function AdminDashboard() {
 
               <div className="bg-[#0b1120] rounded-xl border border-white/10 p-6 font-mono text-[10px] h-[250px] flex flex-col shadow-2xl">
                 <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-4">
-                  <div className="flex items-center gap-3"><TerminalIcon className="w-4 h-4 text-primary" /><span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Live Logs</span></div>
+                  <div className="flex items-center gap-3"><TerminalIcon className="w-4 h-4 text-primary" /><span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">System Logs</span></div>
                   {isActive && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1.5 text-slate-400">
@@ -386,7 +386,7 @@ export default function AdminDashboard() {
                           <div>
                             <span className="font-bold text-base">{domain}</span>
                             <div className="flex gap-2 mt-0.5">
-                              <Badge className="bg-blue-500/10 text-blue-400 text-[8px]">{issues.length} Total Incidents</Badge>
+                              <Badge className="bg-blue-500/10 text-blue-400 text-[8px]">{issues.length} Total Issues</Badge>
                               {issues[0]?.managerName && <Badge className="bg-emerald-500/10 text-emerald-400 text-[8px]">Owner: {issues[0].managerName}</Badge>}
                             </div>
                           </div>
