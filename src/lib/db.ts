@@ -70,13 +70,49 @@ export async function getBotEvents(limit: number = 50) {
 export async function getViolations(limit: number = 100) {
   const res = await pool.query(`
     SELECT 
-      id, domain, url, page_url, category, issue_type as type, severity as level, 
-      evidence_html, description, explanation as summary, law_name, 
-      recommendation, scan_type, report_type, business_impact, created_at as date,
-      assigned_to as "assignedTo", manager_name as "managerName", assigned_at as "assignedAt"
-    FROM public.site_violations 
-    ORDER BY created_at DESC LIMIT $1
+      q.id, q.url as domain, q.url, q.status,
+      q.assigned_to as "assignedTo", q.manager_name as "managerName", q.assigned_at as "assignedAt",
+      (SELECT count(*) FROM public.site_violations v WHERE v.domain = replace(replace(q.url, 'https://', ''), 'http://', '')) as violation_count
+    FROM public.scan_queue q
+    ORDER BY q.created_at DESC LIMIT $1
   `, [limit]);
+  
+  // Mapping to match the expected UI structure for "Recent Incidents"
+  return res.rows.map(row => ({
+    id: row.id,
+    domain: row.domain.replace(/^https?:\/\//, ''),
+    type: 'Audit',
+    level: row.violation_count > 0 ? 'critical' : 'low',
+    date: row.assignedAt || new Date(),
+    summary: `Found ${row.violation_count} violations`,
+    description: `Automated scan results for ${row.domain}`,
+    report_type: 'SaaS',
+    assignedTo: row.assignedTo,
+    managerName: row.managerName,
+    assignedAt: row.assignedAt,
+    status: row.status
+  }));
+}
+
+export async function updateTaskStatus(taskId: number, status: string) {
+  await pool.query(
+    'UPDATE public.scan_queue SET status = $1 WHERE id = $2',
+    [status, taskId]
+  );
+  return { success: true };
+}
+
+export async function getManagersStats() {
+  const res = await pool.query(`
+    SELECT 
+      manager_name as name, 
+      count(*) as task_count,
+      count(*) FILTER (WHERE status = 'done') as completed_count
+    FROM public.scan_queue 
+    WHERE assigned_to IS NOT NULL 
+    GROUP BY manager_name
+    ORDER BY task_count DESC
+  `);
   return res.rows;
 }
 
@@ -88,18 +124,6 @@ export async function saveViolation(data: any) {
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
     [domain, url, page_url, category, issue_type, severity, description, law_name, recommendation, business_impact, report_type || 'SaaS']
   );
-}
-
-export async function saveValidationLog(url: string, iteration: number, status: string, findings: any[], confidence: number) {
-  // Optional logging for audit history
-}
-
-export async function saveAuditLog(domain: string, status: number, error: string | null) {
-  // System audit log
-}
-
-export async function saveAuditResults(domain: string, url: string, findings: any[], type: string) {
-  // Save results
 }
 
 export async function testConnection() {
