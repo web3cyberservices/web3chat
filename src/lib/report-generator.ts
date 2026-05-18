@@ -42,19 +42,38 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
       return null;
     }
 
-    const isClean = res.rows.length === 0;
-    const consolidated = new Map();
+    // ЛОГИЧЕСКИЙ ПРЕДОХРАНИТЕЛЬ: Если документа нет, удаляем все остальные ошибки-галлюцинации
+    let rawFindings = res.rows;
+    const hasMissingFramework = rawFindings.some(r => 
+      r.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
+      r.issue_type?.toUpperCase().includes('MISSING LEGAL DISCLOSURES')
+    );
 
-    res.rows.forEach(row => {
+    if (hasMissingFramework) {
+      // Оставляем только критическую ошибку отсутствия документа
+      rawFindings = rawFindings.filter(r => 
+        r.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
+        r.issue_type?.toUpperCase().includes('MISSING LEGAL DISCLOSURES')
+      );
+    }
+
+    const consolidated = new Map();
+    rawFindings.forEach(row => {
       const key = row.law_name || row.issue_type; 
       if (!consolidated.has(key)) {
         const urls = (row.page_url || '').split(',').map((u: string) => u.trim());
-        // Force double quotes and clean any mixed quotes
+        
+        // СТАНДАРТИЗАЦИЯ КАВЫЧЕК: Принудительно заменяем одинарные на двойные
         let cleanRec = (row.recommendation || '').replace(/[']/g, '"');
         if (!cleanRec.startsWith('ACTION:')) {
             cleanRec = `ACTION: INSERT THIS TEXT -> "${cleanRec}"`;
         }
-        consolidated.set(key, { ...row, recommendation: cleanRec, urls: new Set(urls) });
+        
+        consolidated.set(key, { 
+          ...row, 
+          recommendation: cleanRec, 
+          urls: new Set(urls) 
+        });
       } else {
         const item = consolidated.get(key);
         (row.page_url || '').split(',').forEach((u: string) => item.urls.add(u.trim()));
@@ -62,6 +81,8 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
     });
 
     const findings = Array.from(consolidated.values());
+    const isClean = findings.length === 0;
+
     let logoBase64 = '';
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.png');

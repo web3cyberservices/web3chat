@@ -70,6 +70,21 @@ export async function getTaskStatus(url: string) {
 
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (!violations || violations.length === 0) return { success: true };
+  
+  // ЗАЩИТНЫЙ ФИЛЬТР: Если есть критическая ошибка отсутствия документа, удаляем другие ошибки
+  const hasMissingDoc = violations.some(v => 
+    v.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
+    v.issue_type?.toUpperCase().includes('MISSING LEGAL DISCLOSURES')
+  );
+
+  let finalViolations = violations;
+  if (hasMissingDoc) {
+    finalViolations = violations.filter(v => 
+      v.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
+      v.issue_type?.toUpperCase().includes('MISSING LEGAL DISCLOSURES')
+    );
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -82,13 +97,13 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), $17, $18, $19)
     `;
-    for (const v of violations) {
+    for (const v of finalViolations) {
       await client.query(query, [
         sanitize(domain), sanitize(normalizeUrl(url)), sanitize(url), v.category,
         sanitize(v.issue_type), v.severity, sanitize(v.evidence_html || url),
         sanitize(v.evidence_quote, "Verified via bot.humango.app."), v.confidence_score || 0.8,
         v.verification_status || 'verified', sanitize(v.description), sanitize(v.explanation || v.description),
-        sanitize(v.law_name, "GDPR Article 13"), sanitize(v.recommendation), scanType, v.report_type,
+        sanitize(v.law_name, "GDPR Article 13"), sanitize(v.recommendation).replace(/[']/g, '"'), scanType, v.report_type,
         sanitize(v.potential_fine || "Fines up to €20M"), 
         v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis'),
         sanitize(v.business_impact, "Business Risk: Loss of advertising access.")
