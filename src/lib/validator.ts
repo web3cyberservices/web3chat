@@ -46,9 +46,9 @@ const verifyIntegrityPrompt = ai.definePrompt({
 CORE MISSION: Identify real legal gaps, but DO NOT issue violations based on URL structure or custom naming conventions if the legal requirement is fulfilled.
 
 ANALYSIS RULES:
-1. IGNORE THE URL: If a document exists at any path like /legal, /datenschutz, or /privacy-info, it is NOT a violation if it is accessible via footer.
-2. FOCUS ON CONTENT: Analyze the provided "HTML CONTENT POOL". If the mandatory info (e.g., Retention Periods like "24 months") is present anywhere, the finding is REJECTED.
-3. DATA RETENTION: Look for specific numbers (e.g., "2 years", "24 months", "365 days"). If only vague terms like "as long as needed" are found without specific criteria, it IS a violation (Art. 13(2)(a)).
+1. ПРАВИЛО: ИГНОРИРУЙ URL. Если документ доступен по любому адресу (/legal, /datenschutz, /privacy) и на него есть ссылка в футере — это НЕ нарушение.
+2. ФОКУСИРУЙСЯ НА КОНТЕНТЕ: Проверяй наличие обязательной информации (Data Retention, Controller Identity) в предоставленном пуле текста.
+3. DATA RETENTION: Ищи конкретные сроки (например, "24 месяца", "2 года", "365 дней"). Если указано "столько, сколько нужно" без критериев — это нарушение (Art. 13(2)(a)).
 
 DOMAIN: {{{domain}}}
 
@@ -61,9 +61,9 @@ FINDINGS TO VALIDATE:
 {{/each}}
 
 RESPONSE FORMAT:
-All recommendations MUST use double quotes ONLY. 
-Example: ACTION: INSERT THIS TEXT -> "Data Controller: info@example.com". 
-NEVER use single quotes like '...'.`,
+Все рекомендации (recommendation) ДОЛЖНЫ использовать ТОЛЬКО двойные кавычки ". 
+Пример: ACTION: INSERT THIS TEXT -> "Data Controller: info@example.com".
+НИКОГДА не используй одинарные кавычки в финальной рекомендации.`,
 });
 
 export async function verifyIntegrity(html: string, findings: Violation[]) {

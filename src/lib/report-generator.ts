@@ -162,7 +162,7 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
     browser = await puppeteer.launch({ 
       executablePath: executablePath || undefined,
       headless: 'new', 
-      args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
     });
     
     const page = await browser.newPage();
