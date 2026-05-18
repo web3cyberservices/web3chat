@@ -18,11 +18,10 @@ async function migrate() {
   const client = await pool.connect();
   try {
     console.log('==================================================');
-    console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR V33.1     ');
-    console.log('   Action: Fixing Missing Columns & Relations     ');
+    console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR V34.0     ');
+    console.log('   Action: Syncing CRM & Audit Tables             ');
     console.log('==================================================');
     
-    // 1. Создание базовых таблиц (если не существуют)
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.bot_settings (
         id int DEFAULT 1 PRIMARY KEY, 
@@ -34,40 +33,16 @@ async function migrate() {
       VALUES (1, true) 
       ON CONFLICT (id) DO NOTHING;
 
-      CREATE TABLE IF NOT EXISTS public.audit_logs (
-        id SERIAL PRIMARY KEY, 
-        domain varchar(255), 
-        status_code int, 
-        error_message text, 
-        created_at timestamp DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS public.bot_events (
-        id SERIAL PRIMARY KEY, 
-        type varchar(20), 
-        message text, 
-        timestamp timestamp DEFAULT NOW()
-      );
-
       CREATE TABLE IF NOT EXISTS public.scan_queue (
         id SERIAL PRIMARY KEY, 
         url text UNIQUE, 
         status varchar(20) DEFAULT 'pending', 
         priority int DEFAULT 0, 
-        depth int DEFAULT 0, 
         user_email varchar(255),
+        assigned_to varchar(255),
+        manager_name varchar(255),
+        assigned_at timestamp,
         created_at timestamp DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS public.validation_logs (
-        id SERIAL PRIMARY KEY,
-        domain character varying(255),
-        url text,
-        attempt int,
-        status varchar(50),
-        findings jsonb,
-        confidence_score float DEFAULT 0.0,
-        timestamp timestamp DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS public.site_violations (
@@ -78,51 +53,42 @@ async function migrate() {
         category character varying(50),
         issue_type character varying(100),
         severity character varying(20),
-        evidence_html text,
-        evidence_quote text,
-        confidence_score float DEFAULT 1.0,
-        verification_status varchar(50) DEFAULT 'pending',
-        snippet text,
         description text,
-        explanation text,
         law_name text,
-        fine_amount character varying(100),
         recommendation text,
-        scan_type character varying(255),
-        report_type character varying(20) DEFAULT 'SaaS',
-        verification_method character varying(50) DEFAULT 'Static Analysis',
         business_impact text,
-        created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+        report_type character varying(20) DEFAULT 'SaaS',
+        created_at timestamp DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS public.bot_events (
+        id SERIAL PRIMARY KEY, 
+        type varchar(20), 
+        message text, 
+        timestamp timestamp DEFAULT NOW()
       );
     `);
 
-    // 2. Гарантированное добавление колонок в существующие таблицы (на случай, если они были созданы ранее)
-    const columnsToEnsure = [
-      { table: 'scan_queue', name: 'user_email', type: 'varchar(255)' },
-      { table: 'scan_queue', name: 'priority', type: 'int' },
-      { table: 'site_violations', name: 'business_impact', type: 'text' },
-      { table: 'site_violations', name: 'report_type', type: 'varchar(20)' }
+    // Ensure CRM columns exist in scan_queue
+    const columns = [
+      { table: 'scan_queue', name: 'assigned_to', type: 'varchar(255)' },
+      { table: 'scan_queue', name: 'manager_name', type: 'varchar(255)' },
+      { table: 'scan_queue', name: 'assigned_at', type: 'timestamp' },
+      { table: 'scan_queue', name: 'user_email', type: 'varchar(255)' }
     ];
 
-    for (const col of columnsToEnsure) {
-      console.log(`[Migration] Checking ${col.table}.${col.name}...`);
+    for (const col of columns) {
       await client.query(`
         DO $$ 
         BEGIN 
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_schema = 'public' 
-            AND table_name = '${col.table}' 
-            AND column_name = '${col.name}'
-          ) THEN
-            EXECUTE 'ALTER TABLE public.${col.table} ADD COLUMN ${col.name} ${col.type}';
-            RAISE NOTICE 'Added column ${col.name} to ${col.table}';
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='${col.table}' AND column_name='${col.name}') THEN
+            ALTER TABLE public.${col.table} ADD COLUMN ${col.name} ${col.type};
           END IF;
         END $$;
       `);
     }
     
-    console.log('[Migration] SUCCESS: Database schema V33.1 synchronized.');
+    console.log('[Migration] SUCCESS: Database synchronized.');
   } catch (err: any) {
     console.error('[Migration] CRITICAL ERROR:', err.message);
     process.exit(1);

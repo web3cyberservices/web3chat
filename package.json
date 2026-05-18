@@ -12,6 +12,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx src/scripts/migrate.ts",
+    "seed:manager": "tsx src/scripts/seed-manager.ts",
     "worker": "tsx src/scripts/worker.ts",
     "extract": "tsx src/scripts/extract-hosts.ts"
   },

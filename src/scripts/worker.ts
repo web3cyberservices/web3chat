@@ -40,7 +40,7 @@ async function getExecutablePath() {
 
 const USER_AGENT = "HumangoBot/1.0 (+https://bot.humango.app)";
 
-async function executeDeterministicAudit(domainUrl: string, userEmail: string) {
+async function executeDeterministicAudit(taskId: number, domainUrl: string, userEmail: string) {
   let browser: any = null;
   try {
     const executablePath = await getExecutablePath();
@@ -97,11 +97,11 @@ async function executeDeterministicAudit(domainUrl: string, userEmail: string) {
 
     let findings = [];
 
-    // ПРОВЕРКА 1: Полное отсутствие текста
-    if (!legalText || legalText.trim().length < 300) {
+    // Audit 1: Missing document
+    if (!legalText || legalText.trim().length < 400) {
       findings.push({
-        issue_type: 'MISSING_CORE_FRAMEWORK',
         category: 'GDPR',
+        issue_type: 'MISSING_CORE_FRAMEWORK',
         severity: 'critical',
         description: 'No statutory legal disclosures (Privacy Policy/Impressum) were identified in the site architecture. This violates transparency standards under Art. 12 & 13 GDPR.',
         law_name: 'Art. 13 GDPR',
@@ -109,14 +109,14 @@ async function executeDeterministicAudit(domainUrl: string, userEmail: string) {
         recommendation: 'ACTION: INSERT THIS HTML -> "<footer class=\\"legal-footer\\"><a href=\\"/privacy\\">Privacy Policy</a></footer>"'
       });
     } else {
-      // ПРОВЕРКА 2: Сроки хранения данных
+      // Audit 2: Data Retention check
       const retentionRegex = /(storage|retention|store|keep|retain|hold|period|months|years|days|24\s*months|3\s*years|\d+\s*(month|year|day|месяц|год|лет|дня|продолжительно))/i;
       const hasRetention = retentionRegex.test(legalText);
 
       if (!hasRetention) {
         findings.push({
-          issue_type: 'DATA_RETENTION_TIMEFRAMES',
           category: 'Privacy',
+          issue_type: 'DATA_RETENTION_TIMEFRAMES',
           severity: 'high',
           description: 'The policy fails to state specific data retention periods as required by Art. 13 GDPR. Users must be informed about how long their data is stored.',
           law_name: 'Art. 13(2)(a) GDPR',
@@ -126,7 +126,7 @@ async function executeDeterministicAudit(domainUrl: string, userEmail: string) {
       }
     }
 
-    // СОХРАНЕНИЕ В БАЗУ (Чтобы CRM и PDF видели ошибки)
+    // SAVE VIOLATIONS TO PG
     for (const finding of findings) {
       await pool.query(
         `INSERT INTO public.site_violations (
@@ -152,11 +152,11 @@ async function executeDeterministicAudit(domainUrl: string, userEmail: string) {
       }
     }
 
-    await pool.query("UPDATE public.scan_queue SET status = 'completed' WHERE url = $1", [domainUrl]);
+    await pool.query("UPDATE public.scan_queue SET status = 'completed' WHERE id = $1", [taskId]);
 
   } catch (err: any) {
     console.error(`[Worker Fatal Error]`, err.message);
-    await pool.query("UPDATE public.scan_queue SET status = 'failed' WHERE url = $1", [domainUrl]);
+    await pool.query("UPDATE public.scan_queue SET status = 'failed' WHERE id = $1", [taskId]);
   } finally {
     if (browser) await browser.close();
   }
@@ -164,7 +164,7 @@ async function executeDeterministicAudit(domainUrl: string, userEmail: string) {
 
 async function startWorker() {
   console.log("==================================================");
-  console.log("[Deterministic Worker] Service started successfully.");
+  console.log("[Deterministic Worker] CRM-ready service started.");
   console.log("==================================================");
   
   while (true) {
@@ -176,7 +176,7 @@ async function startWorker() {
       if (res.rows.length > 0) {
         const task = res.rows[0];
         await pool.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
-        await executeDeterministicAudit(task.url, task.user_email);
+        await executeDeterministicAudit(task.id, task.url, task.user_email);
       } else {
         await new Promise(resolve => setTimeout(resolve, 5000));
       }

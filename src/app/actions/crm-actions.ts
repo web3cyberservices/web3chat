@@ -1,7 +1,7 @@
 
 'use server';
 
-import { adminDb, adminAuth, admin } from '@/lib/firebase-admin';
+import { pool } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 
@@ -18,73 +18,67 @@ async function verifySession() {
   if (sessionCookie !== 'true') {
     throw new Error('Unauthorized: No active management session');
   }
-  // In a real production app, you would verify the Firebase ID Token here:
-  // const decodedToken = await adminAuth.verifyIdToken(idToken);
-  // return decodedToken;
   return true;
 }
 
 export async function assignTaskToManager(formData: FormData) {
   await verifySession();
 
-  const taskId = formData.get('taskId') as string;
+  const taskId = parseInt(formData.get('taskId') as string);
   const managerId = formData.get('managerId') as string;
   const managerEmail = formData.get('managerEmail') as string;
 
+  const client = await pool.connect();
   try {
-    const taskRef = adminDb.collection('scan_queue').doc(taskId);
+    await client.query('BEGIN');
 
-    return await adminDb.runTransaction(async (transaction) => {
-      const taskDoc = await transaction.get(taskRef);
+    // Atomic check and update using SQL
+    const checkRes = await client.query(
+      'SELECT assigned_to, status FROM public.scan_queue WHERE id = $1 FOR UPDATE',
+      [taskId]
+    );
 
-      if (!taskDoc.exists) {
-        throw new Error('Task not found');
-      }
+    if (checkRes.rows.length === 0) {
+      throw new Error('Задача не найдена');
+    }
 
-      const data = taskDoc.data();
-      
-      if (data?.assignedTo || data?.status === 'in_work') {
-        throw new Error('Ошибка: Задача уже занята другим сотрудником');
-      }
+    const task = checkRes.rows[0];
+    if (task.assigned_to) {
+      throw new Error('Ошибка: Задача уже занята другим сотрудником');
+    }
 
-      transaction.update(taskRef, {
-        status: 'in_work',
-        assignedTo: managerId,
-        managerName: managerEmail,
-        assignedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await client.query(
+      `UPDATE public.scan_queue 
+       SET status = 'in_work', assigned_to = $1, manager_name = $2, assigned_at = NOW() 
+       WHERE id = $3`,
+      [managerId, managerEmail, taskId]
+    );
 
-      return { success: true };
-    });
+    await client.query('COMMIT');
+    return { success: true };
   } catch (error: any) {
+    await client.query('ROLLBACK');
     return { success: false, error: error.message };
+  } finally {
+    client.release();
   }
 }
 
 export async function getManagerTasks(managerId: string) {
   await verifySession();
   
-  const snapshot = await adminDb.collection('scan_queue')
-    .where('assignedTo', '==', managerId)
-    .orderBy('assignedAt', 'desc')
-    .get();
-
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  const res = await pool.query(
+    'SELECT * FROM public.scan_queue WHERE assigned_to = $1 ORDER BY assigned_at DESC',
+    [managerId]
+  );
+  return res.rows;
 }
 
 export async function getAvailableTasks() {
   await verifySession();
 
-  const snapshot = await adminDb.collection('scan_queue')
-    .where('assignedTo', '==', null)
-    .where('status', 'in', ['completed', 'failed'])
-    .get();
-
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  const res = await pool.query(
+    "SELECT * FROM public.scan_queue WHERE assigned_to IS NULL AND status IN ('completed', 'failed') ORDER BY created_at DESC"
+  );
+  return res.rows;
 }
