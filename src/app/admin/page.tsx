@@ -215,13 +215,13 @@ export default function AdminDashboard() {
       <aside className="w-64 border-r border-white/5 bg-[#0b1120] hidden md:flex flex-col">
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
           <Image src="/logo.png" alt="Logo" width={32} height={32} />
-          <span className="font-bold text-lg">HumangoBot</span>
+          <span className="font-bold text-lg">Humango Hub</span>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <Button variant="secondary" className="w-full justify-start gap-3 bg-primary/10 text-primary"><LayoutDashboard className="w-4 h-4" /> Dashboard</Button>
           <Button variant="ghost" onClick={fetchFullHistory} className="w-full justify-start gap-3 text-slate-400"><AlertTriangle className="w-4 h-4" /> All Violations</Button>
           <Button variant="ghost" asChild className="w-full justify-start gap-3 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
-            <Link href="/manager"><Users className="w-4 h-4" /> Manager CRM</Link>
+            <Link href="/manager"><Users className="w-4 h-4" /> CRM</Link>
           </Button>
           <Button variant="ghost" onClick={handleExportCSV} className="w-full justify-start gap-3 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
             <FileSpreadsheet className="w-4 h-4" /> Export Report</Button>
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b1120]/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-primary border-primary/20">Enterprise Engine v37</Badge>
+            <Badge variant="outline" className="text-primary border-primary/20">Compliance Hub</Badge>
             {lastSync && <span className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">Last Sync: {lastSync}</span>}
           </div>
           <div className="flex items-center gap-4 bg-white/5 px-4 py-1.5 rounded-full border border-white/10">

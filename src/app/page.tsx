@@ -77,7 +77,7 @@ export default function Home() {
             <span className="font-bold text-lg tracking-tight">Humango<span className="text-primary">Compliance</span></span>
           </div>
           <Link href="/admin" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white flex items-center gap-2 transition-colors">
-            <Terminal className="w-3 h-3" /> Admin Terminal
+            <Terminal className="w-3 h-3" /> Admin Hub
           </Link>
         </div>
       </header>
@@ -86,7 +86,7 @@ export default function Home() {
         <section className="container mx-auto px-6 pt-16 pb-24 text-center">
           <div className="max-w-4xl mx-auto space-y-8">
             <Badge variant="outline" className="py-1.5 px-4 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-[0.2em] animate-in fade-in slide-in-from-top-4 duration-1000">
-              Statutory Compliance Engine v5.9
+              Statutory Compliance Engine
             </Badge>
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter leading-[0.9] text-white">
               Professional Web <br />
@@ -227,11 +227,11 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-xl font-bold text-white">1,240+</p>
+                    <p className="text-2xl font-bold text-white">1,240+</p>
                     <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Daily Audits</p>
                   </div>
                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-xl font-bold text-white">99.9%</p>
+                    <p className="text-2xl font-bold text-white">99.9%</p>
                     <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Uptime</p>
                   </div>
                 </div>

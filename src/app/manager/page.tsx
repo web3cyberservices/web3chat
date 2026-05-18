@@ -119,11 +119,11 @@ export default function ManagerDashboard() {
       <header className="h-16 border-b border-white/5 bg-[#0b1120]/50 backdrop-blur-xl sticky top-0 z-50 px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="Logo" width={24} height={24} />
-          <span className="font-bold text-lg">Manager <span className="text-primary">CRM V37</span></span>
+          <span className="font-bold text-lg">Manager <span className="text-primary">CRM</span></span>
         </div>
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="text-[10px] text-slate-500 border-white/10 uppercase font-mono tracking-widest">{session?.email}</Badge>
-          <Button variant="ghost" size="sm" asChild className="text-slate-400 hover:text-white"><Link href="/admin">Admin Terminal</Link></Button>
+          <Button variant="ghost" size="sm" asChild className="text-slate-400 hover:text-white"><Link href="/admin">Admin Hub</Link></Button>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"><LogOut className="w-4 h-4 mr-2" /> Выход</Button>
         </div>
       </header>

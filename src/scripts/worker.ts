@@ -42,7 +42,7 @@ const USER_AGENT = "HumangoBot/1.0 (+https://bot.humango.app)";
 
 async function executeDeterministicAudit(taskId: number, domainUrl: string, userEmail: string) {
   let browser: any = null;
-  const networkLogs: string[] = [];
+  const networkUrls: string[] = [];
   const findings: any[] = [];
   
   try {
@@ -55,10 +55,10 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
 
-    // Включаем шпионаж за сетью
+    // 1. Включаем шпионаж за сетевыми запросами до перехода на сайт
     await page.setRequestInterception(true);
     page.on('request', request => {
-      networkLogs.push(request.url());
+      networkUrls.push(request.url().toLowerCase());
       request.continue();
     });
 
@@ -68,45 +68,50 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     const originUrl = urlObj.origin;
     const domainName = urlObj.hostname;
 
-    console.log(`[Worker] Deep Auditing: ${originUrl}`);
+    console.log(`[Advanced Scanner] Запуск глубокого анализа: ${originUrl}`);
     
-    // 1. ПРОВЕРКА КУКИ И СЕТЕВЫХ ТРЕКЕРОВ ПРИ ЗАГРУЗКЕ
+    // 2. Открываем сайт, но абсолютно ничего НЕ кликаем на баннерах куки
     await page.goto(originUrl, { waitUntil: 'networkidle2', timeout: 35000 });
     
-    const cookies = await page.cookies();
-    const trackingCookieMarkers = ['_ga', '_gid', '_fbp', '_fr', 'ads', 'metrics', 'optimizely'];
-    const activeTrackingCookies = cookies.filter(c => 
-      trackingCookieMarkers.some(marker => c.name.toLowerCase().includes(marker))
+    // 3. ПРОВЕРКА АНАЛИТИЧЕСКИХ ТРЕКЕРОВ В СЕТИ
+    const hasGoogleAnalytics = networkUrls.some(url => url.includes('google-analytics.com') || url.includes('analytics.google'));
+    const hasFacebookPixel = networkUrls.some(url => url.includes('connect.facebook.net') || url.includes('facebook.com/tr'));
+
+    if (hasGoogleAnalytics || hasFacebookPixel) {
+      console.log(`[Violation] Скрипты слежки активированы автоматически до согласия.`);
+      findings.push({
+        category: 'Privacy',
+        issue_type: 'TRACKING_TRAFFIC_DETECTED',
+        severity: 'critical',
+        description: 'The system detected active network traffic to marketing/analytical platforms (Google Analytics or Meta Pixel) immediately upon page load, without prior user consent.',
+        law_name: 'Art. 5(1)(a) & Art. 6 GDPR',
+        business_impact: 'Critical risk of heavy regulatory fines. European authorities strictly forbid firing advertising or analytical scripts before the user explicitly clicks "Accept" on a cookie banner.',
+        recommendation: 'Configure your tag manager (e.g., Google Tag Manager) or cookie consent plug-in to block the initialization of Google Analytics and Meta Pixel scripts until the user fires a valid consent event.'
+      });
+    }
+
+    // 4. ПРОВЕРКА ХРАНИЛИЩА КУКИ (COOKIE INSPECTION)
+    const activeCookies = await page.cookies();
+    const forbiddenCookieMarkers = ['_ga', '_gid', '_fbp', '_fr', 'ads', 'metrics'];
+
+    const hasIllegalCookies = activeCookies.some(cookie => 
+      forbiddenCookieMarkers.some(marker => cookie.name.toLowerCase().includes(marker))
     );
 
-    if (activeTrackingCookies.length > 0) {
+    if (hasIllegalCookies) {
+      console.log(`[Violation] Обнаружены незаконные куки в хранилище браузера.`);
       findings.push({
         category: 'GDPR',
         issue_type: 'COOKIE_CONSENT_VIOLATION',
         severity: 'critical',
-        description: 'Сайт автоматически устанавливает маркетинговые куки (Google/Facebook) до получения согласия пользователя.',
-        law_name: 'Art. 6 & 7 GDPR',
-        business_impact: 'Высокий риск штрафа за незаконную обработку данных без волеизъявления пользователя.',
-        recommendation: 'Заблокируйте инициализацию аналитических скриптов до клика "Принять" на Cookie-баннере.'
+        description: 'The website placed non-essential tracking/marketing cookies into the user\'s browser storage prior to any explicit interaction with the consent banner.',
+        law_name: 'ePrivacy Directive & Art. 7 GDPR',
+        business_impact: 'Direct non-compliance with the landmark Planet49 EU court ruling. High vulnerability during routine data protection audits.',
+        recommendation: 'Implement a hard-blocking cookie mechanism. All analytical and tracking cookies must be completely withheld from the browser storage until affirmative consent is given.'
       });
     }
 
-    const hasGoogleAnalytics = networkLogs.some(url => url.includes('google-analytics.com') || url.includes('analytics.google'));
-    const hasFacebookPixel = networkLogs.some(url => url.includes('connect.facebook.net') || url.includes('facebook.com/tr'));
-
-    if (hasGoogleAnalytics || hasFacebookPixel) {
-      findings.push({
-        category: 'Privacy',
-        issue_type: 'TRACKER_LEAK_WITHOUT_CONSENT',
-        severity: 'critical',
-        description: 'Обнаружена передача данных в рекламные сети (Google/Meta) сразу после загрузки страницы без согласия.',
-        law_name: 'ePrivacy Directive & GDPR Art. 5',
-        business_impact: 'Прямое нарушение конфиденциальности. Риск блокировки рекламных аккаунтов за несоблюдение политики согласия.',
-        recommendation: 'Настройте Consent Mode v2 для Google и блокировку Pixel до фиксации согласия.'
-      });
-    }
-
-    // 2. СБОР КОНТАКТОВ ДЛЯ CRM
+    // 5. СБОР КОНТАКТОВ ДЛЯ CRM
     const extracted = await page.evaluate(() => {
       const bodyText = document.body.innerText;
       const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -117,7 +122,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       };
     });
 
-    // 3. ПОИСК И АНАЛИЗ ПОЛИТИКИ
+    // 6. ПОИСК И АНАЛИЗ ПОЛИТИКИ
     const links = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('a')).map(a => ({
         href: (a as HTMLAnchorElement).href,
@@ -134,21 +139,23 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     let foundUrl = originUrl;
 
     if (foundTarget) {
-      await page.goto(foundTarget.href, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      legalText = await page.evaluate(() => document.body.innerText);
-      foundUrl = foundTarget.href;
+      try {
+        await page.goto(foundTarget.href, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        legalText = await page.evaluate(() => document.body.innerText);
+        foundUrl = foundTarget.href;
+      } catch (e) {}
     }
 
-    // 4. ПРОВЕРКА ФИНАНСОВЫХ ДАННЫХ И ХРАНЕНИЯ
+    // 7. ПРОВЕРКА ФИНАНСОВЫХ ДАННЫХ И ХРАНЕНИЯ
     if (!legalText || legalText.trim().length < 400) {
       findings.push({
         category: 'GDPR',
         issue_type: 'MISSING_CORE_FRAMEWORK',
         severity: 'critical',
-        description: 'На сайте отсутствуют обязательные юридические документы (Политика конфиденциальности / Impressum).',
+        description: 'Mandatory legal disclosures (Privacy Policy or Legal Notice) were not identified in the primary site architecture.',
         law_name: 'Art. 13 GDPR',
-        business_impact: 'Критический риск. Несоответствие базовым требованиям ЕС/Великобритании.',
-        recommendation: 'ACTION: Срочно внедрите юридический футер с ссылками на легальные документы.'
+        business_impact: 'Critical non-compliance. Site is vulnerable to immediate administrative action.',
+        recommendation: 'ACTION: Implement a legal footer with direct links to mandatory documents.'
       });
     } else {
       const textLower = legalText.toLowerCase();
@@ -160,29 +167,30 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
           category: 'Privacy',
           issue_type: 'DATA_RETENTION_MISSING',
           severity: 'high',
-          description: 'В политике не указаны сроки хранения персональных данных.',
+          description: 'The privacy statement fails to specify statutory data retention periods.',
           law_name: 'Art. 13(2)(a) GDPR',
-          business_impact: 'Нарушение принципа прозрачности обработки данных.',
-          recommendation: 'Добавьте пункт: "Данные хранятся в течение 24 месяцев или до момента удаления аккаунта".'
+          business_impact: 'Non-compliance with the principle of transparency.',
+          recommendation: 'Add a clause: "Data is stored for a period of 24 months or until the user requests deletion."'
         });
       }
 
-      // Финансовая безопасность
+      // ПРОВЕРКА БЕЗОПАСНОСТИ СБОРА ФИНАНСОВЫХ ДАННЫХ
       const financialKeywords = ['credit card', 'payment info', 'bank account', 'billing details', 'платежные данные', 'банковская карта'];
-      const complianceKeywords = ['stripe', 'paypal', 'pci-dss', 'encrypted provider', 'шлюз', 'провайдер'];
+      const secureKeywords = ['stripe', 'paypal', 'pci-dss', 'encrypted provider', 'secure gateway', 'зашифрованный шлюз'];
       
-      const hasFinancial = financialKeywords.some(kw => textLower.includes(kw));
-      const hasCompliance = complianceKeywords.some(kw => textLower.includes(kw));
+      const hasFinancialInfo = financialKeywords.some(kw => textLower.includes(kw));
+      const hasSecureMention = secureKeywords.some(kw => textLower.includes(kw));
 
-      if (hasFinancial && !hasCompliance) {
+      if (hasFinancialInfo && !hasSecureMention) {
+        console.log(`[Violation] Декларация финансовых данных не защищена в тексте.`);
         findings.push({
           category: 'Security',
           issue_type: 'UNSECURED_FINANCIAL_DECLARATION',
           severity: 'high',
-          description: 'Сайт декларирует сбор платежных данных, но не указывает использование защищенных PCI-DSS провайдеров.',
-          law_name: 'Art. 32 GDPR (Security of processing)',
-          business_impact: 'Риск признания обработки данных небезопасной. Уязвимость для исков при утечках.',
-          recommendation: 'Укажите в политике, что платежи обрабатываются через Stripe/PayPal/Adyen в зашифрованном виде.'
+          description: 'Your policy declares the collection or processing of financial information (such as credit card or billing details) but fails to state that this processing is delegated to a certified third-party vendor.',
+          law_name: 'Art. 5(1)(c) & Art. 32 GDPR',
+          business_impact: 'Triggers high-priority audits by financial regulators and data protection authorities due to perceived lack of data security frameworks.',
+          recommendation: 'Insert this disclosure: "Payment Processing: All financial transactions are handled securely via encrypted, PCI-DSS compliant payment gateways (such as Stripe or PayPal). We do not store payment card numbers on our servers."'
         });
       }
     }
@@ -213,8 +221,8 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       await transporter.sendMail({
         from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
         to: userEmail,
-        subject: `Результат аудита соответствия для ${domainName}`,
-        text: `Аудит для сайта ${domainName} завершен. Обнаружено нарушений: ${findings.length}. Подробный отчет во вложении.`,
+        subject: `Compliance Audit Results for ${domainName}`,
+        text: `The audit for ${domainName} is complete. Found ${findings.length} violations. See the attached report.`,
         attachments: [{ filename: `Humango_Audit_${domainName}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
       });
     }
@@ -229,7 +237,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
 
 async function startWorker() {
   console.log("==================================================");
-  console.log("[Deep Audit Worker V38] Logic: Tracking + Security");
+  console.log("[Deep Audit Worker] Logic: Network + Storage");
   console.log("==================================================");
   
   while (true) {
