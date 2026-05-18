@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -36,25 +37,33 @@ export default function Home() {
   const [scanStatus, setScanStatus] = useState<'idle' | 'pending' | 'queued' | 'processing' | 'completed' | 'failed'>('idle');
   const [pollingUrl, setPollingUrl] = useState('');
   const [displayDomain, setDisplayDomain] = useState('');
+  const [currentYear, setCurrentYear] = useState('');
   const { toast } = useToast();
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear().toString());
+  }, []);
 
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url || !email) {
-      toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a valid URL and your email address." });
+      toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a valid domain and your email address." });
       return;
     }
 
     setIsScanning(true);
     setScanStatus('queued');
     
-    let targetHost = url;
+    let targetHost = url.trim();
+    if (!targetHost.startsWith('http')) {
+      targetHost = `https://${targetHost}`;
+    }
+
     try {
-      const normalizedInput = url.startsWith('http') ? url : `https://${url}`;
-      targetHost = new URL(normalizedInput).hostname.toLowerCase();
-      setDisplayDomain(targetHost);
+      const u = new URL(targetHost);
+      setDisplayDomain(u.hostname.toLowerCase());
     } catch (e) {
-      setDisplayDomain(url.toLowerCase());
+      setDisplayDomain(url.toLowerCase().trim());
     }
 
     try {
@@ -94,7 +103,7 @@ export default function Home() {
               setIsScanning(false);
               clearInterval(interval);
               toast({ variant: "destructive", title: "Audit Failed", description: "An error occurred during scanning." });
-            } else if (currentStatus !== scanStatus) {
+            } else if (currentStatus !== scanStatus && currentStatus !== 'unknown') {
               setScanStatus(currentStatus);
             }
           }
@@ -308,6 +317,9 @@ export default function Home() {
             <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Statement</Link>
             <Link href="/admin" className="text-slate-800 hover:text-white transition-colors">Audit Terminal</Link>
           </div>
+        </div>
+        <div className="container mx-auto mt-4 text-center text-[8px] text-slate-600 uppercase tracking-widest">
+          &copy; {currentYear} Humango Limited • London • All Rights Reserved
         </div>
       </footer>
     </div>

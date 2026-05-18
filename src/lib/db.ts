@@ -28,7 +28,11 @@ function sanitize(text: string | null | undefined, fallback: string = 'Informati
 
 export function normalizeUrl(url: string, base?: string): string {
   try {
-    const u = base ? new URL(url, base) : new URL(url);
+    let target = url.trim();
+    if (!target.startsWith('http')) {
+      target = `https://${target}`;
+    }
+    const u = base ? new URL(target, base) : new URL(target);
     if (u.port && !['80', '443'].includes(u.port)) throw new Error('Forbidden port');
     const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
     if (ipRegex.test(u.hostname)) throw new Error('IP-based targets blocked');

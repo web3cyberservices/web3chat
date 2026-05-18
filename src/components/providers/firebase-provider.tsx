@@ -35,13 +35,9 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Only initialize on the client
     if (typeof window === 'undefined') return;
 
     try {
-      // Check if config is actually set or still placeholder
-      const isPlaceholder = firebaseConfig.apiKey === "placeholder-api-key";
-      
       let firebaseApp: FirebaseApp;
       if (getApps().length === 0) {
         firebaseApp = initializeApp(firebaseConfig);
@@ -49,19 +45,23 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         firebaseApp = getApps()[0];
       }
       
-      const firebaseAuth = getAuth(firebaseApp);
-      
       setApp(firebaseApp);
-      setAuth(firebaseAuth);
 
-      const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
-        setUser(currentUser);
+      // Check if config is actually set or still placeholder before calling Auth
+      if (firebaseConfig.apiKey !== "placeholder-api-key") {
+        const firebaseAuth = getAuth(firebaseApp);
+        setAuth(firebaseAuth);
+
+        const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
+          setUser(currentUser);
+          setLoading(false);
+        });
+
+        return () => unsubscribe();
+      } else {
         setLoading(false);
-      });
-
-      return () => unsubscribe();
+      }
     } catch (error) {
-      // Avoid logging browser Event objects as errors to console
       if (error instanceof Error) {
         console.warn("Firebase Provider initialization restricted:", error.message);
       }
