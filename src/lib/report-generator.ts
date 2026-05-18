@@ -62,7 +62,7 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
       if (!consolidated.has(key)) {
         const urls = (row.page_url || '').split(',').map((u: string) => u.trim());
         
-        // NORMALIZE QUOTES: Replace single quotes with double quotes
+        // NORMALIZE QUOTES: Replace all single quotes with double quotes for professionalism
         let cleanRec = (row.recommendation || '').replace(/[']/g, '"');
         if (!cleanRec.startsWith('ACTION:')) {
             cleanRec = `ACTION: INSERT THIS TEXT -> "${cleanRec}"`;

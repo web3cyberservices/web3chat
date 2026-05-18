@@ -24,7 +24,7 @@ const transporter = nodemailer.createTransport({
   secure: false, 
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    pass: process.env.SMTP_PASS, // NOTE: Best practice is to use App Password here
   },
   tls: {
     rejectUnauthorized: false
@@ -70,7 +70,7 @@ async function handleAuditDelivery(domain: string, userEmail: string) {
     logger.error(`[Worker Delivery Error] Domain: ${domain} | Error: ${errorMsg}`);
     
     if (errorMsg.includes('535') || errorMsg.includes('BadCredentials')) {
-      await saveBotEvent('ERROR', `SMTP AUTH FAILED: Invalid App Password for ${process.env.SMTP_USER}.`);
+      await saveBotEvent('ERROR', `SMTP AUTH FAILED: Invalid App Password or security block for ${process.env.SMTP_USER}.`);
     } else {
       await saveBotEvent('ERROR', `Email delivery failed for ${domain}: ${errorMsg}`);
     }

@@ -26,22 +26,38 @@ function sanitize(text: string | null | undefined, fallback: string = 'Informati
   }
 }
 
+/**
+ * Normalizes URLs and handles base URL joining correctly.
+ */
 export function normalizeUrl(url: string, base?: string): string {
   try {
     let target = url.trim();
+    
+    // If we have a base and target is a relative path, join them properly
+    if (base) {
+      const baseUrl = base.startsWith('http') ? base : `https://${base}`;
+      const u = new URL(target, baseUrl);
+      return u.href.toLowerCase();
+    }
+
+    // Standard standalone normalization
     if (!target.startsWith('http')) {
       target = `https://${target}`;
     }
-    const u = base ? new URL(target, base) : new URL(target);
+    const u = new URL(target);
+    
+    // Block suspicious targets
     if (u.port && !['80', '443'].includes(u.port)) throw new Error('Forbidden port');
     const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
     if (ipRegex.test(u.hostname)) throw new Error('IP-based targets blocked');
+    
     u.hash = '';
     u.search = '';
     let pathname = u.pathname.toLowerCase();
     if (pathname === '') pathname = '/';
     if (pathname.length > 1 && pathname.endsWith('/')) pathname = pathname.slice(0, -1);
     u.pathname = pathname;
+    
     return u.href.toLowerCase();
   } catch (e) {
     return 'invalid-target';
@@ -71,7 +87,7 @@ export async function getTaskStatus(url: string) {
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (!violations || violations.length === 0) return { success: true };
   
-  // LOGICAL INTERCEPT: If core doc is missing, strip hallucinations about content
+  // LOGICAL INTERCEPT: Prevent storing contradictory findings
   const hasMissingDoc = violations.some(v => 
     v.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
     v.issue_type?.toUpperCase().includes('MISSING LEGAL DISCLOSURES')
@@ -79,6 +95,7 @@ export async function saveAuditResults(domain: string, url: string, violations: 
 
   let finalViolations = violations;
   if (hasMissingDoc) {
+    // If document is missing, ignore any other specific content findings to avoid hallucinations
     finalViolations = violations.filter(v => 
       v.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
       v.issue_type?.toUpperCase().includes('MISSING LEGAL DISCLOSURES')
@@ -98,12 +115,15 @@ export async function saveAuditResults(domain: string, url: string, violations: 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), $17, $18, $19)
     `;
     for (const v of finalViolations) {
+      // Force double quotes for recommendations
+      const cleanRec = (v.recommendation || '').replace(/[']/g, '"');
+      
       await client.query(query, [
         sanitize(domain), sanitize(normalizeUrl(url)), sanitize(url), v.category,
         sanitize(v.issue_type), v.severity, sanitize(v.evidence_html || url),
         sanitize(v.evidence_quote, "Verified via bot.humango.app."), v.confidence_score || 0.8,
         v.verification_status || 'verified', sanitize(v.description), sanitize(v.explanation || v.description),
-        sanitize(v.law_name, "GDPR Article 13"), sanitize(v.recommendation).replace(/[']/g, '"'), scanType, v.report_type,
+        sanitize(v.law_name, "GDPR Article 13"), sanitize(cleanRec), scanType, v.report_type,
         sanitize(v.potential_fine || "Fines up to €20M"), 
         v.verification_method || (scanType === 'deep' ? 'Dynamic Emulation' : 'Static Analysis'),
         sanitize(v.business_impact, "Business Risk: Loss of advertising access.")

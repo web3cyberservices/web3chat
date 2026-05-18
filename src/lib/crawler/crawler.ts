@@ -11,7 +11,7 @@ import { performance } from 'perf_hooks';
 const urlSchema = z.string().url();
 
 /**
- * The Loop Architecture (V34.0) - Semantic Deep Analysis & Failback Discovery
+ * The Loop Architecture (V35.0) - Semantic Deep Analysis & Robust URL Handling
  */
 export async function runCrawlTask(seedUrl: string, iteration: number = 1): Promise<CrawlResult> {
   const startTime = performance.now();
@@ -24,6 +24,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     }
 
     const initialNormalized = normalizeUrl(seedUrl) || seedUrl;
+    const origin = new URL(initialNormalized).origin;
     const domain = new URL(initialNormalized).hostname;
 
     const robotsCheck = await isUrlAllowed(initialNormalized);
@@ -47,25 +48,38 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     );
 
     // PHASE 2: SEMANTIC DEEP DIVE (FOLLOWING LEGAL CANDIDATES)
-    const legalLinks = { ...initialParsed.meta.legal_links };
+    const legalLinksRaw = { ...initialParsed.meta.legal_links };
+    const legalLinksNormalized: Record<string, string | null> = {};
     
-    // SMART FALLBACK: If initial search failed, try forced common paths
-    const origin = new URL(initialNormalized).origin;
-    if (!legalLinks.privacy) {
-      const fallbacks = [`${origin}/legal/privacy`, `${origin}/privacy`, `${origin}/privacy-policy`, `${origin}/datenschutz`];
+    // Normalize discovered links against the origin
+    Object.entries(legalLinksRaw).forEach(([key, val]) => {
+      if (val) {
+        legalLinksNormalized[key] = normalizeUrl(val, origin);
+      } else {
+        legalLinksNormalized[key] = null;
+      }
+    });
+
+    // SMART FALLBACK: If initial search failed, try forced common paths relative to origin
+    if (!legalLinksNormalized.privacy) {
+      const fallbacks = [
+        normalizeUrl('/legal/privacy', origin),
+        normalizeUrl('/privacy', origin),
+        normalizeUrl('/privacy-policy', origin),
+        normalizeUrl('/datenschutz', origin)
+      ];
       for (const fb of fallbacks) {
         try {
-          // Check header first for speed
-          const check = await fetch(fb, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+          const check = await fetch(fb, { method: 'HEAD', signal: AbortSignal.timeout(4000) });
           if (check.ok) {
-            legalLinks.privacy = fb;
+            legalLinksNormalized.privacy = fb;
             break;
           }
         } catch (e) {}
       }
     }
 
-    const candidates = Object.entries(legalLinks).filter(([_, href]) => !!href);
+    const candidates = Object.entries(legalLinksNormalized).filter(([_, href]) => !!href);
     let aggregatedLegalContent = scrape.html; 
     let documentsFound = candidates.length > 0;
 
@@ -73,7 +87,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
       await saveBotEvent('SUCCESS', `Semantic Discovery: Found legal paths. Fetching content...`);
       
       for (const [type, href] of candidates) {
-          const deepUrl = normalizeUrl(href!, initialNormalized);
+          const deepUrl = href!;
           if (deepUrl === initialNormalized) continue;
 
           try {
@@ -102,7 +116,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
          law_name: 'Art. 12 & 13 GDPR',
          potential_fine: 'Up to €20,000,000 or 4% of global turnover.',
          explanation: 'The law requires a visible and accessible privacy policy on all commercial websites.',
-         recommendation: 'ACTION: INSERT THIS HTML -> "<footer class=\"legal-footer\"><a href=\"/privacy\">Privacy Policy</a></footer>"',
+         recommendation: 'ACTION: INSERT THIS HTML -> "<footer class=\\"legal-footer\\"><a href=\\"/privacy\\">Privacy Policy</a></footer>"',
          confidence_score: 1.0,
          verification_status: 'verified'
        }];
@@ -140,7 +154,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
         method: scrape.method,
         verification_method: iteration > 1 ? 'Dynamic Emulation' : 'Static Analysis',
         hasCMP: initialParsed.meta.hasCMP,
-        legal_links: legalLinks,
+        legal_links: legalLinksNormalized,
         attempts: iteration,
         confidence: validationResult.overall_confidence
       }
