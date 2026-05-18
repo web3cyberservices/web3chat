@@ -1,7 +1,8 @@
 
 import { Pool } from 'pg';
 import * as nodemailer from 'nodemailer';
-import { chromium } from 'playwright';
+import puppeteer from 'puppeteer';
+import * as fs from 'fs';
 import { generatePdfReport } from '../lib/report-generator';
 
 const pool = new Pool({ 
@@ -22,15 +23,31 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+const CHROME_PATHS = [
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
+  '/root/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+];
+
+async function getExecutablePath() {
+  for (const p of CHROME_PATHS) {
+    if (fs.existsSync(p)) return p;
+  }
+  return undefined;
+}
+
 async function executeDeterministicAudit(domain: string, userEmail: string) {
   let browser: any = null;
   try {
-    browser = await chromium.launch({ 
+    const executablePath = await getExecutablePath();
+    browser = await puppeteer.launch({ 
+      executablePath,
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    const page = await browser.newPage();
 
     let cleanUrl = domain.trim().toLowerCase();
     if (!cleanUrl.startsWith('http')) cleanUrl = `https://${cleanUrl}`;
@@ -44,9 +61,8 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
     console.log(`[Worker] Auditing: ${originUrl}`);
     
     try {
-      await page.goto(originUrl, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.goto(originUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
-      // 1. Semantic Link Discovery
       const links = await page.evaluate(() => {
         return Array.from(document.querySelectorAll('a')).map(a => ({
           href: (a as HTMLAnchorElement).href,
@@ -59,7 +75,6 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
         legalKeywords.some(keyword => link.href.includes(keyword) || link.text.includes(keyword))
       );
 
-      // 2. Fallback Logic for humango.app specifically
       if (!foundTarget) {
         console.log(`[Worker] Auto-discovery failed. Trying forced fallback...`);
         try {
@@ -68,12 +83,10 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
           if (testRes && testRes.status() === 200) {
             legalText = await page.evaluate(() => document.body.innerText);
             hasFooterLink = true;
-            console.log(`[Worker] Fallback success: content pulled from /legal/privacy`);
           }
         } catch (e) {}
       } else {
         hasFooterLink = true;
-        console.log(`[Worker] Found semantic link: ${foundTarget.href}`);
         await page.goto(foundTarget.href, { waitUntil: 'domcontentloaded', timeout: 30000 });
         legalText = await page.evaluate(() => document.body.innerText);
       }
@@ -81,12 +94,7 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
       console.error(`[Worker] Navigation error:`, pageErr);
     }
 
-    // ==========================================
-    // DETERMINISTIC AUDIT LOGIC (NO AI)
-    // ==========================================
-
     if (!legalText || legalText.trim().length < 250) {
-      console.log(`[Violation] MISSING_CORE_FRAMEWORK identified.`);
       finalFindings.push({
         type: 'MISSING_CORE_FRAMEWORK',
         issue_type: 'MISSING CORE FRAMEWORK',
@@ -97,12 +105,8 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
         recommendation: 'ACTION: INSERT THIS HTML -> "<footer class=\\"legal-footer\\"><a href=\\"/privacy\\">Privacy Policy</a></footer>"'
       });
     } else {
-      console.log(`[Status] Content found (${legalText.length} chars). Running regex audits...`);
-
-      // CHECK: Data Retention
       const retentionRegex = /(storage|retention|store|keep|retain|hold|period|months|years|days|\d+\s*(month|year|day|месяц|год|лет|дня|продолжительно))/i;
       if (!retentionRegex.test(legalText)) {
-        console.log(`[Violation] DATA_RETENTION_TIMEFRAMES identified.`);
         finalFindings.push({
           type: 'DATA_RETENTION_TIMEFRAMES',
           issue_type: 'DATA RETENTION TIMEFRAMES',
@@ -115,23 +119,19 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
       }
     }
 
-    // 3. PDF Generation
     const pdfBuffer = await generatePdfReport(originUrl, finalFindings);
 
-    // 4. Email Delivery
     if (userEmail && pdfBuffer) {
-      console.log(`[SMTP] Delivering report to ${userEmail}...`);
       await transporter.sendMail({
         from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `Statutory Compliance Audit Report for ${domain}`,
-        text: `Hello,\n\nYour automated statutory compliance audit for ${domain} is complete. Please find the detailed PDF report attached.\n\nBest regards,\nHumango Team`,
+        text: `Hello,\n\nYour automated statutory compliance audit for ${domain} is complete.\n\nBest regards,\nHumango Team`,
         attachments: [{ filename: `Humango_Audit_${domain.replace(/[^a-z0-9]/gi, '_')}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
       });
     }
 
     await pool.query("UPDATE public.scan_queue SET status = 'completed' WHERE url = $1", [domain]);
-    await pool.query("INSERT INTO bot_events (type, message) VALUES ($1, $2)", ['SUCCESS', `Audit finished for ${domain}. Found ${finalFindings.length} issues.`]);
 
   } catch (err: any) {
     console.error(`[Worker Fatal]`, err.message);
@@ -143,7 +143,7 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
 
 async function startWorker() {
   console.log("==================================================");
-  console.log("[Deterministic Engine] Active and listening...");
+  console.log("[Deterministic Worker] Active using Puppeteer...");
   console.log("==================================================");
   
   while (true) {
@@ -154,7 +154,7 @@ async function startWorker() {
 
       if (res.rows.length > 0) {
         const task = res.rows[0];
-        await pool.query("UPDATE public.scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
+        await pool.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
         await executeDeterministicAudit(task.url, task.user_email);
       } else {
         await new Promise(resolve => setTimeout(resolve, 5000));

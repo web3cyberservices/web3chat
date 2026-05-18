@@ -63,7 +63,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-50 font-body flex flex-col selection:bg-primary/30">
-      {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/5 blur-[120px] rounded-full" />
         <div className="absolute bottom-[10%] right-[-5%] w-[40%] h-[40%] bg-primary/5 blur-[100px] rounded-full" />
@@ -84,23 +83,22 @@ export default function Home() {
       </header>
 
       <main className="flex-1 flex flex-col">
-        {/* Hero Section */}
         <section className="container mx-auto px-6 pt-16 pb-24 text-center">
           <div className="max-w-4xl mx-auto space-y-8">
             <Badge variant="outline" className="py-1.5 px-4 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-[0.2em] animate-in fade-in slide-in-from-top-4 duration-1000">
               Statutory Compliance Engine v5.2
             </Badge>
-            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter leading-[0.9] text-white animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
+            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter leading-[0.9] text-white">
               Professional Web <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-primary to-indigo-500">
                 Integrity Auditing
               </span>
             </h1>
-            <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-light animate-in fade-in duration-1000 delay-300">
+            <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-light">
               Identify GDPR liabilities, missing legal disclosures, and technical risks in real-time. Automated diagnostic reports for global web infrastructure.
             </p>
 
-            <div className="pt-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+            <div className="pt-8 max-w-2xl mx-auto">
               <form onSubmit={handleScan} className="flex flex-col md:flex-row gap-3 bg-white/[0.03] p-2 rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl focus-within:border-primary/50 transition-colors">
                 <div className="flex-1 flex items-center px-4">
                   <Globe className="w-4 h-4 text-slate-500 mr-3" />
@@ -161,7 +159,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Features Grid */}
         <section className="bg-white/[0.01] border-y border-white/5 py-24">
           <div className="container mx-auto px-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -183,7 +180,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Technical Specification Section */}
         <section className="container mx-auto px-6 py-24">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8">

@@ -31,21 +31,12 @@ export async function generatePdfReport(domain: string, providedFindings?: any[]
       findings = res.rows;
     }
 
-    // Logical Filter: Prevent contradictions
-    const hasMissingFramework = findings.some((f: any) => 
-      f.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
-      f.type === 'MISSING_CORE_FRAMEWORK'
-    );
-
-    if (hasMissingFramework) {
-      // If document is missing, clear hallucinated content findings
-      findings = findings.filter((f: any) => 
-        f.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
-        f.type === 'MISSING_CORE_FRAMEWORK'
-      );
+    // Logic: If missing framework, clear other findings to avoid contradiction
+    if (findings.some((f: any) => f.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK'))) {
+      findings = findings.filter((f: any) => f.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK'));
     }
 
-    // Force double quotes in recommendations for consistency and UI cleanliness
+    // Ensure double quotes in recommendations
     findings = findings.map((v: any) => ({
       ...v,
       recommendation: (v.recommendation || v.action || '').replace(/[']/g, '"')
