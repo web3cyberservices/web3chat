@@ -96,6 +96,7 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
           .action-box { background: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; border-radius: 8px; color: #0369a1; font-size: 10px; font-family: monospace; border-left: 4px solid #3b82f6; }
           .clean-box { background: #ecfdf5; border: 2px solid #10b981; padding: 30px; border-radius: 20px; text-align: center; margin-top: 40px; }
           .footer-note { position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 8px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+          .email-link { color: #3b82f6; text-decoration: none; font-weight: bold; }
         </style>
       </head>
       <body>
@@ -112,7 +113,7 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
         <div class="operator-block">
           <strong>Operator:</strong> Humango Limited | Co. No: 16750477<br>
           <strong>Address:</strong> 182-184 High Street North, London, E6 2JA<br>
-          <strong>Verification:</strong> RFC 9309 Statutory Audit Node
+          <strong>Verification:</strong> RFC 9309 Statutory Audit Node | <a href="mailto:abuse@humango.app" class="email-link">abuse@humango.app</a>
         </div>
 
         <div style="margin-bottom: 30px;">

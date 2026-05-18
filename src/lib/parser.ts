@@ -122,7 +122,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       law_name: profile.law,
       potential_fine: LIABILITY_CRITICAL,
       explanation: 'You must inform users of site ownership and data usage before collection starts. Failure to provide an accessible link is a direct violation.',
-      recommendation: `ACTION: INSERT THIS HTML -> Add a clear link to your footer: <a href="/privacy">Privacy Policy</a>`,
+      recommendation: `ACTION: INSERT THIS HTML -> "<a href=\"/privacy\">Privacy Policy</a>"`,
       verification_method
     });
   } else if (hasLegalMarkers && !/retention|storage|storing/i.test(policyBody)) {
@@ -137,7 +137,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
         law_name: 'Art. 13(2)(a) GDPR',
         potential_fine: LIABILITY_HIGH,
         explanation: 'You must state how long you keep user data or the specific criteria used to decide that timeframe.',
-        recommendation: `ACTION: INSERT THIS TEXT -> 'Data Retention: ${domain} stores your personal data for a period of 24 months from the date of your last interaction.'`,
+        recommendation: `ACTION: INSERT THIS TEXT -> "Data Retention: ${domain} stores your personal data for a period of 24 months from the date of your last interaction."`,
         verification_method
       });
   }
@@ -154,7 +154,7 @@ export function parseHtmlContent(html: string, url: string, headers: any = {}, s
       law_name: 'Art. 13(1)(a) GDPR',
       potential_fine: LIABILITY_HIGH,
       explanation: 'Statutory rules require a physical address and registered company name for all commercial entities operating in the EU.',
-      recommendation: `ACTION: INSERT THIS TEXT -> Add this to your footer: 'Data Controller: [Your Company Name], Email: legal@${domain}'`,
+      recommendation: `ACTION: INSERT THIS TEXT -> "Data Controller: [Your Company Name], Email: legal@${domain}"`,
       verification_method
     });
   }

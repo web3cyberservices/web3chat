@@ -27,7 +27,7 @@ const ValidationOutputSchema = z.object({
     is_hallucination: z.boolean(),
     verification_status: z.enum(['verified', 'insufficient_data', 'rejected']),
     business_impact: z.string().describe("Pain Point: e.g., 'Google/Meta ad account suspension'"),
-    recommendation: z.string().describe("Mandatory format: 'ACTION: INSERT THIS TEXT -> [Professional Legal Clause]'"),
+    recommendation: z.string().describe("Mandatory format: 'ACTION: INSERT THIS TEXT -> \"[Professional Legal Clause]\"'"),
     law_name: z.string(),
     potential_fine: z.string(),
   })),
@@ -49,7 +49,7 @@ A valid legal document MUST contain formal markers like "In accordance with", "C
 
 ### OUTPUT RULES:
 - If a document is found in the text but is missing a specific clause (e.g. retention), flag it as a GAP, not as MISSING.
-- All recommendations MUST start with "ACTION: INSERT THIS TEXT ->".
+- All recommendations MUST start with "ACTION: INSERT THIS TEXT ->" and follow with the text in DOUBLE QUOTES.
 - Fines must be authoritative (e.g. "Up to €20M or 4% of turnover").
 
 DOMAIN: {{{domain}}}
@@ -85,7 +85,7 @@ export async function verifyIntegrity(html: string, findings: Violation[]) {
         is_hallucination: false,
         verification_status: 'verified' as const,
         business_impact: f.business_impact || "Business Risk: Immediate loss of marketing ROI.",
-        recommendation: f.recommendation || `ACTION: INSERT THIS TEXT -> 'Data Controller: [Your Company Name], Email: legal@${domain}'`,
+        recommendation: f.recommendation || `ACTION: INSERT THIS TEXT -> "Data Controller: [Your Company Name], Email: legal@${domain}"`,
         law_name: f.law_name || "GDPR Article 13",
         potential_fine: "Administrative fines up to €20,000,000 or 4% of global annual turnover.",
         evidence_quote: "Verified via semantic discovery."
