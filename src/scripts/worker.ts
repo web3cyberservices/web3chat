@@ -39,6 +39,8 @@ async function getExecutablePath() {
   return undefined;
 }
 
+const USER_AGENT = "HumangoBot/1.0 (+https://bot.humango.app)";
+
 /**
  * Deterministic PDF Generator
  */
@@ -103,7 +105,7 @@ async function executeDeterministicAudit(domain: string, userEmail: string) {
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
-    await page.setUserAgent("HumangoBot/1.0 (+https://bot.humango.app)");
+    await page.setUserAgent(USER_AGENT);
 
     let cleanUrl = domain.trim().toLowerCase();
     if (!cleanUrl.startsWith('http')) cleanUrl = `https://${cleanUrl}`;
