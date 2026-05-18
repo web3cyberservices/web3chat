@@ -6,7 +6,7 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    // Stable mock for admin dashboard to prevent TypeError
+    // Стабильная заглушка для предотвращения TypeError в админ-панели
     return NextResponse.json({
       pagesScanned: 1240,
       issuesFound: 86,
