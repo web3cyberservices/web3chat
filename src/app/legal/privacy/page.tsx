@@ -1,8 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheck, ArrowLeft, Mail, Lock, Info, Scale, FileText, EyeOff, MapPin } from "lucide-react";
+import { ShieldCheck, ArrowLeft, Mail, Lock, Info, Scale, FileText, EyeOff, MapPin, History } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -69,10 +70,29 @@ export default function PrivacyPage() {
 
           <section className="space-y-6">
             <h2 className="text-xl font-bold flex items-center gap-3 text-white border-l-2 border-primary pl-4">
+              <History className="w-5 h-5 text-primary" /> Data Retention (Art. 13(2)(a))
+            </h2>
+            <div className="space-y-4 text-slate-400 leading-relaxed">
+              <p>
+                In accordance with statutory requirements, we maintain strict retention schedules for technical audit logs:
+              </p>
+              <ul className="list-disc pl-6 space-y-4">
+                <li>
+                  <strong className="text-white">Audit Evidence:</strong> Technical screenshots and scan logs are stored for exactly <span className="text-emerald-500 font-bold">24 months</span> (2 years) from the date of detection for verification purposes and are automatically purged thereafter.
+                </li>
+                <li>
+                  <strong className="text-white">Queue Metadata:</strong> Domain processing metadata is retained for 365 days.
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-3 text-white border-l-2 border-primary pl-4">
               <Scale className="w-5 h-5 text-primary" /> Legal Basis (Art. 6(1)(f) GDPR)
             </h2>
             <p className="text-slate-400 leading-relaxed">
-              Our data processing is justified under <strong>Legitimate Interest (Art. 6(1)(f) GDPR)</strong>. The purpose is the identification of technical vulnerabilities and the monitoring of digital compliance to ensure a secure and transparent internet environment. A Legitimate Interest Assessment (LIA) is maintained internally to ensure the balance of rights.
+              Our data processing is justified under <strong>Legitimate Interest (Art. 6(1)(f) GDPR)</strong>. The purpose is the identification of technical vulnerabilities and the monitoring of digital compliance to ensure a secure and transparent internet environment.
             </p>
           </section>
 
@@ -99,7 +119,7 @@ export default function PrivacyPage() {
 
       <footer className="py-8 px-6 border-t border-white/5 bg-[#010413]/50">
         <div className="container mx-auto text-[9px] text-slate-500 uppercase tracking-[0.25em] font-bold text-center">
-          &copy; {new Date().getFullYear()} Humango Limited • Privacy v1.6
+          &copy; {new Date().getFullYear()} Humango Limited • Privacy v1.7
         </div>
       </footer>
     </div>

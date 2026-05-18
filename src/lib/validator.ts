@@ -6,11 +6,12 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Validator V32.0 - Semantic Content Analysis (No URL Bias)
+ * @fileOverview Validator V32.1 - Semantic Content Analysis (Refined for Humango)
  * 
  * - RULE: Content-based discovery. URL paths are strictly ignored.
  * - ROLE: Senior European Compliance Lawyer.
  * - RULE: No False Positives if content is found on any followed sub-page.
+ * - RULE: Strict double quotes in recommendations.
  */
 
 const ValidationInputSchema = z.object({
@@ -45,13 +46,9 @@ const verifyIntegrityPrompt = ai.definePrompt({
 CORE MISSION: Identify real legal gaps, but DO NOT issue violations based on URL structure or custom naming conventions if the legal requirement is fulfilled.
 
 ANALYSIS RULES:
-1. IGNORE THE URL: If a document exists at /legal-info, /datenschutz, /pages/privacy-policy, or any other custom path, it is NOT a violation. If it is accessible from the homepage footer, Art. 12 (Transparency) is satisfied.
-2. FOCUS ON CONTENT: Analyze the provided "HTML CONTENT POOL" (which contains text from followed links). If the mandatory info is present anywhere in this pool, the finding is REJECTED.
-
-CRITICAL VIOLATION CRITERIA (Issue only if TRULY missing):
-- COMPLETE ABSENCE: No links related to Privacy/Legal/Terms exist in the footer at all.
-- DATA RETENTION GAP: The text pool does not mention specific retention periods or criteria (Violation of Art. 13(2)(a)). "As long as necessary" without criteria is a gap.
-- MISSING CONTROLLER: No identity or contact details for the legal entity/operator are mentioned (Violation of Art. 13(1)(a)).
+1. IGNORE THE URL: If a document exists at /legal/privacy, /legal-info, /datenschutz, or any other path, it is NOT a violation. If it is accessible from the homepage footer, Art. 12 (Transparency) is satisfied.
+2. FOCUS ON CONTENT: Analyze the provided "HTML CONTENT POOL". If the mandatory info (e.g., Retention Periods like "24 months") is present anywhere in this pool, the finding is REJECTED.
+3. DATA RETENTION: Look for specific numbers (e.g., "2 years", "24 months", "365 days"). If only vague terms like "as long as needed" are found without specific criteria, it IS a violation (Art. 13(2)(a)).
 
 DOMAIN: {{{domain}}}
 
@@ -66,7 +63,7 @@ PRELIMINARY FINDINGS TO VALIDATE:
 RESPONSE FORMAT:
 If a violation is real (info is totally missing), generate the JSON block.
 If the info exists but was just on a custom page, set verification_status: "rejected".
-ALL recommendations MUST use double quotes for the suggested text, e.g., ACTION: INSERT THIS TEXT -> "Data Protection Officer: info@example.com".`,
+ALL recommendations MUST use double quotes for the suggested text, e.g., ACTION: INSERT THIS TEXT -> "Data Protection Officer: info@example.com". NO SINGLE QUOTES.`,
 });
 
 export async function verifyIntegrity(html: string, findings: Violation[]) {

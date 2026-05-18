@@ -314,7 +314,8 @@ export default function Home() {
             <span>Humango Compliance Audit Engine • Pan-European V21.0</span>
           </div>
           <div className="flex gap-8 items-center">
-            <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Statement</Link>
+            <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/legal/impressum" className="hover:text-white transition-colors">Legal Notice</Link>
             <Link href="/admin" className="text-slate-800 hover:text-white transition-colors">Audit Terminal</Link>
           </div>
         </div>
