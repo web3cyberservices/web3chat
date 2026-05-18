@@ -3,6 +3,10 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Устанавливаем фиксированный Build ID, чтобы избежать ChunkLoadError при перезапусках
+  generateBuildId: async () => {
+    return 'humango-production-v1';
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -1,19 +1,18 @@
 
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/request';
 
 /**
- * Middleware for path management and API protection.
- * ПРЯМАЯ ИНСТРУКЦИЯ: ПОЛНЫЙ ДОСТУП К PDF ДЛЯ ВСЕХ
+ * Middleware для защиты терминала и обработки путей.
  */
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
   
-  // 1. Admin API Protection
-  // We explicitly permit /api/admin/report-pdf so public users can download their results.
+  // Разрешаем публичный доступ к PDF-отчетам
   const isReportPdf = url.pathname.startsWith('/api/admin/report-pdf');
   const isAdminPath = url.pathname.startsWith('/api/admin');
   
+  // Проверка авторизации для админ-панели
   if (isAdminPath && !isReportPdf) {
     const isAdmin = request.cookies.get('admin_authenticated')?.value === 'true';
     
@@ -31,12 +30,9 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public files)
+     * Исключаем все системные пути Next.js и статику из обработки middleware,
+     * чтобы не вызывать 404 при загрузке чанков.
      */
-    '/((?!_next/static|_next/image|favicon.ico|logo.png|audit-scope.txt|bot-policy.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|logo.png|audit-scope.txt|bot-policy.txt|robots.txt).*)',
   ],
 };
