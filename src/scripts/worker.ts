@@ -27,30 +27,32 @@ async function sleep(ms: number) {
 }
 
 async function executeDeterministicAudit(taskId: number, url: string, userEmail: string, workerId: number) {
-  const browser = await chromium.launch({ 
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
-  const context = await browser.newContext({
-    userAgent: settings.userAgent
-  });
-  const page = await context.newPage();
-
-  let cleanUrl = url.trim().toLowerCase();
-  if (!cleanUrl.startsWith('http')) cleanUrl = `https://${cleanUrl}`;
-  const originUrl = new URL(cleanUrl).origin;
-  const domain = new URL(cleanUrl).hostname;
-
-  let finalFindings: any[] = [];
-  let legalText = '';
-  let hasFooterLink = false;
-
+  let browser;
   try {
-    console.log(`[Worker ${workerId}] Deterministic Scan Start: ${originUrl}`);
+    browser = await chromium.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    });
+    const context = await browser.newContext({ userAgent: settings.userAgent });
+    const page = await context.newPage();
+
+    let cleanUrl = url.trim().toLowerCase();
+    if (!cleanUrl.startsWith('http')) cleanUrl = `https://${cleanUrl}`;
+    const originUrl = new URL(cleanUrl).origin;
+    const domain = new URL(cleanUrl).hostname;
+
+    let finalFindings: any[] = [];
+    let legalText = '';
+    
+    console.log(`[Worker ${workerId}] Starting Deterministic Scan: ${originUrl}`);
     await saveBotEvent('START', `Compliance Scan [Worker ${workerId}]: ${domain}`);
 
     // 1. Scan Homepage
-    await page.goto(originUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    try {
+      await page.goto(originUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    } catch (e) {
+      console.log(`[Worker ${workerId}] Homepage unreachable, trying direct legal path...`);
+    }
 
     const links = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('a')).map(a => ({
@@ -59,39 +61,30 @@ async function executeDeterministicAudit(taskId: number, url: string, userEmail:
       }));
     });
 
-    const legalKeywords = ['privacy', 'policy', 'legal', 'datenschutz', 'impressum', 'terms', 'confidentialite', 'privacy-policy', 'legal-notice'];
+    const legalKeywords = ['privacy', 'policy', 'legal', 'datenschutz', 'impressum', 'terms', 'confidentialite'];
     let foundTarget = links.find(link => 
       legalKeywords.some(keyword => link.href.includes(keyword) || link.text.includes(keyword))
     );
 
-    // 2. Fallback: Check explicit path if auto-discovery fails
+    // 2. Fallback check
     if (!foundTarget) {
       try {
         const fallbackUrl = normalizeUrl('/legal/privacy', originUrl);
-        console.log(`[Worker ${workerId}] Auto-discovery failed. Trying fallback: ${fallbackUrl}`);
         const testRes = await page.goto(fallbackUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
         if (testRes && testRes.status() === 200) {
           legalText = await page.evaluate(() => document.body.innerText);
-          hasFooterLink = true;
-          console.log(`[Worker ${workerId}] Fallback success: Text retrieved from /legal/privacy`);
+          console.log(`[Worker ${workerId}] Fallback success: ${fallbackUrl}`);
         }
-      } catch (e) {
-        console.log(`[Worker ${workerId}] Fallback URL unreachable.`);
-      }
+      } catch (e) {}
     } else {
-      hasFooterLink = true;
-      console.log(`[Worker ${workerId}] Navigating to discovered legal page: ${foundTarget.href}`);
-      await page.goto(foundTarget.href, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      legalText = await page.evaluate(() => document.body.innerText);
+      try {
+        await page.goto(foundTarget.href, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        legalText = await page.evaluate(() => document.body.innerText);
+      } catch (e) {}
     }
 
-    // ==========================================
-    // DETERMINISTIC AUDIT LOGIC (NO AI)
-    // ==========================================
-
-    // CHECK 1: Presence of Legal Framework
+    // 3. Deterministic Audit (No AI)
     if (!legalText || legalText.trim().length < 250) {
-      console.log(`[Worker ${workerId}] Violation: Missing Core Framework.`);
       finalFindings.push({
         category: 'Privacy',
         report_type: 'SaaS',
@@ -108,15 +101,8 @@ async function executeDeterministicAudit(taskId: number, url: string, userEmail:
         verification_status: 'verified'
       });
     } else {
-      console.log(`[Worker ${workerId}] Content found. Running Regex audit...`);
-
-      // CHECK 2: Data Retention Mention
-      // Keywords for storage periods across EN, DE, RU, FR, ES
       const retentionRegex = /(storage|retention|store|keep|retain|hold|period|months|years|days|\d+\s*(month|year|day|месяц|год|лет|дня|продолжительно|conservation|durée|délai|conservación|almacenamiento|plazo))/i;
-      const hasRetentionMention = retentionRegex.test(legalText);
-
-      if (!hasRetentionMention) {
-        console.log(`[Worker ${workerId}] Violation: Missing Data Retention Timeframes.`);
+      if (!retentionRegex.test(legalText)) {
         finalFindings.push({
           category: 'Privacy',
           report_type: 'SaaS',
@@ -135,63 +121,45 @@ async function executeDeterministicAudit(taskId: number, url: string, userEmail:
       }
     }
 
-    // 3. Save findings to DB
     await saveAuditResults(domain, originUrl, finalFindings, 'basic');
-
-    // 4. Generate PDF
     const pdfBuffer = await generatePdfReport(domain, finalFindings);
 
-    // 5. Send Email
     if (userEmail && pdfBuffer) {
-      console.log(`[Worker ${workerId}] Sending report to ${userEmail}...`);
       await transporter.sendMail({
         from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `Statutory Compliance Audit Report for ${domain}`,
         text: `Hello,\n\nYour automated statutory compliance audit for ${domain} is complete. Please find the detailed PDF report attached.\n\nBest regards,\nHumango Team`,
-        attachments: [{ 
-          filename: `Humango_Audit_${domain}.pdf`, 
-          content: pdfBuffer, 
-          contentType: 'application/pdf' 
-        }]
+        attachments: [{ filename: `Humango_Audit_${domain}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
       });
-      console.log(`[Worker ${workerId}] Email delivered.`);
     }
 
-    // 6. Update Status
     await updateQueueStatus(taskId, 'completed');
     await saveBotEvent('SUCCESS', `Audit completed for ${domain}`);
 
   } catch (error: any) {
-    console.error(`[Worker ${workerId}] Audit Crash:`, error.message);
+    console.error(`[Worker ${workerId}] Crash:`, error.message);
     await updateQueueStatus(taskId, 'failed');
-    await saveBotEvent('ERROR', `Audit failed for ${domain}: ${error.message}`);
+    await saveBotEvent('ERROR', `Audit failed for ${url}: ${error.message}`);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 }
 
 async function runWorker(workerId: number) {
-  console.log(`[Worker ${workerId}] Priority Deterministic Engine Active.`);
-  
   while (true) {
     try {
-      const active = await getBotStatus();
-      if (!active) {
+      if (!(await getBotStatus())) {
         await sleep(5000);
         continue;
       }
-
       const task = await getNextQueueItem();
       if (!task) {
-        await sleep(15000); 
+        await sleep(15000);
         continue;
       }
-
       await executeDeterministicAudit(task.id, task.url, task.user_email, workerId);
-
     } catch (error: any) {
-      console.error(`[Worker ${workerId}] Loop Error: ${error.message}`);
       await sleep(10000);
     }
     await sleep(1000);
@@ -199,38 +167,9 @@ async function runWorker(workerId: number) {
 }
 
 async function bootstrap() {
-  console.log('==================================================');
-  console.log('   HUMANGO DETERMINISTIC WORKER v2.0              ');
-  console.log('   Status: Bootstraping...                        ');
-  console.log('==================================================');
-  
-  try {
-    await testConnection();
-    
-    transporter.verify((error) => {
-      if (error) {
-        console.error(`[SMTP] Verification failed: ${error.message}`);
-      } else {
-        console.log(`[SMTP] Server connected for ${process.env.SMTP_USER}`);
-      }
-    });
-
-    const concurrency = settings.maxConcurrency || 5;
-    console.log(`[System] Launching ${concurrency} parallel workers...`);
-    
-    const workers = [];
-    for (let i = 0; i < concurrency; i++) {
-      workers.push(runWorker(i + 1));
-    }
-    await Promise.all(workers);
-
-  } catch (error: any) {
-    console.error('[Worker] CRITICAL UNHANDLED ERROR:', error.stack || error);
-    process.exit(1);
-  }
+  await testConnection();
+  const concurrency = settings.maxConcurrency || 5;
+  for (let i = 0; i < concurrency; i++) runWorker(i + 1);
 }
-
-process.on('SIGINT', () => process.exit(0));
-process.on('SIGTERM', () => process.exit(0));
 
 bootstrap();

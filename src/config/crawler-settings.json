@@ -3,16 +3,6 @@
   "userAgent": "HumangoBot/1.0 (+https://bot.humango.app)",
   "timeout": 35000,
   "maxConcurrency": 5,
-  "proxyEnabled": false,
   "scanIntervalMs": 30000,
-  "complianceRules": [
-    "GDPR_STATUTORY_DISCLOSURE",
-    "CONTROLLER_IDENTITY_V5",
-    "PROCESSING_BASIS_AUDIT",
-    "COUNTRY_SPECIFIC_LOCAL_LAW",
-    "HYBRID_DEDUPLICATION"
-  ],
-  "abuseEmail": "abuse@humango.app",
-  "staticIp": "116.203.3.75",
   "identityDomain": "bot.humango.app"
 }
