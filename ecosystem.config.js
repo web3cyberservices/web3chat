@@ -3,8 +3,6 @@ module.exports = {
   apps: [
     {
       name: 'humango-app',
-      // В режиме standalone Next.js генерирует отдельный сервер. 
-      // Запуск должен производиться через node из папки standalone.
       script: '.next/standalone/server.js',
       env: {
         NODE_ENV: 'production',
@@ -17,7 +15,6 @@ module.exports = {
     },
     {
       name: 'humango-worker',
-      // Используем бинарный файл tsx из папки .bin для надежного запуска TS-скриптов
       script: './node_modules/.bin/tsx',
       args: 'src/scripts/worker.ts',
       env: {
@@ -28,7 +25,8 @@ module.exports = {
         SMTP_HOST: 'smtp.gmail.com',
         SMTP_PORT: 587,
         SMTP_USER: 'abuse@humango.app',
-        SMTP_PASS: 'mQ0c33Yn!W6i' // Убедитесь, что это "Пароль приложения" из настроек Google
+        // ВАЖНО: Сюда нужно вставить 16-значный "Пароль приложения" от Google
+        SMTP_PASS: 'mQ0c33Yn!W6i' 
       }
     }
   ]

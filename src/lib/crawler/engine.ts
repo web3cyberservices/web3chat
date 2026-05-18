@@ -21,13 +21,13 @@ const IDLE_WAIT = 15000;
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true для 465, false для других портов
+  secure: false, 
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
   tls: {
-    rejectUnauthorized: false // Помогает избежать проблем с сертификатами на некоторых серверах
+    rejectUnauthorized: false
   }
 });
 
@@ -45,9 +45,10 @@ async function handleAuditDelivery(domain: string, userEmail: string) {
     }
 
     if (userEmail && userEmail.trim() !== '') {
-      logger.info(`[Worker] Sending PDF report to: ${userEmail}`);
-      await transporter.sendMail({
-        from: '"Humango Compliance" <abuse@humango.app>',
+      logger.info(`[Worker] Attempting to send email to: ${userEmail}`);
+      
+      const mailOptions = {
+        from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `Statutory Compliance Audit Report for ${domain}`,
         text: `Hello,\n\nYour automated statutory compliance audit for ${domain} is complete. Please find your detailed PDF diagnostic report attached to this email.\n\nBest regards,\nHumango Limited`,
@@ -58,16 +59,23 @@ async function handleAuditDelivery(domain: string, userEmail: string) {
             contentType: 'application/pdf'
           }
         ]
-      });
+      };
+
+      await transporter.sendMail(mailOptions);
       logger.info(`[Worker] Email sent successfully to ${userEmail}`);
     }
     return true;
   } catch (error: any) {
-    logger.error(`[Worker Delivery Error] ${domain}: ${error.message}`);
-    // Если ошибка аутентификации SMTP, логируем это как критическое событие
-    if (error.message.includes('535')) {
-      await saveBotEvent('ERROR', `SMTP Auth Failed: Please check App Password for ${process.env.SMTP_USER}`);
+    const errorMsg = error.message || 'Unknown SMTP error';
+    logger.error(`[Worker Delivery Error] Domain: ${domain} | Error: ${errorMsg}`);
+    
+    // Если это ошибка авторизации, логируем её отдельно для администратора
+    if (errorMsg.includes('535') || errorMsg.includes('BadCredentials')) {
+      await saveBotEvent('ERROR', `SMTP AUTH FAILED: Check Google App Password for ${process.env.SMTP_USER}. Error: ${errorMsg}`);
+    } else {
+      await saveBotEvent('ERROR', `Email delivery failed for ${domain}: ${errorMsg}`);
     }
+    
     return false;
   }
 }
@@ -118,13 +126,12 @@ async function runWorker(workerId: number) {
       if (result.status === 'success') {
         const deliverySuccess = await handleAuditDelivery(currentDomain, userEmail);
         
+        // Помечаем задачу как завершенную, даже если почта не ушла (чтобы не зацикливаться)
+        // Но логируем ошибку доставки выше.
+        await updateQueueStatus(task.id, 'completed');
+        
         if (deliverySuccess) {
-          await updateQueueStatus(task.id, 'completed');
           await saveBotEvent('SUCCESS', `Audit completed and sent for ${currentDomain}`);
-        } else {
-          // Даже если почта не ушла, помечаем как failed, чтобы пользователь не ждал бесконечно
-          await updateQueueStatus(task.id, 'failed');
-          await saveBotEvent('ERROR', `Audit completed but delivery failed for ${currentDomain}`);
         }
       } else {
         await updateQueueStatus(task.id, 'failed');
@@ -146,13 +153,14 @@ export async function startEngine() {
   try {
     await testConnection();
     
-    // Проверка связи с SMTP сервером при старте
+    // Проверка связи с SMTP сервером при старте с расширенным логированием
     transporter.verify((error, success) => {
       if (error) {
-        logger.error(`[SMTP] Connection verification failed: ${error.message}`);
-        saveBotEvent('ERROR', `SMTP Connection Error: ${error.message}`);
+        logger.error(`[SMTP] Verification failed: ${error.message}`);
+        saveBotEvent('ERROR', `SMTP VERIFICATION FAILED: ${error.message}. Check App Password.`);
       } else {
-        logger.info(`[SMTP] Server is ready to take our messages`);
+        logger.info(`[SMTP] Server ${process.env.SMTP_HOST} is ready`);
+        saveBotEvent('SUCCESS', `SMTP Server connected for ${process.env.SMTP_USER}`);
       }
     });
 
