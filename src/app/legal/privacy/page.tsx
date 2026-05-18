@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShieldCheck, ArrowLeft, Mail, Lock, Info, Scale, FileText, EyeOff, MapPin, History } from "lucide-react";
@@ -8,6 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export default function PrivacyPage() {
+  const [currentYear, setCurrentYear] = useState('');
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear().toString());
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#020617] text-slate-50 font-body flex flex-col">
       <header className="border-b border-white/5 bg-[#020617]/50 backdrop-blur-xl sticky top-0 z-50">
@@ -36,7 +43,7 @@ export default function PrivacyPage() {
         <div className="space-y-12">
           <div className="space-y-4">
             <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest px-3 py-1">
-              GDPR Compliance Framework v2.1
+              GDPR Compliance Framework v2.2
             </Badge>
             <h1 className="text-4xl font-extrabold tracking-tight text-white">
               Privacy Statement
@@ -119,7 +126,7 @@ export default function PrivacyPage() {
 
       <footer className="py-8 px-6 border-t border-white/5 bg-[#010413]/50">
         <div className="container mx-auto text-[9px] text-slate-500 uppercase tracking-widest font-bold text-center">
-          &copy; {new Date().getFullYear()} Humango Limited • Privacy v2.1
+          &copy; {currentYear} Humango Limited • Privacy v2.2
         </div>
       </footer>
     </div>

@@ -11,8 +11,7 @@ import { performance } from 'perf_hooks';
 const urlSchema = z.string().url();
 
 /**
- * The Loop Architecture (V31.0) - Semantic Deep Dive
- * Crawler -> Semantic Discovery -> Content Follower -> Legal AI Analyst
+ * The Loop Architecture (V32.0) - Semantic Deep Analysis
  */
 export async function runCrawlTask(seedUrl: string, iteration: number = 1): Promise<CrawlResult> {
   const startTime = performance.now();
@@ -47,12 +46,13 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
       scrape.method === 'puppeteer'
     );
 
-    // PHASE 2: SEMANTIC DEEP DIVE (FOLLOWING CUSTOM LINKS)
-    let aggregatedLegalContent = scrape.html; // Начинаем с текста главной
+    // PHASE 2: SEMANTIC DEEP DIVE (FOLLOWING LEGAL CANDIDATES)
+    let aggregatedLegalContent = scrape.html; 
     const legalLinks = initialParsed.meta.legal_links;
     const candidates = Object.entries(legalLinks).filter(([_, href]) => !!href);
+    const hasAnyFooterLink = candidates.length > 0;
 
-    if (candidates.length > 0) {
+    if (hasAnyFooterLink) {
       await saveBotEvent('SUCCESS', `Semantic Discovery: Found ${candidates.length} potential legal links. Fetching content...`);
       
       for (const [type, href] of candidates) {
@@ -62,8 +62,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
           try {
             const deepScrape = await scrapeUrl(deepUrl);
             if (deepScrape.status === 'success') {
-                // Добавляем контент юридических страниц в общий пул для ИИ
-                aggregatedLegalContent += `\n\n--- DOCUMENT: ${type} AT ${deepUrl} ---\n\n` + deepScrape.html;
+                aggregatedLegalContent += `\n\n--- DOCUMENT: ${type.toUpperCase()} AT ${deepUrl} ---\n\n` + deepScrape.html;
             }
           } catch (e) {
             console.error(`[Crawler] Deep dive failed for ${deepUrl}`);
@@ -71,10 +70,10 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
       }
     }
 
-    // PHASE 3: AI VERIFICATION (AALYSING CONTENT, NOT URLS)
+    // PHASE 3: AI VERIFICATION (AALYSING CONTENT POOL)
     let validationResult;
     try {
-      validationResult = await verifyIntegrity(aggregatedLegalContent, initialParsed.violations);
+      validationResult = await verifyIntegrity(aggregatedLegalContent, initialParsed.violations, hasAnyFooterLink);
     } catch (vErr) {
       console.error('[CrawlTask] Critical error in verification phase:', vErr);
       validationResult = {

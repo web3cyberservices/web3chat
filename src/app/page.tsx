@@ -133,7 +133,7 @@ export default function Home() {
               <Terminal className="w-3 h-3" /> Audit Terminal
             </Link>
             <Badge variant="outline" className="hidden sm:flex border-primary/20 bg-primary/5 text-primary text-[10px] font-bold tracking-[0.2em] px-3 py-1 rounded-full uppercase">
-              Pan-European V21.0
+              Pan-European V22.0
             </Badge>
           </nav>
         </div>
@@ -311,7 +311,7 @@ export default function Home() {
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[9px] text-slate-500 uppercase tracking-[0.25em] font-bold">
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-4 h-4 text-primary opacity-80" />
-            <span>Humango Compliance Audit Engine • Pan-European V21.0</span>
+            <span>Humango Compliance Audit Engine • Pan-European V22.0</span>
           </div>
           <div className="flex gap-8 items-center">
             <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>

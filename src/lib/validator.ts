@@ -6,18 +6,18 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Validator V32.1 - Semantic Content Analysis (Refined for Humango)
+ * @fileOverview Validator V32.2 - Strict but Fair Auditor
  * 
- * - RULE: Content-based discovery. URL paths are strictly ignored.
  * - ROLE: Senior European Compliance Lawyer.
- * - RULE: No False Positives if content is found on any followed sub-page.
+ * - RULE: Content-based discovery. Ignore URL paths.
  * - RULE: Strict double quotes in recommendations.
  */
 
 const ValidationInputSchema = z.object({
-  html: z.string().describe("The aggregated text content extracted from all semantically identified legal pages."),
+  html: z.string().describe("The aggregated text content from identified legal pages."),
   findings: z.array(z.any()).describe("Preliminary issues found by the crawler."),
   domain: z.string().describe("The target domain being audited."),
+  hasFooterLink: z.boolean().describe("Whether any semantic legal link was found on the homepage."),
 });
 
 const ValidationOutputSchema = z.object({
@@ -41,32 +41,31 @@ const verifyIntegrityPrompt = ai.definePrompt({
   input: { schema: ValidationInputSchema },
   output: { schema: ValidationOutputSchema },
   config: { temperature: 0.1 }, 
-  prompt: `You are a Senior European Compliance Lawyer auditing a website for GDPR and statutory transparency.
+  prompt: `You are a Senior European Compliance Lawyer (GDPR Auditor). Your goal is to find REAL violations, but be FAIR.
 
-CORE MISSION: Identify real legal gaps, but DO NOT issue violations based on URL structure or custom naming conventions if the legal requirement is fulfilled.
+CONTEXT:
+Domain: {{{domain}}}
+Has Footer Link: {{{hasFooterLink}}}
 
-ANALYSIS RULES:
-1. ПРАВИЛО: ИГНОРИРУЙ URL. Если документ доступен по любому адресу (/legal, /datenschutz, /privacy) и на него есть ссылка в футере — это НЕ нарушение.
-2. ФОКУСИРУЙСЯ НА КОНТЕНТЕ: Проверяй наличие обязательной информации (Data Retention, Controller Identity) в предоставленном пуле текста.
-3. DATA RETENTION: Ищи конкретные сроки (например, "24 месяца", "2 года", "365 дней"). Если указано "столько, сколько нужно" без критериев — это нарушение (Art. 13(2)(a)).
-
-DOMAIN: {{{domain}}}
-
-HTML CONTENT POOL:
+HTML CONTENT POOL (Aggregated text from discovered legal pages):
 {{{html}}}
 
-FINDINGS TO VALIDATE:
+PRELIMINARY FINDINGS:
 {{#each findings}}
 - {{{issue_type}}}: {{{description}}}
 {{/each}}
 
-RESPONSE FORMAT:
-Все рекомендации (recommendation) ДОЛЖНЫ использовать ТОЛЬКО двойные кавычки ". 
-Пример: ACTION: INSERT THIS TEXT -> "Data Controller: info@example.com".
-НИКОГДА не используй одинарные кавычки в финальной рекомендации.`,
+INSTRUCTIONS:
+1. ANNULLING ACCESSIBILITY ERRORS: If hasFooterLink is true, the violation "MISSING LEGAL DISCLOSURES" or "Lack of accessibility" MUST be rejected. Accessibility is satisfied if a link exists, regardless of the URL path (e.g., /legal/privacy is perfectly valid).
+2. DATA RETENTION AUDIT: Analyze the HTML CONTENT POOL. Search for any mention of data storage durations.
+   - Look for terms like "24 months", "3 years", "duration of contract", "until account deletion", "365 days".
+   - If ANY timeframe or logic for storage is mentioned, the violation "DATA RETENTION TIMEFRAMES" MUST be rejected.
+3. REAL GAPS ONLY: Only verify "CRITICAL INCOMPLETENESS" if the information is TRULY missing from the provided text pool.
+4. RECOMMENDATION FORMAT: All recommendations MUST use DOUBLE QUOTES (") only. Never use single quotes.
+   Example: ACTION: INSERT THIS TEXT -> "Data Controller: info@example.com".`,
 });
 
-export async function verifyIntegrity(html: string, findings: Violation[]) {
+export async function verifyIntegrity(html: string, findings: Violation[], hasFooterLink: boolean) {
   try {
     const domain = findings[0]?.domain || "this site";
     const truncatedHtml = html.substring(0, 25000); 
@@ -74,7 +73,8 @@ export async function verifyIntegrity(html: string, findings: Violation[]) {
     const { output } = await verifyIntegrityPrompt({ 
       html: truncatedHtml, 
       findings,
-      domain
+      domain,
+      hasFooterLink
     });
     
     if (!output) throw new Error('Validator Failure');

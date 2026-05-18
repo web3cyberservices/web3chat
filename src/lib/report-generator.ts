@@ -44,26 +44,14 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
 
     const isClean = res.rows.length === 0;
     const consolidated = new Map();
-    const docExistsOnSite = res.rows.some(row => 
-      !row.issue_type.toLowerCase().includes('missing') && 
-      row.report_type === 'SaaS'
-    );
 
     res.rows.forEach(row => {
-      let finalIssueType = row.issue_type;
-      let finalDescription = row.description;
-      const isMissing = finalIssueType.toLowerCase().includes('missing');
-      if (isMissing && docExistsOnSite) {
-        finalIssueType = "CRITICAL INCOMPLETENESS";
-        finalDescription = "The document was discovered via direct scan but is legally invalid due to lack of accessibility in the footer (Violation of Art. 12 GDPR).";
-      }
-
-      const key = row.law_name || finalIssueType; 
+      const key = row.law_name || row.issue_type; 
       if (!consolidated.has(key)) {
         const urls = (row.page_url || '').split(',').map((u: string) => u.trim());
-        // Force double quotes in recommendation
-        const cleanRec = (row.recommendation || '').replace(/'/g, '"');
-        consolidated.set(key, { ...row, issue_type: finalIssueType, description: finalDescription, recommendation: cleanRec, urls: new Set(urls) });
+        // Clean double quotes in recommendations
+        const cleanRec = (row.recommendation || '').replace(/[']/g, '"');
+        consolidated.set(key, { ...row, recommendation: cleanRec, urls: new Set(urls) });
       } else {
         const item = consolidated.get(key);
         (row.page_url || '').split(',').forEach((u: string) => item.urls.add(u.trim()));
@@ -150,7 +138,7 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
                 <span class="label">POTENTIAL LIABILITY</span>
                 <div style="color:#ef4444; font-weight:700;">${DOMPurify.sanitize(v.fine_amount || "Up to €20M")}</div>
                 <span class="label">CORRECTIVE ACTION</span>
-                <div class="action-box">${DOMPurify.sanitize(v.recommendation || 'Action required.').replace(/'/g, '"')}</div>
+                <div class="action-box">${DOMPurify.sanitize(v.recommendation || 'Action required.').replace(/[']/g, '"')}</div>
               </div>
             </div>
           `).join('')}
