@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer';
 import fs from 'fs';
 
 /**
- * Professional PDF Report Generator - Unified for Web & Email
+ * Professional PDF Report Generator - Unified Design
  */
 
 const CHROME_PATHS = [
@@ -39,7 +39,7 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
   try {
     const safeDomain = domain.toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
     
-    // Filter duplicates to ensure a clean report
+    // Filter duplicates
     const uniqueMap = new Map();
     findings.forEach(f => {
       const key = f.issue_type || 'GENERAL_ISSUE';
@@ -161,11 +161,13 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-    return await page.pdf({
+    const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
       margin: { top: '0', bottom: '0', left: '0', right: '0' }
     });
+
+    return pdfBuffer;
   } catch (error) {
     console.error('[PDF Generation Error]', error);
     return null;

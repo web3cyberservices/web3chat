@@ -13,7 +13,7 @@ async function migrate() {
   const client = await pool.connect();
   try {
     console.log('==================================================');
-    console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR V37.0     ');
+    console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR V37.2     ');
     console.log('==================================================');
     
     // Users table
@@ -39,7 +39,7 @@ async function migrate() {
       ON CONFLICT (id) DO NOTHING;
     `);
 
-    // Enhanced Scan Queue for CRM
+    // Enhanced Scan Queue
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.scan_queue (
         id SERIAL PRIMARY KEY, 
@@ -59,30 +59,7 @@ async function migrate() {
       );
     `);
 
-    // Ensure all CRM columns exist (for existing tables)
-    const columns = [
-      { name: 'assigned_to', type: 'int' },
-      { name: 'manager_name', type: 'varchar(255)' },
-      { name: 'assigned_at', type: 'timestamp' },
-      { name: 'crm_status', type: "varchar(20) DEFAULT 'free'" },
-      { name: 'violations_count', type: 'int DEFAULT 0' },
-      { name: 'contacts', type: "jsonb DEFAULT '{\"emails\": [], \"phones\": [], \"other\": []}'" },
-      { name: 'auto_message_sent', type: 'boolean DEFAULT false' },
-      { name: 'auto_message_sent_at', type: 'timestamp' }
-    ];
-
-    for (const col of columns) {
-      await client.query(`
-        DO $$ 
-        BEGIN 
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='scan_queue' AND column_name='${col.name}') THEN
-            ALTER TABLE public.scan_queue ADD COLUMN ${col.name} ${col.type};
-          END IF;
-        END $$;
-      `);
-    }
-
-    // Violations table
+    // site_violations table with potential_fine
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.site_violations (
         id SERIAL PRIMARY KEY,
@@ -96,10 +73,30 @@ async function migrate() {
         law_name text,
         recommendation text,
         business_impact text,
+        potential_fine text,
         report_type varchar(20) DEFAULT 'SaaS',
         created_at timestamp DEFAULT NOW()
       );
     `);
+
+    // Ensure all columns exist
+    const violationsColumns = [
+      { name: 'potential_fine', type: 'text' },
+      { name: 'law_name', type: 'text' },
+      { name: 'recommendation', type: 'text' },
+      { name: 'business_impact', type: 'text' }
+    ];
+
+    for (const col of violationsColumns) {
+      await client.query(`
+        DO $$ 
+        BEGIN 
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='site_violations' AND column_name='${col.name}') THEN
+            ALTER TABLE public.site_violations ADD COLUMN ${col.name} ${col.type};
+          END IF;
+        END $$;
+      `);
+    }
 
     // Events table
     await client.query(`
@@ -111,7 +108,7 @@ async function migrate() {
       );
     `);
     
-    console.log('[Migration] SUCCESS: Database schema is optimized for CRM V37.0.');
+    console.log('[Migration] SUCCESS: Database schema is optimized.');
   } catch (err: any) {
     console.error('[Migration] ERROR:', err.message);
   } finally {

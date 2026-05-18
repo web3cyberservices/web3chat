@@ -12,7 +12,7 @@ const pool = new Pool({
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.beget.com',
-  port: 2525, // Port 2525 as requested for Beget stability
+  port: 2525, 
   secure: false,
   auth: {
     user: process.env.SMTP_USER,
@@ -76,58 +76,63 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     // 1. Network & Tracker Analysis
     const hasGoogleAnalytics = networkUrls.some(url => url.includes('google-analytics.com') || url.includes('analytics.google'));
     const hasFacebookPixel = networkUrls.some(url => url.includes('connect.facebook.net') || url.includes('facebook.com/tr'));
-    const hasGoogleFonts = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
+    const hasGoogleFontsDirect = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
 
     if (hasGoogleAnalytics || hasFacebookPixel) {
       finalFindings.push({
         issue_type: 'TRACKING_TRAFFIC_DETECTED',
         severity: 'critical',
-        description: 'Tracking scripts (Google/Facebook) activated before user consent.',
+        description: 'Marketing/Analytical scripts activated before user consent.',
         law_name: 'Art. 6 & 7 GDPR',
         potential_fine: FINE_GDPR,
         recommendation: 'Block analytical scripts until explicit user consent is given.'
       });
     }
 
-    if (hasGoogleFonts) {
+    if (hasGoogleFontsDirect) {
       finalFindings.push({
         issue_type: 'GOOGLE_FONTS_PRIVACY_VIOLATION',
         severity: 'high',
-        description: 'Google Fonts loaded directly from US servers, leaking user IP.',
-        law_name: 'Munich Court Ruling / GDPR',
-        potential_fine: 'Up to €250,000 per claim.',
-        recommendation: 'Self-host fonts locally on your server.'
+        description: 'Google Fonts loaded directly from US servers, leaking user IP without consent.',
+        law_name: 'Munich Regional Court Ruling',
+        potential_fine: 'Up to €250,000 per violation claim.',
+        recommendation: 'Self-host fonts locally to avoid external US server requests.'
       });
     }
 
-    // 2. Cookie Analysis
+    // 2. Cookie Analysis (Correct Puppeteer API)
     const cookies = await page.cookies();
-    const illegal = cookies.filter(c => ['_ga', '_fbp', '_gid'].some(m => c.name.toLowerCase().includes(m)));
+    const forbiddenMarkers = ['_ga', '_gid', '_fbp', '_fr', 'ads', 'metrics'];
+    const illegal = cookies.filter(c => forbiddenMarkers.some(m => c.name.toLowerCase().includes(m)));
+
     if (illegal.length > 0) {
       finalFindings.push({
         issue_type: 'COOKIE_CONSENT_VIOLATION',
         severity: 'critical',
-        description: `Found ${illegal.length} tracking cookies before consent.`,
-        law_name: 'ePrivacy Directive',
+        description: `Found ${illegal.length} non-essential cookies set before consent.`,
+        law_name: 'ePrivacy Directive & Art. 7 GDPR',
         potential_fine: FINE_GDPR,
-        recommendation: 'Ensure no non-essential cookies are set before consent.'
+        recommendation: 'Implement a strict cookie blocking mechanism until consent is granted.'
       });
     }
 
-    // 3. Document Analysis
+    // 3. Impressum & Legal Content
     const content = await page.evaluate(() => document.body.innerText.toLowerCase());
-    if (!content.includes('privacy') && !content.includes('datenschutz')) {
-      finalFindings.push({
-        issue_type: 'MISSING_PRIVACY_POLICY',
-        severity: 'critical',
-        description: 'No Privacy Policy identified on the landing page.',
-        law_name: 'Art. 13 GDPR',
-        potential_fine: FINE_GDPR,
-        recommendation: 'Add a clear link to a Privacy Policy in the footer.'
-      });
+    if (domainName.endsWith('.de') || content.includes('impressum')) {
+      const deKeywords = ['handelsregister', 'registernummer', 'ihk', 'steuer-id'];
+      if (!deKeywords.some(kw => content.includes(kw))) {
+        finalFindings.push({
+          issue_type: 'GERMAN_IMPRESSUM_INCOMPLETE',
+          severity: 'high',
+          description: 'Impressum is missing mandatory German business registration details.',
+          law_name: '§ 5 DDG (Germany)',
+          potential_fine: 'Up to €50,000 for administrative non-compliance.',
+          recommendation: 'Include your Handelsregister number and supervising IHK chamber.'
+        });
+      }
     }
 
-    // 4. Save to Database
+    // 4. Save results
     await pool.query("DELETE FROM public.site_violations WHERE domain = $1", [domainName]);
     for (const f of finalFindings) {
       await pool.query(
@@ -139,15 +144,14 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
 
     await pool.query("UPDATE public.scan_queue SET status = 'completed', violations_count = $1 WHERE id = $2", [finalFindings.length, taskId]);
 
-    // 5. Generate and Send PDF
+    // 5. Generate & Send PDF
     const pdfBuffer = await generatePdfReport(domainName, finalFindings);
     if (userEmail && pdfBuffer) {
-      console.log(`[Worker] Sending email to: ${userEmail}`);
       await transporter.sendMail({
         from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
         to: userEmail,
-        subject: `Statutory Audit Complete: ${domainName}`,
-        text: `The statutory audit for ${domainName} is complete. Found violations: ${finalFindings.length}.`,
+        subject: `Audit Complete: ${domainName}`,
+        text: `Statutory audit finished for ${domainName}. Found ${finalFindings.length} violations.`,
         attachments: [{ filename: `Humango_Audit_${domainName}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
       });
     }
