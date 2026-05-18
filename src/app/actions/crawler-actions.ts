@@ -9,16 +9,13 @@ const StartScanSchema = z.object({
   email: z.string().email()
 });
 
-/**
- * Isolated server action for starting the crawl.
- */
 export async function startCrawlAction(rawUrl: string, rawEmail: string) {
   const validation = StartScanSchema.safeParse({ url: rawUrl, email: rawEmail });
   if (!validation.success) {
     return { status: 'failed', reason: 'Invalid target domain or email address.' };
   }
 
-  let { url, email } = validation.data;
+  const { url, email } = validation.data;
   const cleanUrl = normalizeUrl(url);
   
   try {
@@ -29,8 +26,7 @@ export async function startCrawlAction(rawUrl: string, rawEmail: string) {
       message: 'Audit added to priority queue. Processing...' 
     };
   } catch (e: any) {
-    console.error('[Action Error] startCrawlAction failed:', e.message);
-    return { status: 'failed', reason: 'Internal system error while queuing audit.' };
+    return { status: 'failed', reason: 'Internal system error.' };
   }
 }
 

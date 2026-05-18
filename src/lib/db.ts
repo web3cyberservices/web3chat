@@ -15,9 +15,6 @@ function sanitize(text: string | null | undefined, fallback: string = ''): strin
   return String(text).trim().replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "");
 }
 
-/**
- * Robust URL normalization to prevent malformed domains.
- */
 export function normalizeUrl(url: string, base?: string): string {
   try {
     let target = url.trim();
@@ -51,42 +48,6 @@ export async function getTaskStatus(url: string) {
   return res.rows[0] || null;
 }
 
-export async function saveAuditResults(domain: string, url: string, violations: any[], scanType: string = 'basic') {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    // If missing core framework, we only save that to prevent contradictions
-    const filteredViolations = violations.some(v => v.type === 'MISSING_CORE_FRAMEWORK') 
-      ? violations.filter(v => v.type === 'MISSING_CORE_FRAMEWORK')
-      : violations;
-
-    for (const v of filteredViolations) {
-      await client.query(`
-        INSERT INTO site_violations (
-          domain, url, page_url, category, issue_type, severity, 
-          evidence_html, description, law_name, recommendation, 
-          scan_type, report_type, created_at, business_impact, explanation
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), $13, $14)`,
-        [
-          sanitize(domain), sanitize(url), sanitize(url), v.category || 'Privacy', 
-          v.type || v.issue_type, v.level || v.severity || 'critical', sanitize(url), 
-          sanitize(v.summary || v.description), sanitize(v.basis || v.law_name), 
-          sanitize(v.action || v.recommendation), scanType, 
-          v.report_type || 'SaaS', sanitize(v.risk || v.business_impact), sanitize(v.explanation || v.description)
-        ]
-      );
-    }
-    await client.query('COMMIT');
-    return { success: true };
-  } catch (e) {
-    await client.query('ROLLBACK');
-    return { success: false };
-  } finally {
-    client.release();
-  }
-}
-
 export async function saveBotEvent(type: string, message: string) {
   await pool.query('INSERT INTO bot_events (type, message, timestamp) VALUES ($1, $2, NOW())', [type, sanitize(message)]);
 }
@@ -116,21 +77,6 @@ export async function getViolations(limit: number = 100) {
     ORDER BY created_at DESC LIMIT $1
   `, [limit]);
   return res.rows;
-}
-
-export async function saveValidationLog(url: string, attempt: number, status: string, findings: any[], confidence: number) {
-  const domain = new URL(url).hostname;
-  await pool.query(
-    'INSERT INTO public.validation_logs (domain, url, attempt, status, findings, confidence_score, timestamp) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
-    [domain, url, attempt, status, JSON.stringify(findings), confidence]
-  );
-}
-
-export async function saveAuditLog(domain: string, statusCode: number, errorMessage: string | null) {
-  await pool.query(
-    'INSERT INTO public.audit_logs (domain, status_code, error_message, created_at) VALUES ($1, $2, $3, NOW())',
-    [domain, statusCode, errorMessage]
-  );
 }
 
 export async function testConnection() {

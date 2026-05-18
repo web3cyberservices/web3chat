@@ -11,16 +11,10 @@ const CHROME_PATHS = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 ];
 
-/**
- * PDF Generation Engine v5.1
- * - Fixed: Brand misspelling "humsango" removed.
- * - Added: Humango Limited operator identity.
- */
 export async function generatePdfReport(domain: string, providedFindings?: any[]): Promise<Buffer | null> {
   let browser: any = null;
   try {
     const safeDomain = domain.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].replace(/[^a-z0-9.]/gi, '');
-    
     let findings = providedFindings || [];
 
     if (findings.length === 0 && !providedFindings) {
@@ -31,11 +25,6 @@ export async function generatePdfReport(domain: string, providedFindings?: any[]
         ORDER BY created_at DESC
       `, [safeDomain]);
       findings = res.rows;
-    }
-
-    // Logical intercept: if missing framework, clear secondary issues
-    if (findings.some((f: any) => (f.type || f.issue_type || '').includes('MISSING_CORE_FRAMEWORK'))) {
-      findings = findings.filter((f: any) => (f.type || f.issue_type || '').includes('MISSING_CORE_FRAMEWORK'));
     }
 
     const htmlContent = `
@@ -49,13 +38,13 @@ export async function generatePdfReport(domain: string, providedFindings?: any[]
           .brand { font-size: 24px; font-weight: 900; color: #0f172a; }
           .brand span { color: #3b82f6; }
           .meta-info { text-align: right; font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-          .card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 30px; margin-bottom: 30px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+          .card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 30px; margin-bottom: 30px; background: #fff; }
           .severity { font-size: 10px; font-weight: 900; padding: 6px 12px; border-radius: 8px; text-transform: uppercase; background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
           .finding-title { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
           .recommendation-label { font-size: 11px; font-weight: 900; color: #3b82f6; text-transform: uppercase; margin-top: 25px; margin-bottom: 8px; }
-          .recommendation-box { background: #f8fafc; padding: 20px; border-radius: 12px; font-family: 'Courier New', monospace; font-size: 12px; color: #334155; border: 1px solid #f1f5f9; line-height: 1.4; }
-          .footer { position: fixed; bottom: 40px; left: 50px; right: 50px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+          .recommendation-box { background: #f8fafc; padding: 20px; border-radius: 12px; font-family: 'Courier New', monospace; font-size: 12px; color: #334155; border: 1px solid #f1f5f9; }
           .operator-info { margin-top: 60px; font-size: 10px; color: #94a3b8; line-height: 1.8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+          .footer { position: fixed; bottom: 40px; left: 50px; right: 50px; text-align: center; font-size: 10px; color: #94a3b8; }
         </style>
       </head>
       <body>

@@ -6,7 +6,6 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    // Return stable mock stats to ensure frontend works while engine is processing
     return NextResponse.json({
       pagesScanned: 1240,
       issuesFound: 86,
