@@ -11,7 +11,7 @@ import { performance } from 'perf_hooks';
 const urlSchema = z.string().url();
 
 /**
- * The Loop Architecture (V33.0) - Semantic Deep Analysis & Failback Discovery
+ * The Loop Architecture (V34.0) - Semantic Deep Analysis & Failback Discovery
  */
 export async function runCrawlTask(seedUrl: string, iteration: number = 1): Promise<CrawlResult> {
   const startTime = performance.now();
@@ -49,13 +49,13 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     // PHASE 2: SEMANTIC DEEP DIVE (FOLLOWING LEGAL CANDIDATES)
     const legalLinks = { ...initialParsed.meta.legal_links };
     
-    // SMART FALLBACK: If semantic analysis missed the link, try common paths explicitly
+    // SMART FALLBACK: If initial search failed, try forced common paths
     const origin = new URL(initialNormalized).origin;
     if (!legalLinks.privacy) {
-      // Check standard fallback endpoints
-      const fallbacks = [`${origin}/legal/privacy`, `${origin}/privacy`, `${origin}/datenschutz`];
+      const fallbacks = [`${origin}/legal/privacy`, `${origin}/privacy`, `${origin}/privacy-policy`, `${origin}/datenschutz`];
       for (const fb of fallbacks) {
         try {
+          // Check header first for speed
           const check = await fetch(fb, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
           if (check.ok) {
             legalLinks.privacy = fb;
@@ -66,11 +66,10 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     }
 
     const candidates = Object.entries(legalLinks).filter(([_, href]) => !!href);
-    const hasAnyFooterLink = candidates.length > 0;
-
     let aggregatedLegalContent = scrape.html; 
+    let documentsFound = candidates.length > 0;
 
-    if (hasAnyFooterLink) {
+    if (documentsFound) {
       await saveBotEvent('SUCCESS', `Semantic Discovery: Found legal paths. Fetching content...`);
       
       for (const [type, href] of candidates) {
@@ -79,20 +78,19 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
 
           try {
             const deepScrape = await scrapeUrl(deepUrl);
-            if (deepScrape.status === 'success') {
+            if (deepScrape.status === 'success' && deepScrape.html.length > 200) {
                 aggregatedLegalContent += `\n\n--- DOCUMENT: ${type.toUpperCase()} AT ${deepUrl} ---\n\n` + deepScrape.html;
             }
           } catch (e) {}
       }
     }
 
-    // PHASE 3: AI VERIFICATION
-    // If we have no content from discovered documents, we intercept here to avoid AI hallucinations
+    // PHASE 3: AI VERIFICATION & INTERCEPTION
     let verifiedFindings: Violation[] = [];
     let validationResult: any;
 
-    if (aggregatedLegalContent.trim().length < 500 && !hasAnyFooterLink) {
-       // INTERCEPT: Document is clearly missing. No AI call needed.
+    // Hard Intercept: If content is missing even after fallback, skip AI content check
+    if (aggregatedLegalContent.trim().length < 500 && !documentsFound) {
        verifiedFindings = [{
          category: 'Privacy',
          report_type: 'SaaS',
@@ -110,7 +108,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
        }];
        validationResult = { integrity_status: 'incomplete', overall_confidence: 1.0 };
     } else {
-       validationResult = await verifyIntegrity(aggregatedLegalContent, initialParsed.violations, hasAnyFooterLink);
+       validationResult = await verifyIntegrity(aggregatedLegalContent, initialParsed.violations, documentsFound);
        verifiedFindings = validationResult.validated_findings;
     }
     

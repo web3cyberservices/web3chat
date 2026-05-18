@@ -71,7 +71,7 @@ export async function getTaskStatus(url: string) {
 export async function saveAuditResults(domain: string, url: string, violations: Violation[], scanType: ScanType = 'basic') {
   if (!violations || violations.length === 0) return { success: true };
   
-  // ЗАЩИТНЫЙ ФИЛЬТР: Если есть критическая ошибка отсутствия документа, удаляем другие ошибки
+  // LOGICAL INTERCEPT: If core doc is missing, strip hallucinations about content
   const hasMissingDoc = violations.some(v => 
     v.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
     v.issue_type?.toUpperCase().includes('MISSING LEGAL DISCLOSURES')

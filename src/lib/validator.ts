@@ -6,7 +6,7 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Validator V34.0 - Strict Non-Hallucination Logic
+ * @fileOverview Validator V35.0 - Strict Logic & Clean Formatting
  */
 
 const ValidationInputSchema = z.object({
@@ -37,36 +37,40 @@ const verifyIntegrityPrompt = ai.definePrompt({
   input: { schema: ValidationInputSchema },
   output: { schema: ValidationOutputSchema },
   config: { temperature: 0.1 }, 
-  prompt: `You are a professional and honest European Compliance Auditor. Your task is to analyze the provided legal text for GDPR compliance.
+  prompt: `You are a professional and honest European Compliance Auditor auditing the domain {{{domain}}}.
 
 CRITICAL RULES:
-1. IF THE TEXT IS EMPTY OR MINIMAL:
+1. IF THE CONTENT IS EMPTY OR INSIGNIFICANT:
    - Generate EXACTLY ONE violation: "MISSING CORE FRAMEWORK".
-   - YOU ARE STRICTLY FORBIDDEN from generating "CRITICAL GAP: DATA RETENTION TIMEFRAMES" or any other content-based errors if the text is missing. You cannot check timeframes in a void.
+   - DO NOT generate any content-specific errors like "DATA RETENTION" if you haven't seen the text.
 
-2. IF THE TEXT IS PRESENT:
-   - IGNORE THE URL. If rules exist in the text, the "MISSING CORE FRAMEWORK" violation is voided.
-   - SCAN FOR DATA RETENTION: Look for timeframes ("24 months", "3 years", "until deletion", "for the duration of service"). If any timeframe logic is found, DO NOT report a retention gap.
+2. IF CONTENT IS PRESENT:
+   - SEARCH FOR DATA RETENTION: Look for specific numbers followed by time units ("24 months", "3 years", "12 months") or phrases like "duration of contract", "as long as necessary", "until account deletion". If any logic for storage duration is found, NO violation for retention should be issued.
 
-3. RECOMMENDATIONS: All recommendations MUST use DOUBLE QUOTES (") only. Single quotes are forbidden.
-4. HONESTY: Only report a gap if it truly exists. If the site is compliant, return an empty validated_findings array.`,
+3. RECOMMENDATION FORMAT: 
+   - ALWAYS use DOUBLE QUOTES (") for text inserts. Never use single quotes.
+   - Example: ACTION: INSERT THIS TEXT -> "Data is stored for 24 months."
+
+4. NO FALSE POSITIVES:
+   - If the site is compliant, return an empty array [].
+   - If you find the document, the "MISSING CORE FRAMEWORK" violation MUST be voided.`,
 });
 
 export async function verifyIntegrity(html: string, findings: Violation[], hasFooterLink: boolean) {
   try {
     const domain = findings[0]?.domain || "this site";
-    const truncatedHtml = (html || "").substring(0, 25000); 
+    const truncatedHtml = (html || "").substring(0, 30000); 
 
-    // КРИТИЧЕСКИЙ ПЕРЕХВАТ: Если контента нет, ИИ не должен галлюцинировать про сроки
-    if (truncatedHtml.trim().length < 300) {
+    // Hard Intercept: AI should not hallucinate if content is clearly missing
+    if (truncatedHtml.trim().length < 400) {
       return {
         validated_findings: [{
           issue_type: 'MISSING CORE FRAMEWORK',
           confidence_score: 1.0,
-          evidence_quote: "No semantic legal content identified during scan.",
+          evidence_quote: "Zero or insufficient legal content identified.",
           is_hallucination: false,
           verification_status: 'verified' as const,
-          business_impact: "Critical risk: Mandatory legal disclosures are missing.",
+          business_impact: "Critical risk: Site lacks mandatory transparency signals.",
           recommendation: 'ACTION: INSERT THIS HTML -> "<footer class=\"legal-footer\"><a href=\"/privacy\">Privacy Policy</a></footer>"',
           law_name: "Art. 12 & 13 GDPR",
           potential_fine: "Up to €20,000,000 or 4% of annual turnover."
@@ -85,7 +89,7 @@ export async function verifyIntegrity(html: string, findings: Violation[], hasFo
     
     if (!output) throw new Error('Validator Failure');
     
-    // ПРОВЕРКА НА ПРОТИВОРЕЧИЕ: Если есть критическая ошибка отсутствия, удаляем все остальные
+    // Filter out hallucinations: If we found missing doc, don't report details about it
     const containsMissingDoc = output.validated_findings.some(f => 
       f.issue_type.toUpperCase().includes('MISSING CORE FRAMEWORK')
     );
@@ -95,6 +99,12 @@ export async function verifyIntegrity(html: string, findings: Violation[], hasFo
     if (containsMissingDoc) {
       activeFindings = activeFindings.filter(f => f.issue_type.toUpperCase().includes('MISSING CORE FRAMEWORK'));
     }
+
+    // Secondary normalization: Ensure recommendations are quote-safe
+    activeFindings = activeFindings.map(f => ({
+      ...f,
+      recommendation: f.recommendation.replace(/[']/g, '"')
+    }));
 
     return {
       ...output,

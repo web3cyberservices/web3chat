@@ -42,7 +42,7 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
       return null;
     }
 
-    // ЛОГИЧЕСКИЙ ПРЕДОХРАНИТЕЛЬ: Если документа нет, удаляем все остальные ошибки-галлюцинации
+    // LOGICAL SAFEGUARD: If the core framework is missing, discard all other content-based hallucinations
     let rawFindings = res.rows;
     const hasMissingFramework = rawFindings.some(r => 
       r.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
@@ -50,7 +50,6 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
     );
 
     if (hasMissingFramework) {
-      // Оставляем только критическую ошибку отсутствия документа
       rawFindings = rawFindings.filter(r => 
         r.issue_type?.toUpperCase().includes('MISSING CORE FRAMEWORK') || 
         r.issue_type?.toUpperCase().includes('MISSING LEGAL DISCLOSURES')
@@ -63,7 +62,7 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
       if (!consolidated.has(key)) {
         const urls = (row.page_url || '').split(',').map((u: string) => u.trim());
         
-        // СТАНДАРТИЗАЦИЯ КАВЫЧЕК: Принудительно заменяем одинарные на двойные
+        // NORMALIZE QUOTES: Replace single quotes with double quotes
         let cleanRec = (row.recommendation || '').replace(/[']/g, '"');
         if (!cleanRec.startsWith('ACTION:')) {
             cleanRec = `ACTION: INSERT THIS TEXT -> "${cleanRec}"`;
@@ -184,7 +183,10 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
     const pdfBuffer = await page.pdf({ 
       format: 'A4', 
       printBackground: true,
-      margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' }
+      displayHeaderFooter: true,
+      headerTemplate: '<div></div>',
+      footerTemplate: '<div style="font-size:8px; width:100%; text-align:center; color:#94a3b8;">bot.humango.app | Statutory Compliance Verified</div>',
+      margin: { top: '15mm', bottom: '15mm', left: '10mm', right: '10mm' }
     });
 
     return pdfBuffer;
