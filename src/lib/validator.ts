@@ -6,11 +6,11 @@ import { z } from 'genkit';
 import { Violation } from '@/types';
 
 /**
- * @fileOverview Validator V32.2 - Strict but Fair Auditor
+ * @fileOverview Validator V32.5 - Semantic Logic Fix
  * 
  * - ROLE: Senior European Compliance Lawyer.
- * - RULE: Content-based discovery. Ignore URL paths.
- * - RULE: Strict double quotes in recommendations.
+ * - RULE: Stop analysis if no document content is present.
+ * - RULE: Unified double quotes in all recommendations.
  */
 
 const ValidationInputSchema = z.object({
@@ -56,7 +56,7 @@ PRELIMINARY FINDINGS:
 {{/each}}
 
 INSTRUCTIONS:
-1. ANNULLING ACCESSIBILITY ERRORS: If hasFooterLink is true, the violation "MISSING LEGAL DISCLOSURES" or "Lack of accessibility" MUST be rejected. Accessibility is satisfied if a link exists, regardless of the URL path (e.g., /legal/privacy is perfectly valid).
+1. ANNULLING ACCESSIBILITY ERRORS: If hasFooterLink is true, the violation "MISSING LEGAL DISCLOSURES" or "Lack of accessibility" MUST be rejected. Accessibility is satisfied if a link exists, regardless of the URL path (e.g., /legal/privacy is valid).
 2. DATA RETENTION AUDIT: Analyze the HTML CONTENT POOL. Search for any mention of data storage durations.
    - Look for terms like "24 months", "3 years", "duration of contract", "until account deletion", "365 days".
    - If ANY timeframe or logic for storage is mentioned, the violation "DATA RETENTION TIMEFRAMES" MUST be rejected.
@@ -68,7 +68,27 @@ INSTRUCTIONS:
 export async function verifyIntegrity(html: string, findings: Violation[], hasFooterLink: boolean) {
   try {
     const domain = findings[0]?.domain || "this site";
-    const truncatedHtml = html.substring(0, 25000); 
+    const truncatedHtml = (html || "").substring(0, 25000); 
+
+    // CRITICAL LOGIC: If no content was found at all, don't hallucinate data retention errors.
+    // Just return the missing core framework error.
+    if (truncatedHtml.trim().length < 200) {
+      return {
+        validated_findings: [{
+          issue_type: 'MISSING CORE FRAMEWORK',
+          confidence_score: 1.0,
+          evidence_quote: "No semantic legal content identified during scan.",
+          is_hallucination: false,
+          verification_status: 'verified' as const,
+          business_impact: "Critical risk: Mandatory legal disclosures are missing from the site architecture.",
+          recommendation: `ACTION: INSERT THIS HTML -> "<footer class=\\"legal-footer\\"><a href=\\"/privacy\\">Privacy Policy</a></footer>"`,
+          law_name: "Art. 12 & 13 GDPR",
+          potential_fine: "Up to €20,000,000 or 4% of annual turnover."
+        }],
+        overall_confidence: 1.0,
+        integrity_status: 'incomplete' as const
+      };
+    }
     
     const { output } = await verifyIntegrityPrompt({ 
       html: truncatedHtml, 

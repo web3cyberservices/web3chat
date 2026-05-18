@@ -49,7 +49,7 @@ export async function generatePdfReport(domain: string): Promise<Buffer | null> 
       const key = row.law_name || row.issue_type; 
       if (!consolidated.has(key)) {
         const urls = (row.page_url || '').split(',').map((u: string) => u.trim());
-        // Clean double quotes in recommendations
+        // Force double quotes and fix potential typo in meta-content
         const cleanRec = (row.recommendation || '').replace(/[']/g, '"');
         consolidated.set(key, { ...row, recommendation: cleanRec, urls: new Set(urls) });
       } else {

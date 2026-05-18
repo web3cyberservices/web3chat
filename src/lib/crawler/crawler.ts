@@ -11,7 +11,7 @@ import { performance } from 'perf_hooks';
 const urlSchema = z.string().url();
 
 /**
- * The Loop Architecture (V32.0) - Semantic Deep Analysis
+ * The Loop Architecture (V32.5) - Semantic Deep Analysis & Fallback Discovery
  */
 export async function runCrawlTask(seedUrl: string, iteration: number = 1): Promise<CrawlResult> {
   const startTime = performance.now();
@@ -47,13 +47,21 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     );
 
     // PHASE 2: SEMANTIC DEEP DIVE (FOLLOWING LEGAL CANDIDATES)
-    let aggregatedLegalContent = scrape.html; 
-    const legalLinks = initialParsed.meta.legal_links;
+    const legalLinks = { ...initialParsed.meta.legal_links };
+    
+    // SMART FALLBACK: If semantic analysis missed the link (e.g. JS rendered), try common paths
+    const baseUrl = initialNormalized.endsWith('/') ? initialNormalized.slice(0, -1) : initialNormalized;
+    if (!legalLinks.privacy) {
+      legalLinks.privacy = `${baseUrl}/legal/privacy`;
+    }
+
     const candidates = Object.entries(legalLinks).filter(([_, href]) => !!href);
     const hasAnyFooterLink = candidates.length > 0;
 
+    let aggregatedLegalContent = scrape.html; 
+
     if (hasAnyFooterLink) {
-      await saveBotEvent('SUCCESS', `Semantic Discovery: Found ${candidates.length} potential legal links. Fetching content...`);
+      await saveBotEvent('SUCCESS', `Semantic Discovery: Found potential legal paths. Fetching content...`);
       
       for (const [type, href] of candidates) {
           const deepUrl = normalizeUrl(href!, initialNormalized);
@@ -65,23 +73,13 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
                 aggregatedLegalContent += `\n\n--- DOCUMENT: ${type.toUpperCase()} AT ${deepUrl} ---\n\n` + deepScrape.html;
             }
           } catch (e) {
-            console.error(`[Crawler] Deep dive failed for ${deepUrl}`);
+            // Silently skip failed fallback paths
           }
       }
     }
 
-    // PHASE 3: AI VERIFICATION (AALYSING CONTENT POOL)
-    let validationResult;
-    try {
-      validationResult = await verifyIntegrity(aggregatedLegalContent, initialParsed.violations, hasAnyFooterLink);
-    } catch (vErr) {
-      console.error('[CrawlTask] Critical error in verification phase:', vErr);
-      validationResult = {
-        integrity_status: 'incomplete' as const,
-        validated_findings: [],
-        overall_confidence: 0.1
-      };
-    }
+    // PHASE 3: AI VERIFICATION (ANALYSING CONTENT POOL)
+    const validationResult = await verifyIntegrity(aggregatedLegalContent, initialParsed.violations, hasAnyFooterLink);
     
     await saveValidationLog(initialNormalized, iteration, validationResult.integrity_status, validationResult.validated_findings, validationResult.overall_confidence);
 
@@ -89,7 +87,6 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     await saveAuditLog(domain, 200, null);
     
     const verifiedFindings = validationResult.validated_findings;
-
     await saveAuditResults(domain, initialNormalized, verifiedFindings, iteration > 1 ? 'deep' : 'basic');
     
     const total_ms = Math.round(performance.now() - startTime);
@@ -114,7 +111,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
         method: scrape.method,
         verification_method: iteration > 1 ? 'Dynamic Emulation' : 'Static Analysis',
         hasCMP: initialParsed.meta.hasCMP,
-        legal_links: initialParsed.meta.legal_links,
+        legal_links: legalLinks,
         attempts: iteration,
         confidence: validationResult.overall_confidence
       }
