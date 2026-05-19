@@ -64,6 +64,11 @@ export default function ManagerDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const handleLogout = async () => {
+    await logoutAction();
+    router.push('/login');
+  };
+
   const handleTakeTask = async (taskId: number) => {
     setProcessingId(taskId.toString());
     try {
@@ -77,7 +82,10 @@ export default function ManagerDashboard() {
   const confirmStatusUpdate = async () => {
     if (!pendingStatusChange) return;
     const price = parseFloat(closingPrice);
-    if (isNaN(price) || price <= 0) { toast({ variant: "destructive", title: "Ошибка", description: "Укажите сумму сделки" }); return; }
+    if (isNaN(price) || price <= 0) { 
+      toast({ variant: "destructive", title: "Ошибка", description: "Укажите сумму сделки" }); 
+      return; 
+    }
     try {
         const res = await updateTaskStatusAction(pendingStatusChange.id, pendingStatusChange.status, price);
         if (res.success) {
@@ -101,6 +109,33 @@ export default function ManagerDashboard() {
       const res = await updateTaskStatusAction(taskId, newStatus);
       if (res.success) { toast({ title: "Статус обновлен" }); fetchData(); }
     } catch (e: any) { toast({ variant: "destructive", title: "Ошибка" }); }
+  };
+
+  const handleSendEmail = async () => {
+    if (!selectedTask || !selectedTask.extracted_emails?.[0]?.value) {
+      toast({ variant: "destructive", title: "Ошибка", description: "Email клиента не найден" });
+      return;
+    }
+    setIsSendingEmail(true);
+    try {
+      const res = await sendAuditEmailAction(
+        selectedTask.id, 
+        session.email, 
+        selectedTask.extracted_emails[0].value, 
+        emailBody
+      );
+      if (res.success) {
+        toast({ title: "Успех", description: "Письмо отправлено клиенту" });
+        setIsEmailModalOpen(false);
+        fetchData();
+      } else {
+        toast({ variant: "destructive", title: "Ошибка отправки", description: res.error });
+      }
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Ошибка", description: e.message });
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   const findings = useMemo(() => {
@@ -129,7 +164,6 @@ export default function ManagerDashboard() {
       </header>
 
       <main className="flex-1 p-8 space-y-12 max-w-7xl mx-auto w-full">
-        {/* PERSONAL STATS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
            <Card className="bg-white/[0.03] border-white/10">
              <CardContent className="pt-6 flex items-center gap-4">
@@ -209,12 +243,10 @@ export default function ManagerDashboard() {
         </Tabs>
       </main>
 
-      {/* LEAD CARD DIALOG */}
       <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
         <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-5xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
           <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-            {/* LEFT: Findings */}
-            <div className="w-full md:w-1/3 border-r border-white/5 p-8 space-y-6 bg-white/[0.01] overflow-y-auto scrollbar-hide">
+            <div className="w-full md:w-1/3 border-r border-white/5 p-8 space-y-6 bg-white/[0.01] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold truncate">{selectedTask?.url?.replace(/^https?:\/\//, '')}</DialogTitle>
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -243,7 +275,7 @@ export default function ManagerDashboard() {
                   {findings.map((f: any, i: number) => (
                     <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2">
                       <div className="flex items-center gap-2"><ShieldAlert className="w-3 h-3 text-rose-500" /><span className="text-[10px] font-bold text-rose-400 uppercase">{f.type}</span></div>
-                      <p className="text-[11px] text-slate-300">{f.summary || f.description}</p>
+                      <p className="text-[11px] text-slate-300">{f.description || f.summary}</p>
                       <p className="text-[9px] text-rose-400 font-bold">Штраф: {f.liability}</p>
                     </div>
                   ))}
@@ -251,8 +283,7 @@ export default function ManagerDashboard() {
               </div>
             </div>
 
-            {/* RIGHT: Contacts */}
-            <div className="flex-1 p-8 space-y-8 bg-[#020617] overflow-y-auto scrollbar-hide">
+            <div className="flex-1 p-8 space-y-8 bg-[#020617] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <Button variant="outline" className="h-20 flex-col gap-2 border-white/10" asChild>
                   <a href={`/api/admin/report-pdf?domain=${selectedTask?.url}`} target="_blank"><Download className="w-6 h-6 text-emerald-500" /><span className="text-[10px] font-bold uppercase">СКАЧАТЬ ОТЧЕТ</span></a>
@@ -266,12 +297,24 @@ export default function ManagerDashboard() {
                 <div>
                   <h3 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-400"><UserCheck className="w-4 h-4" /> Контакты (Extract)</h3>
                   <div className="space-y-3">
-                    {selectedTask?.extracted_emails?.map((e: any, i: number) => (
+                    {selectedTask?.extracted_emails?.length > 0 ? selectedTask.extracted_emails.map((e: any, i: number) => (
                       <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
                         <div className="flex justify-between items-center"><span className="text-sm font-mono">{e.value}</span><Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => navigator.clipboard.writeText(e.value)}><Copy className="w-3 h-3 mr-1" /> Copy</Button></div>
                         {e.context && <p className="text-[10px] text-slate-500 italic bg-black/20 p-2 rounded">...{e.context}...</p>}
                       </div>
-                    ))}
+                    )) : <p className="text-xs text-slate-600 italic">Emails not found</p>}
+
+                    {selectedTask?.extracted_phones?.length > 0 && (
+                      <div className="pt-4 space-y-3">
+                        <h4 className="text-[10px] font-bold text-slate-500 uppercase">Телефоны</h4>
+                        {selectedTask.extracted_phones.map((p: any, i: number) => (
+                           <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
+                             <div className="flex justify-between items-center"><span className="text-sm font-mono">{p.value}</span></div>
+                             {p.context && <p className="text-[10px] text-slate-500 italic bg-black/20 p-2 rounded">...{p.context}...</p>}
+                           </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -280,7 +323,31 @@ export default function ManagerDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* CLOSING PRICE */}
+      <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
+        <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-2xl p-8 max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Mail className="w-5 h-5 text-primary" /> Отправка отчета</DialogTitle></DialogHeader>
+          <div className="space-y-6 pt-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Кому</label>
+              <Input readOnly value={selectedTask?.extracted_emails?.[0]?.value || ''} className="bg-white/5 border-white/10" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Сообщение</label>
+              <Textarea 
+                rows={8} 
+                className="bg-white/5 border-white/10"
+                value={emailBody || `Hello,\n\nOur compliance engine has identified potential GDPR liabilities on ${selectedTask?.url}. Please find the attached detailed audit report.\n\nBest regards,\nHumango Team`}
+                onChange={(e) => setEmailBody(e.target.value)}
+              />
+            </div>
+            <Button className="w-full bg-primary font-bold h-12" onClick={handleSendEmail} disabled={isSendingEmail}>
+              {isSendingEmail ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
+              Отправить аудит
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showClosingPriceDialog} onOpenChange={setShowClosingPriceDialog}>
         <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-md p-8">
             <DialogHeader><DialogTitle className="flex items-center gap-2"><DollarSign className="w-5 h-5 text-emerald-500" /> Фиксация сделки</DialogTitle></DialogHeader>

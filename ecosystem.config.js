@@ -3,7 +3,8 @@ module.exports = {
   apps: [
     {
       name: 'humango-app',
-      script: '.next/standalone/server.js',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start',
       cwd: '/var/www/bot.humango.app',
       env: {
         NODE_ENV: 'production',

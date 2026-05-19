@@ -42,11 +42,11 @@ const USER_AGENTS = [
 const THIRD_PARTY_DOMAINS = [
   'google.com', 'facebook.com', 'twitter.com', 'linkedin.com', 'instagram.com', 
   'sentry.io', 'segment.com', 'intercom.io', 'crisp.chat', 'zendesk.com', 'drift.com',
-  'hubspot.com', 'salesforce.com', 'shopify.com', 'wordpress.org', 'gravatar.com'
+  'hubspot.com', 'salesforce.com', 'shopify.com', 'wordpress.org', 'gravatar.com', 'meta.com'
 ];
 
-const LEGAL_MARKERS = ['privacy', 'policy', 'terms', 'gdpr', 'datenschutz', 'personal data', 'information we collect', 'cookies', 'legal notice', 'impressum'];
-const ENTERPRISE_MARKERS = ['enterprise', 'investors', 'shareholders', 'worldwide offices', 'global presence', 'fortune 500', 'bambora', 'hubspot'];
+const LEGAL_MARKERS = ['privacy', 'policy', 'terms', 'gdpr', 'datenschutz', 'personal data', 'cookies', 'legal notice', 'impressum'];
+const ENTERPRISE_MARKERS = ['enterprise', 'investors', 'shareholders', 'fortune 500', 'bambora', 'hubspot', 'salesforce'];
 
 async function getExecutablePath() {
   for (const p of CHROME_PATHS) {
@@ -64,7 +64,6 @@ async function scrapeContactsFromPage(page: puppeteer.Page) {
     const getContext = (match: string, fullText: string) => {
       const idx = fullText.indexOf(match);
       if (idx === -1) return '';
-      // Grab roughly 2 sentences before and after
       const start = Math.max(0, idx - 150);
       const end = Math.min(fullText.length, idx + match.length + 150);
       return fullText.substring(start, end).replace(/\s+/g, ' ').trim();
@@ -121,16 +120,13 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     if (!cleanUrl.startsWith('http')) cleanUrl = `https://${cleanUrl}`;
     const urlObj = new URL(cleanUrl);
     const domainName = urlObj.hostname;
-    const countryCode = domainName.split('.').pop()?.toUpperCase() || 'EU';
 
     await page.goto(urlObj.origin, { waitUntil: 'networkidle2', timeout: 35000 });
     
-    // Scrape Contacts from Home + Context
     const initialContacts = await scrapeContactsFromPage(page);
     initialContacts.emails.forEach(e => allExtractedEmails.set(e.value, e.context));
     initialContacts.phones.forEach(p => allExtractedPhones.set(p.value, p.context));
 
-    // Deep Scrape Contacts
     for (const link of initialContacts.deepLinks.slice(0, 2)) {
       try {
         await page.goto(link, { waitUntil: 'networkidle2', timeout: 20000 });
@@ -142,12 +138,10 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
 
     const pageText = await page.evaluate(() => document.body.innerText.toLowerCase());
     
-    // Enterprise Detection
     if (ENTERPRISE_MARKERS.some(m => pageText.includes(m) || domainName.includes(m))) {
       leadScore -= 50;
     }
 
-    // 1. LEGAL DOCUMENT VALIDATION (Hard Check)
     const markerMatchCount = LEGAL_MARKERS.filter(m => pageText.includes(m)).length;
     let legalText = (pageText.length > 300 && markerMatchCount >= 2) ? pageText : '';
 
@@ -162,8 +156,8 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         recommendation: 'ACTION: Create a dedicated /privacy page and link it in the footer.'
       });
     } else {
-      // 2. MISSING LEGAL BASES
-      const basisKeywords = ['legal basis', 'article 6', 'legitimate interest', 'performance of a contract', 'consent', 'rechtsgrundlage', 'berechtigtes interesse'];
+      // 1. MISSING LEGAL BASES
+      const basisKeywords = ['legal basis', 'article 6', 'legitimate interest', 'performance of a contract', 'consent', 'rechtsgrundlage', 'berechtigtes interesse', 'vertragserfüllung'];
       if (!basisKeywords.some(kw => legalText.includes(kw))) {
         leadScore += 25;
         finalFindings.push({
@@ -176,9 +170,9 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         });
       }
 
-      // 3. MISCLASSIFIED PERSONAL DATA
+      // 2. MISCLASSIFIED PERSONAL DATA
       const ipRegex = /ip address(es)? (are|is) not personal/i;
-      if (ipRegex.test(legalText) || legalText.includes('ip address is not personal')) {
+      if (ipRegex.test(legalText)) {
         leadScore += 40;
         finalFindings.push({
           type: 'MISCLASSIFIED_PERSONAL_DATA',
@@ -190,8 +184,8 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         });
       }
 
-      // 4. VAGUE RETENTION
-      const vaguePhrases = ['as long as', 'indefinitely', 'until you request', 'solange sie'];
+      // 3. VAGUE RETENTION
+      const vaguePhrases = ['as long as', 'indefinitely', 'until you request', 'solange sie', 'unbestimmte zeit'];
       if (vaguePhrases.some(v => legalText.includes(v))) {
         leadScore += 15;
         finalFindings.push({
@@ -204,7 +198,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         });
       }
 
-      // 5. MISSING DPO
+      // 4. MISSING DPO
       const dpoKeywords = ['dpo', 'data protection officer', 'datenschutzbeauftragter'];
       if (!dpoKeywords.some(kw => legalText.includes(kw))) {
         leadScore += 10;
@@ -218,47 +212,18 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         });
       }
 
-      // 6. INTERNATIONAL TRANSFERS
+      // 5. MISSING INTERNATIONAL TRANSFERS
       const usTrackers = networkUrls.some(u => u.includes('google') || u.includes('facebook') || u.includes('meta'));
-      const transferMechanisms = ['standard contractual clauses', 'scc', 'adequacy decision', 'us data privacy framework'];
+      const transferMechanisms = ['standard contractual clauses', 'scc', 'adequacy decision', 'chapter v', 'standardvertragsklauseln', 'us data privacy framework'];
       if (usTrackers && !transferMechanisms.some(kw => legalText.includes(kw))) {
         leadScore += 30;
         finalFindings.push({
           type: 'MISSING_INTERNATIONAL_TRANSFERS',
           basis: 'Schrems II / Chapter V',
           summary: 'Missing US data transfer declarations.',
-          description: 'US-based services are active, but no transfer safeguards (SCCs) are declared.',
+          description: 'US-based services (Google/Meta) are active, but no transfer safeguards (SCCs) are declared.',
           liability: 'Suspension of data flows.',
           recommendation: 'ACTION: Add declarations for SCCs and Data Privacy Framework.'
-        });
-      }
-
-      // 7. FINANCIAL DATA
-      const financeKeywords = ['credit card', 'payment', 'billing', 'transaction', 'wallet', 'checkout'];
-      const securityKeywords = ['stripe', 'paypal', 'pci-dss', 'secure gateway'];
-      if (financeKeywords.some(kw => legalText.includes(kw)) && !securityKeywords.some(skw => legalText.includes(skw))) {
-        leadScore += 35;
-        finalFindings.push({
-          type: 'UNSECURED_FINANCIAL_DECLARATION',
-          basis: 'Art. 32 GDPR',
-          summary: 'Unsecured financial processing declaration.',
-          description: 'Payment terms found without mandatory security standards mention.',
-          liability: 'Critical breach risk.',
-          recommendation: 'ACTION: Mention PCI-DSS compliance and encrypted gateways.'
-        });
-      }
-
-      // 8. DSAR RIGHTS
-      const rightsKeywords = ['withdraw', 'right to access', 'erasure', 'right to be forgotten', 'delete account'];
-      if (!rightsKeywords.some(kw => legalText.includes(kw))) {
-        leadScore += 25;
-        finalFindings.push({
-          type: 'MISSING_GDPR_RIGHTS',
-          basis: 'Art. 15-21 GDPR',
-          summary: 'Missing explicit user rights disclosure.',
-          description: 'The policy fails to inform users of their rights to access, erase, and object.',
-          liability: 'Mandatory violation.',
-          recommendation: 'ACTION: Add a "User Rights" section covering Access, Erasure, and Rectification.'
         });
       }
     }

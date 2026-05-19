@@ -108,7 +108,7 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
     `;
 
     const executablePath = await getExecutablePath();
-    browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
     return await page.pdf({ format: 'A4', printBackground: true });
