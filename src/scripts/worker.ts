@@ -164,6 +164,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     const isEnterprise = ENTERPRISE_MARKERS.some(m => pageText.includes(m));
     if (isEnterprise) leadScore -= 50;
 
+    // --- BLOCK 1: NETWORK & COOKIES ---
     const hasGoogleFonts = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
     if (hasGoogleFonts) {
       leadScore += 5;
@@ -192,8 +193,11 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       });
     }
 
-    const markerCount = LEGAL_MARKERS.filter(m => pageText.includes(m.toLowerCase())).length;
-    if (pageText.length < 500 || markerCount < 2) {
+    // --- BLOCK 2: LEGAL DOCUMENT VALIDATION ---
+    const markerMatchCount = LEGAL_MARKERS.filter(m => pageText.includes(m.toLowerCase())).length;
+    let legalText = (pageText.length > 500 && markerMatchCount >= 2) ? pageText : '';
+
+    if (!legalText) {
       leadScore += 100;
       finalFindings.push({
         type: 'MISSING_CORE_FRAMEWORK',
@@ -204,6 +208,123 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         action: 'Create a dedicated /privacy page.',
         country: countryCode
       });
+    } else {
+      // --- BLOCK 3: ADVANCED TEXT ANALYSIS ---
+      
+      // 3.1: MISSING LEGAL BASES (Art. 6 GDPR)
+      const basisKeywords = ['legal basis', 'article 6', 'legitimate interest', 'performance of a contract', 'consent', 'rechtsgrundlage', 'berechtigtes interesse', 'vertragserfüllung'];
+      if (!basisKeywords.some(kw => legalText.includes(kw))) {
+        leadScore += 25;
+        finalFindings.push({
+          type: 'MISSING_LEGAL_BASES',
+          basis: 'Art. 6 GDPR',
+          summary: 'Absence of explicit legal bases for data processing.',
+          risk: 'Processing is legally unauthorized without defined bases.',
+          liability: 'Up to €20,000,000.',
+          action: 'Explicitly state legal bases (e.g., Legitimate Interest) for each processing activity.',
+          country: countryCode
+        });
+      }
+
+      // 3.2: MISCLASSIFIED PERSONAL DATA
+      const ipRegex1 = /ip address(es)? (are|is) not personal/i;
+      const ipRegex2 = /not personal data/i;
+      const ipIdx = legalText.indexOf('ip');
+      let foundIpMisclassification = ipRegex1.test(legalText);
+      if (!foundIpMisclassification && ipIdx !== -1) {
+        const snippet = legalText.substring(Math.max(0, ipIdx - 50), Math.min(legalText.length, ipIdx + 50));
+        if (ipRegex2.test(snippet)) foundIpMisclassification = true;
+      }
+      
+      if (foundIpMisclassification) {
+        leadScore += 40;
+        finalFindings.push({
+          type: 'MISCLASSIFIED_PERSONAL_DATA',
+          basis: 'ECJ Case C-582/14 (Breyer)',
+          summary: 'Contradictory statement regarding IP addresses and personal data.',
+          risk: 'Direct violation of established European case law.',
+          liability: 'High risk of regulatory enforcement.',
+          action: 'Update policy to correctly identify IP addresses as personal data.',
+          country: countryCode
+        });
+      }
+
+      // 3.3: VAGUE RETENTION PERIOD
+      const vaguePhrases = ['as long as', 'indefinitely', 'until you request', 'solange sie', 'unbestimmte zeit'];
+      if (vaguePhrases.some(v => legalText.includes(v))) {
+        leadScore += 15;
+        finalFindings.push({
+          type: 'VAGUE_RETENTION_PERIOD',
+          basis: 'Art. 5(1)(e) GDPR',
+          summary: 'Unclear or indefinite data retention periods identified.',
+          risk: 'Storage limitation principle violation.',
+          liability: 'Up to €20M or 4% turnover.',
+          action: 'Define specific storage timeframes or criteria (e.g., "stored for 24 months").',
+          country: countryCode
+        });
+      }
+
+      // 3.4: MISSING DPO (Art. 13(1)(b))
+      const dpoKeywords = ['dpo', 'data protection officer', 'datenschutzbeauftragter'];
+      if (!dpoKeywords.some(kw => legalText.includes(kw))) {
+        leadScore += 10;
+        finalFindings.push({
+          type: 'MISSING_DPO_DETAILS',
+          basis: 'Art. 13(1)(b) GDPR',
+          summary: 'Failure to provide Data Protection Officer contact details.',
+          risk: 'Incomplete statutory information disclosure.',
+          liability: 'Administrative fines.',
+          action: 'Add contact details of your DPO or dedicated privacy point of contact.',
+          country: countryCode
+        });
+      }
+
+      // 3.5: MISSING INTERNATIONAL TRANSFERS
+      const usTrackers = networkUrls.some(url => url.includes('google') || url.includes('facebook') || url.includes('meta') || url.includes('hotjar'));
+      const transferMechanisms = ['standard contractual clauses', 'scc', 'adequacy decision', 'chapter v', 'standardvertragsklauseln', 'us data privacy framework'];
+      if (usTrackers && !transferMechanisms.some(kw => legalText.includes(kw))) {
+        leadScore += 30;
+        finalFindings.push({
+          type: 'MISSING_INTERNATIONAL_TRANSFERS',
+          basis: 'Schrems II / Chapter V GDPR',
+          summary: 'Failing to declare international data transfer mechanisms for US services.',
+          risk: 'Unlawful transfer of personal data to third countries.',
+          liability: 'Suspension of data flows + high fines.',
+          action: 'Incorporate Standard Contractual Clauses (SCCs) and US Data Privacy Framework declarations.',
+          country: countryCode
+        });
+      }
+
+      // 3.6: FINANCIAL DATA CHECK
+      const financeKeywords = ['credit card', 'payment', 'billing', 'transaction', 'bank', 'wallet', 'purchases', 'checkout'];
+      const securityKeywords = ['stripe', 'paypal', 'pci-dss', 'secure gateway', 'encrypted payment'];
+      if (financeKeywords.some(kw => legalText.includes(kw)) && !securityKeywords.some(skw => legalText.includes(skw))) {
+        leadScore += 35;
+        finalFindings.push({
+          type: 'UNSECURED_FINANCIAL_DECLARATION',
+          basis: 'Art. 32 GDPR / e-Commerce Directive',
+          summary: 'Financial transactions detected without explicit security gateway declarations.',
+          risk: 'Insecure billing infrastructure risk.',
+          liability: 'High liability for data breaches.',
+          action: 'Mention your PCI-compliant payment providers (e.g., Stripe/PayPal) in the policy.',
+          country: countryCode
+        });
+      }
+
+      // 3.7: DSAR RIGHTS CHECK
+      const rightsKeywords = ['withdraw', 'right to access', 'erasure', 'right to be forgotten', 'delete account'];
+      if (!rightsKeywords.some(kw => legalText.includes(kw))) {
+        leadScore += 25;
+        finalFindings.push({
+          type: 'MISSING_GDPR_RIGHTS',
+          basis: 'Art. 15-21 GDPR',
+          summary: 'Missing explicit user rights (Access, Erasure, Withdrawal).',
+          risk: 'Fundamental transparency failure.',
+          liability: 'High risk of user complaints to DPA.',
+          action: 'Add a section detailing user rights: Access, Rectification, Erasure, and Objection.',
+          country: countryCode
+        });
+      }
     }
 
     const emailsJson = Array.from(allExtractedEmails.entries()).map(([v, c]) => ({ value: v, context: c }));
@@ -229,7 +350,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       ]
     );
 
-    console.log(`[Worker] Audit finished for ${domainName}. Score: ${leadScore}`);
+    console.log(`[Worker] Audit finished for ${domainName}. Score: ${leadScore}. Findings: ${finalFindings.length}`);
 
   } catch (err: any) {
     console.error(`[Worker Error] Task ${taskId} failed:`, err.message);
