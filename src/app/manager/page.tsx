@@ -148,6 +148,17 @@ export default function ManagerDashboard() {
     };
   }, [myTasks]);
 
+  // Парсинг находок для отображения в карточке
+  const findings = useMemo(() => {
+    if (!selectedTask?.audit_findings) return [];
+    if (Array.isArray(selectedTask.audit_findings)) return selectedTask.audit_findings;
+    try {
+      return JSON.parse(selectedTask.audit_findings);
+    } catch (e) {
+      return [];
+    }
+  }, [selectedTask]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center">
@@ -330,11 +341,11 @@ export default function ManagerDashboard() {
         <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-5xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
           <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
             {/* LEFT SIDE: General info and Status */}
-            <div className="w-full md:w-1/3 border-r border-white/5 p-8 space-y-8 bg-white/[0.01] overflow-y-auto">
+            <div className="w-full md:w-1/3 border-r border-white/5 p-8 space-y-8 bg-white/[0.01] overflow-y-auto scrollbar-hide">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold truncate">{selectedTask?.url?.replace(/^https?:\/\//, '')}/</DialogTitle>
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <Badge className="bg-rose-500/20 text-rose-500 text-[10px] font-bold border-rose-500/20">{selectedTask?.violations_count} Нарушений</Badge>
+                  <Badge className="bg-rose-500/20 text-rose-500 text-[10px] font-bold border-rose-500/20">{selectedTask?.violations_count || findings.length} Нарушений</Badge>
                   {selectedTask?.auto_message_sent && (
                     <Badge className="bg-emerald-500/20 text-emerald-500 text-[10px] font-bold border-emerald-500/20">Email Отправлен</Badge>
                   )}
@@ -363,16 +374,19 @@ export default function ManagerDashboard() {
               <div className="space-y-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-white/5 pb-2">Детали нарушений</h3>
                 <div className="space-y-4">
-                  {selectedTask?.audit_findings && selectedTask.audit_findings.length > 0 ? selectedTask.audit_findings.map((f: any, i: number) => (
+                  {findings && findings.length > 0 ? findings.map((f: any, i: number) => (
                     <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2 group hover:border-rose-500/30 transition-all">
                       <div className="flex items-center gap-2">
                          <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
-                         <span className="text-[10px] font-bold text-rose-400 uppercase">{f.type?.replace(/_/g, ' ') || 'Нарушение'}</span>
+                         <span className="text-[10px] font-bold text-rose-400 uppercase">{f.type?.replace(/_/g, ' ') || 'Violation'}</span>
                       </div>
                       <p className="text-[11px] text-slate-300 leading-relaxed">{f.summary || f.description}</p>
-                      {f.liability && (
-                        <p className="text-[9px] text-slate-500 italic">Штраф: {f.liability}</p>
-                      )}
+                      <div className="pt-2 border-t border-white/5 space-y-1">
+                        <p className="text-[9px] text-slate-500 font-bold uppercase">Закон: {f.basis || f.law_name}</p>
+                        {f.liability && (
+                          <p className="text-[9px] text-rose-400 font-bold">Штраф: {f.liability}</p>
+                        )}
+                      </div>
                     </div>
                   )) : (
                     <p className="text-xs text-slate-500 italic">Нарушения не детализированы</p>
@@ -382,7 +396,7 @@ export default function ManagerDashboard() {
             </div>
 
             {/* RIGHT SIDE: Actions and Contacts */}
-            <div className="flex-1 p-8 space-y-8 overflow-y-auto bg-[#020617]">
+            <div className="flex-1 p-8 space-y-8 overflow-y-auto bg-[#020617] scrollbar-hide">
               <div className="grid grid-cols-2 gap-4">
                 <Button variant="outline" className="h-20 flex-col gap-2 border-white/10 hover:bg-white/5 transition-all" onClick={() => toast({ title: "VoIP Интеграция", description: "Функция вызова временно недоступна." })}>
                   <Phone className="w-6 h-6 text-emerald-500" />
@@ -400,7 +414,7 @@ export default function ManagerDashboard() {
                   <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between group hover:border-primary/30 transition-all">
                     <span className="text-sm font-mono text-white">{selectedTask?.user_email || 'Email не найден'}</span>
                     {selectedTask?.user_email && (
-                      <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold text-slate-500 hover:text-primary">Copy</Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold text-slate-500 hover:text-primary" onClick={() => { navigator.clipboard.writeText(selectedTask.user_email); toast({ title: "Скопировано" }); }}>Copy</Button>
                     )}
                   </div>
                 </div>

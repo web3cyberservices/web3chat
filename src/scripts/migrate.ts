@@ -78,10 +78,11 @@ async function migrate() {
       );
     `);
 
-    // Ensure all columns exist
+    // Ensure all columns exist in scan_queue
     const scanQueueColumns = [
       { name: 'audit_findings', type: 'jsonb DEFAULT \'[]\'::jsonb' },
-      { name: 'pdf_report_path', type: 'varchar(500)' }
+      { name: 'pdf_report_path', type: 'varchar(500)' },
+      { name: 'violations_count', type: 'int DEFAULT 0' }
     ];
 
     for (const col of scanQueueColumns) {
@@ -95,6 +96,7 @@ async function migrate() {
       `);
     }
 
+    // Ensure all columns exist in site_violations
     const violationsColumns = [
       { name: 'potential_fine', type: 'text' },
       { name: 'law_name', type: 'text' },

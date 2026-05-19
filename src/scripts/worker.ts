@@ -3,7 +3,6 @@ import { Pool } from 'pg';
 import * as nodemailer from 'nodemailer';
 import puppeteer from 'puppeteer';
 import * as fs from 'fs';
-import { generatePdfReport } from '../lib/report-generator';
 
 const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
@@ -63,7 +62,6 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
 
-    // 1. NETWORK ANALYTICS
     await page.setRequestInterception(true);
     page.on('request', request => {
       networkUrls.push(request.url().toLowerCase());
@@ -80,7 +78,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     console.log(`[Audit Engine] Analyzing: ${domainName}`);
     await page.goto(urlObj.origin, { waitUntil: 'networkidle2', timeout: 35000 });
     
-    // 1.1 Google Fonts
+    // 1. NETWORK & COOKIES (Always independent)
     const hasGoogleFonts = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
     if (hasGoogleFonts) {
       finalFindings.push({
@@ -94,7 +92,6 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       });
     }
 
-    // 1.2 Tracking Before Consent
     const hasAnalytics = networkUrls.some(url => url.includes('google-analytics.com') || url.includes('analytics.google'));
     const hasFacebook = networkUrls.some(url => url.includes('connect.facebook.net') || url.includes('facebook.com/tr'));
     if (hasAnalytics || hasFacebook) {
@@ -109,7 +106,6 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       });
     }
 
-    // 1.3 Cookie Inspection
     const cookies = await page.cookies();
     const forbiddenMarkers = ['_ga', '_gid', '_fbp', '_fr', 'ads', 'metrics'];
     const illegalCookies = cookies.filter(c => forbiddenMarkers.some(m => c.name.toLowerCase().includes(m)));
@@ -126,14 +122,12 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       });
     }
 
-    // 2. LEGAL DOCUMENT VALIDATION
+    // 2. DOCUMENT VALIDATION (Hard Check)
     const pageText = await page.evaluate(() => document.body.innerText.toLowerCase());
-    
-    // Strict Legal Document Validation (Berkshire Case Prevention)
     const markerCount = LEGAL_MARKERS.filter(m => pageText.includes(m.toLowerCase())).length;
-    let isLegalDocument = (pageText.length > 400 && markerCount >= 2);
+    let isValidDocument = (pageText.length > 400 && markerCount >= 2);
 
-    if (!isLegalDocument) {
+    if (!isValidDocument) {
       finalFindings.push({
         type: 'MISSING_CORE_FRAMEWORK',
         basis: 'Art. 13 GDPR',
@@ -144,23 +138,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         country: countryCode
       });
     } else {
-      // 3. DEEP CONTENT ANALYSIS
-      
-      // 3.1 Data Retention
-      const retentionMarkers = ['retention period', 'store for', 'stored for', 'months', 'years', 'period of', 'retain'];
-      if (!retentionMarkers.some(m => pageText.includes(m))) {
-        finalFindings.push({
-          type: 'DATA_RETENTION_GAP',
-          basis: 'Art. 13(2)(a) GDPR',
-          summary: 'The privacy policy fails to specify mandatory data retention timeframes.',
-          risk: 'Violation of the storage limitation principle.',
-          liability: FINE_GDPR,
-          action: 'Update your policy with specific storage durations for each data category.',
-          country: countryCode
-        });
-      }
-
-      // 3.2 User Rights (DSAR)
+      // 3. CONTENT ANALYSIS (Only if doc exists)
       if (!RIGHTS_KEYWORDS.some(kw => pageText.includes(kw))) {
         finalFindings.push({
           type: 'MISSING_GDPR_RIGHTS',
@@ -173,7 +151,6 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         });
       }
 
-      // 3.3 Financial Protection
       if (FINANCE_KEYWORDS.some(kw => pageText.includes(kw)) && !SECURE_KEYWORDS.some(kw => pageText.includes(kw))) {
         finalFindings.push({
           type: 'UNSECURED_FINANCIAL_DECLARATION',
@@ -185,29 +162,10 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
           country: countryCode
         });
       }
-
-      // 3.4 German Compliance (§ 5 DDG)
-      if (countryCode === 'DE' || domainName.includes('.de') || pageText.includes('impressum')) {
-        const impressumKeywords = ['handelsregister', 'registernummer', 'ihk', 'amtsgericht', 'ust-idnr'];
-        if (!impressumKeywords.some(kw => pageText.includes(kw))) {
-          finalFindings.push({
-            type: 'GERMAN_IMPRESSUM_INCOMPLETE',
-            basis: '§ 5 DDG (Germany)',
-            summary: 'Mandatory German legal disclosure is missing critical identifiers (Registry/Court info).',
-            risk: 'High risk of Abmahnung (legal warning letters) from competitors.',
-            liability: 'Up to €50,000 for statutory errors.',
-            action: 'Update your Impressum with Registry number, Local Court, and VAT ID.',
-            country: 'DE'
-          });
-        }
-      }
     }
 
     // --- SAVE TO DATABASE ---
-    // Clean old results for this domain
     await pool.query("DELETE FROM public.site_violations WHERE domain = $1", [domainName]);
-    
-    // Save each violation
     for (const f of finalFindings) {
       await pool.query(
         `INSERT INTO public.site_violations (domain, issue_type, severity, description, law_name, recommendation, potential_fine, business_impact, country) 
@@ -216,7 +174,6 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       );
     }
 
-    // UPDATE SCAN QUEUE WITH SUMMARY FOR CRM
     await pool.query(
       `UPDATE public.scan_queue 
        SET status = 'completed', 
