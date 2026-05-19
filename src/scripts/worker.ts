@@ -36,7 +36,6 @@ const CHROME_PATHS = [
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
   "HumangoBot/1.0 (+https://bot.humango.app)"
 ];
 
@@ -46,19 +45,14 @@ const THIRD_PARTY_DOMAINS = [
   'hubspot.com', 'salesforce.com', 'shopify.com', 'wordpress.org', 'gravatar.com'
 ];
 
+const LEGAL_MARKERS = ['privacy', 'policy', 'terms', 'gdpr', 'datenschutz', 'personal data', 'information we collect', 'cookies', 'legal notice', 'impressum'];
+const ENTERPRISE_MARKERS = ['enterprise', 'investors', 'shareholders', 'worldwide offices', 'global presence', 'fortune 500', 'bambora', 'hubspot'];
+
 async function getExecutablePath() {
   for (const p of CHROME_PATHS) {
     if (fs.existsSync(p)) return p;
   }
   return undefined;
-}
-
-const LEGAL_MARKERS = ['privacy', 'policy', 'terms', 'gdpr', 'datenschutz', 'personal data', 'information we collect', 'cookies', 'legal notice', 'impressum'];
-const ENTERPRISE_MARKERS = ['enterprise', 'investors', 'shareholders', 'worldwide offices', 'global presence', 'fortune 500'];
-
-async function randomDelay(min = 1000, max = 3000) {
-  const ms = Math.floor(Math.random() * (max - min + 1)) + min;
-  return new Promise(r => setTimeout(r, ms));
 }
 
 async function scrapeContactsFromPage(page: puppeteer.Page) {
@@ -70,6 +64,7 @@ async function scrapeContactsFromPage(page: puppeteer.Page) {
     const getContext = (match: string, fullText: string) => {
       const idx = fullText.indexOf(match);
       if (idx === -1) return '';
+      // Grab roughly 2 sentences before and after
       const start = Math.max(0, idx - 150);
       const end = Math.min(fullText.length, idx + match.length + 150);
       return fullText.substring(start, end).replace(/\s+/g, ' ').trim();
@@ -81,16 +76,10 @@ async function scrapeContactsFromPage(page: puppeteer.Page) {
         const domain = email.split('@')[1]?.toLowerCase();
         return !thirdPartyDomains.some(d => domain.includes(d));
       })
-      .map(email => ({
-        value: email,
-        context: getContext(email, text)
-      }));
+      .map(email => ({ value: email, context: getContext(email, text) }));
 
     const foundPhones = [...new Set(text.match(phoneRegex) || [])];
-    const phonesWithContext = foundPhones.map(phone => ({
-      value: phone,
-      context: getContext(phone, text)
-    }));
+    const phonesWithContext = foundPhones.map(phone => ({ value: phone, context: getContext(phone, text) }));
     
     const links = Array.from(document.querySelectorAll('a[href]'))
       .map(a => (a as HTMLAnchorElement).href)
@@ -120,8 +109,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     });
     
     const page = await browser.newPage();
-    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-    await page.setUserAgent(ua);
+    await page.setUserAgent(USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]);
 
     await page.setRequestInterception(true);
     page.on('request', request => {
@@ -133,69 +121,35 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     if (!cleanUrl.startsWith('http')) cleanUrl = `https://${cleanUrl}`;
     const urlObj = new URL(cleanUrl);
     const domainName = urlObj.hostname;
-    const tld = domainName.split('.').pop()?.toLowerCase() || '';
-    const countryCode = tld === 'com' || tld === 'net' ? 'EU' : tld.toUpperCase();
+    const countryCode = domainName.split('.').pop()?.toUpperCase() || 'EU';
 
-    console.log(`[Audit Engine] Analyzing: ${domainName}`);
     await page.goto(urlObj.origin, { waitUntil: 'networkidle2', timeout: 35000 });
     
-    await page.mouse.wheel(0, 500);
-    await randomDelay(1000, 2000);
-
-    // --- CONTACT SCRAPING ---
+    // Scrape Contacts from Home + Context
     const initialContacts = await scrapeContactsFromPage(page);
     initialContacts.emails.forEach(e => allExtractedEmails.set(e.value, e.context));
     initialContacts.phones.forEach(p => allExtractedPhones.set(p.value, p.context));
 
+    // Deep Scrape Contacts
     for (const link of initialContacts.deepLinks.slice(0, 2)) {
       try {
         await page.goto(link, { waitUntil: 'networkidle2', timeout: 20000 });
         const deepContacts = await scrapeContactsFromPage(page);
         deepContacts.emails.forEach(e => allExtractedEmails.set(e.value, e.context));
         deepContacts.phones.forEach(p => allExtractedPhones.set(p.value, p.context));
-        await randomDelay(500, 1500);
       } catch (e) {}
     }
 
-    // --- COMPLIANCE AUDIT ---
     const pageText = await page.evaluate(() => document.body.innerText.toLowerCase());
     
-    // Enterprise Detection Penalty
-    const isEnterprise = ENTERPRISE_MARKERS.some(m => pageText.includes(m));
-    if (isEnterprise) leadScore -= 50;
-
-    // --- BLOCK 1: NETWORK & COOKIES ---
-    const hasGoogleFonts = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
-    if (hasGoogleFonts) {
-      leadScore += 5;
-      finalFindings.push({
-        type: 'GOOGLE_FONTS_PRIVACY_VIOLATION',
-        basis: 'Art. 6(1)(a) GDPR',
-        summary: 'External Google Fonts are loaded directly from US servers, transmitting user IP addresses without consent.',
-        risk: 'High risk of automated legal warnings (Abmahnung) in DACH region.',
-        liability: 'Up to €250,000 per claim.',
-        action: 'Self-host fonts locally.',
-        country: countryCode
-      });
+    // Enterprise Detection
+    if (ENTERPRISE_MARKERS.some(m => pageText.includes(m) || domainName.includes(m))) {
+      leadScore -= 50;
     }
 
-    const hasAnalytics = networkUrls.some(url => url.includes('google-analytics.com') || url.includes('analytics.google'));
-    if (hasAnalytics) {
-      leadScore += 20;
-      finalFindings.push({
-        type: 'TRACKING_TRAFFIC_DETECTED',
-        basis: 'Art. 6 GDPR',
-        summary: 'Marketing scripts activated before user interaction.',
-        risk: 'Critical violation of Planet49 ruling.',
-        liability: 'Up to 4% turnover.',
-        action: 'Block tracking scripts until opt-in.',
-        country: countryCode
-      });
-    }
-
-    // --- BLOCK 2: LEGAL DOCUMENT VALIDATION ---
-    const markerMatchCount = LEGAL_MARKERS.filter(m => pageText.includes(m.toLowerCase())).length;
-    let legalText = (pageText.length > 500 && markerMatchCount >= 2) ? pageText : '';
+    // 1. LEGAL DOCUMENT VALIDATION (Hard Check)
+    const markerMatchCount = LEGAL_MARKERS.filter(m => pageText.includes(m)).length;
+    let legalText = (pageText.length > 300 && markerMatchCount >= 2) ? pageText : '';
 
     if (!legalText) {
       leadScore += 100;
@@ -203,126 +157,108 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         type: 'MISSING_CORE_FRAMEWORK',
         basis: 'Art. 13 GDPR',
         summary: 'No valid Privacy Policy or legal disclosure identified.',
-        risk: 'Immediate trigger for regulatory sanctions.',
+        description: 'Statutory transparency is mandatory. The site architecture lacks a visible link to data processing terms.',
         liability: 'Up to €20,000,000.',
-        action: 'Create a dedicated /privacy page.',
-        country: countryCode
+        recommendation: 'ACTION: Create a dedicated /privacy page and link it in the footer.'
       });
     } else {
-      // --- BLOCK 3: ADVANCED TEXT ANALYSIS ---
-      
-      // 3.1: MISSING LEGAL BASES (Art. 6 GDPR)
-      const basisKeywords = ['legal basis', 'article 6', 'legitimate interest', 'performance of a contract', 'consent', 'rechtsgrundlage', 'berechtigtes interesse', 'vertragserfüllung'];
+      // 2. MISSING LEGAL BASES
+      const basisKeywords = ['legal basis', 'article 6', 'legitimate interest', 'performance of a contract', 'consent', 'rechtsgrundlage', 'berechtigtes interesse'];
       if (!basisKeywords.some(kw => legalText.includes(kw))) {
         leadScore += 25;
         finalFindings.push({
           type: 'MISSING_LEGAL_BASES',
           basis: 'Art. 6 GDPR',
           summary: 'Absence of explicit legal bases for data processing.',
-          risk: 'Processing is legally unauthorized without defined bases.',
-          liability: 'Up to €20,000,000.',
-          action: 'Explicitly state legal bases (e.g., Legitimate Interest) for each processing activity.',
-          country: countryCode
+          description: 'The policy does not clearly state under which legal grounds (e.g. Consent, Legitimate Interest) data is processed.',
+          liability: 'Up to 4% turnover.',
+          recommendation: 'ACTION: Explicitly list Art. 6 legal grounds for each data category.'
         });
       }
 
-      // 3.2: MISCLASSIFIED PERSONAL DATA
-      const ipRegex1 = /ip address(es)? (are|is) not personal/i;
-      const ipRegex2 = /not personal data/i;
-      const ipIdx = legalText.indexOf('ip');
-      let foundIpMisclassification = ipRegex1.test(legalText);
-      if (!foundIpMisclassification && ipIdx !== -1) {
-        const snippet = legalText.substring(Math.max(0, ipIdx - 50), Math.min(legalText.length, ipIdx + 50));
-        if (ipRegex2.test(snippet)) foundIpMisclassification = true;
-      }
-      
-      if (foundIpMisclassification) {
+      // 3. MISCLASSIFIED PERSONAL DATA
+      const ipRegex = /ip address(es)? (are|is) not personal/i;
+      if (ipRegex.test(legalText) || legalText.includes('ip address is not personal')) {
         leadScore += 40;
         finalFindings.push({
           type: 'MISCLASSIFIED_PERSONAL_DATA',
-          basis: 'ECJ Case C-582/14 (Breyer)',
-          summary: 'Contradictory statement regarding IP addresses and personal data.',
-          risk: 'Direct violation of established European case law.',
+          basis: 'ECJ Case C-582/14',
+          summary: 'IP addresses falsely claimed as non-personal data.',
+          description: 'The policy contains misleading information regarding the nature of technical identifiers.',
           liability: 'High risk of regulatory enforcement.',
-          action: 'Update policy to correctly identify IP addresses as personal data.',
-          country: countryCode
+          recommendation: 'ACTION: Correct policy to reflect that IP addresses are personal data.'
         });
       }
 
-      // 3.3: VAGUE RETENTION PERIOD
-      const vaguePhrases = ['as long as', 'indefinitely', 'until you request', 'solange sie', 'unbestimmte zeit'];
+      // 4. VAGUE RETENTION
+      const vaguePhrases = ['as long as', 'indefinitely', 'until you request', 'solange sie'];
       if (vaguePhrases.some(v => legalText.includes(v))) {
         leadScore += 15;
         finalFindings.push({
           type: 'VAGUE_RETENTION_PERIOD',
           basis: 'Art. 5(1)(e) GDPR',
-          summary: 'Unclear or indefinite data retention periods identified.',
-          risk: 'Storage limitation principle violation.',
-          liability: 'Up to €20M or 4% turnover.',
-          action: 'Define specific storage timeframes or criteria (e.g., "stored for 24 months").',
-          country: countryCode
+          summary: 'Unclear data retention periods.',
+          description: 'Storage limitation principle violated by using non-specific timeframes.',
+          liability: 'Up to €20M.',
+          recommendation: 'ACTION: Define specific periods (e.g. "24 months") or deletion criteria.'
         });
       }
 
-      // 3.4: MISSING DPO (Art. 13(1)(b))
+      // 5. MISSING DPO
       const dpoKeywords = ['dpo', 'data protection officer', 'datenschutzbeauftragter'];
       if (!dpoKeywords.some(kw => legalText.includes(kw))) {
         leadScore += 10;
         finalFindings.push({
           type: 'MISSING_DPO_DETAILS',
           basis: 'Art. 13(1)(b) GDPR',
-          summary: 'Failure to provide Data Protection Officer contact details.',
-          risk: 'Incomplete statutory information disclosure.',
+          summary: 'DPO contact details are missing.',
+          description: 'Failure to provide a specific point of contact for data protection inquiries.',
           liability: 'Administrative fines.',
-          action: 'Add contact details of your DPO or dedicated privacy point of contact.',
-          country: countryCode
+          recommendation: 'ACTION: Add DPO email or contact form link.'
         });
       }
 
-      // 3.5: MISSING INTERNATIONAL TRANSFERS
-      const usTrackers = networkUrls.some(url => url.includes('google') || url.includes('facebook') || url.includes('meta') || url.includes('hotjar'));
-      const transferMechanisms = ['standard contractual clauses', 'scc', 'adequacy decision', 'chapter v', 'standardvertragsklauseln', 'us data privacy framework'];
+      // 6. INTERNATIONAL TRANSFERS
+      const usTrackers = networkUrls.some(u => u.includes('google') || u.includes('facebook') || u.includes('meta'));
+      const transferMechanisms = ['standard contractual clauses', 'scc', 'adequacy decision', 'us data privacy framework'];
       if (usTrackers && !transferMechanisms.some(kw => legalText.includes(kw))) {
         leadScore += 30;
         finalFindings.push({
           type: 'MISSING_INTERNATIONAL_TRANSFERS',
-          basis: 'Schrems II / Chapter V GDPR',
-          summary: 'Failing to declare international data transfer mechanisms for US services.',
-          risk: 'Unlawful transfer of personal data to third countries.',
-          liability: 'Suspension of data flows + high fines.',
-          action: 'Incorporate Standard Contractual Clauses (SCCs) and US Data Privacy Framework declarations.',
-          country: countryCode
+          basis: 'Schrems II / Chapter V',
+          summary: 'Missing US data transfer declarations.',
+          description: 'US-based services are active, but no transfer safeguards (SCCs) are declared.',
+          liability: 'Suspension of data flows.',
+          recommendation: 'ACTION: Add declarations for SCCs and Data Privacy Framework.'
         });
       }
 
-      // 3.6: FINANCIAL DATA CHECK
-      const financeKeywords = ['credit card', 'payment', 'billing', 'transaction', 'bank', 'wallet', 'purchases', 'checkout'];
-      const securityKeywords = ['stripe', 'paypal', 'pci-dss', 'secure gateway', 'encrypted payment'];
+      // 7. FINANCIAL DATA
+      const financeKeywords = ['credit card', 'payment', 'billing', 'transaction', 'wallet', 'checkout'];
+      const securityKeywords = ['stripe', 'paypal', 'pci-dss', 'secure gateway'];
       if (financeKeywords.some(kw => legalText.includes(kw)) && !securityKeywords.some(skw => legalText.includes(skw))) {
         leadScore += 35;
         finalFindings.push({
           type: 'UNSECURED_FINANCIAL_DECLARATION',
-          basis: 'Art. 32 GDPR / e-Commerce Directive',
-          summary: 'Financial transactions detected without explicit security gateway declarations.',
-          risk: 'Insecure billing infrastructure risk.',
-          liability: 'High liability for data breaches.',
-          action: 'Mention your PCI-compliant payment providers (e.g., Stripe/PayPal) in the policy.',
-          country: countryCode
+          basis: 'Art. 32 GDPR',
+          summary: 'Unsecured financial processing declaration.',
+          description: 'Payment terms found without mandatory security standards mention.',
+          liability: 'Critical breach risk.',
+          recommendation: 'ACTION: Mention PCI-DSS compliance and encrypted gateways.'
         });
       }
 
-      // 3.7: DSAR RIGHTS CHECK
+      // 8. DSAR RIGHTS
       const rightsKeywords = ['withdraw', 'right to access', 'erasure', 'right to be forgotten', 'delete account'];
       if (!rightsKeywords.some(kw => legalText.includes(kw))) {
         leadScore += 25;
         finalFindings.push({
           type: 'MISSING_GDPR_RIGHTS',
           basis: 'Art. 15-21 GDPR',
-          summary: 'Missing explicit user rights (Access, Erasure, Withdrawal).',
-          risk: 'Fundamental transparency failure.',
-          liability: 'High risk of user complaints to DPA.',
-          action: 'Add a section detailing user rights: Access, Rectification, Erasure, and Objection.',
-          country: countryCode
+          summary: 'Missing explicit user rights disclosure.',
+          description: 'The policy fails to inform users of their rights to access, erase, and object.',
+          liability: 'Mandatory violation.',
+          recommendation: 'ACTION: Add a "User Rights" section covering Access, Erasure, and Rectification.'
         });
       }
     }
@@ -340,92 +276,13 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
            priority = $5,
            crm_status = CASE WHEN $1 > 0 THEN 'free' ELSE 'completed' END
        WHERE id = $6`,
-      [
-        finalFindings.length, 
-        JSON.stringify(finalFindings), 
-        JSON.stringify(emailsJson), 
-        JSON.stringify(phonesJson), 
-        Math.max(1, leadScore), 
-        taskId
-      ]
+      [finalFindings.length, JSON.stringify(finalFindings), JSON.stringify(emailsJson), JSON.stringify(phonesJson), Math.max(1, leadScore), taskId]
     );
 
-    console.log(`[Worker] Audit finished for ${domainName}. Score: ${leadScore}. Findings: ${finalFindings.length}`);
+    console.log(`[Worker] Audit finished for ${domainName}. Score: ${leadScore}`);
 
   } catch (err: any) {
     console.error(`[Worker Error] Task ${taskId} failed:`, err.message);
-    await pool.query("UPDATE scan_queue SET status = 'failed' WHERE id = $1", [taskId]);
-  } finally {
-    if (browser) await browser.close();
-  }
-}
-
-async function executeCatalogScrape(taskId: number, url: string) {
-  let browser: any = null;
-  try {
-    const executablePath = await getExecutablePath();
-    browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox'] });
-    const page = await browser.newPage();
-    await page.setUserAgent(USER_AGENTS[0]);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-
-    const links = await page.evaluate(() => {
-      const anchors = Array.from(document.querySelectorAll('a[href*="http"]'));
-      return anchors.map(a => (a as HTMLAnchorElement).href);
-    });
-
-    const blacklist = ['google.', 'facebook.', 'linkedin.', 'youtube.', 'twitter.', 'instagram.', 'yelp.', 'sentry.', 'hubspot.'];
-    const filtered = [...new Set(links)]
-      .filter(l => {
-        try {
-          const host = new URL(l).hostname.toLowerCase();
-          return !blacklist.some(b => host.includes(b));
-        } catch { return false; }
-      })
-      .map(l => { try { return new URL(l).origin; } catch { return null; } })
-      .filter(Boolean);
-
-    for (const site of filtered.slice(0, 15)) {
-      await pool.query(
-        "INSERT INTO public.scan_queue (url, status, job_type, priority) VALUES ($1, 'pending', 'audit', 1) ON CONFLICT (url) DO NOTHING",
-        [site]
-      );
-    }
-    await pool.query("UPDATE scan_queue SET status = 'completed' WHERE id = $1", [taskId]);
-  } catch (e) {
-    await pool.query("UPDATE scan_queue SET status = 'failed' WHERE id = $1", [taskId]);
-  } finally {
-    if (browser) await browser.close();
-  }
-}
-
-async function executeDorkSearch(taskId: number, dork: string) {
-  let browser: any = null;
-  try {
-    const executablePath = await getExecutablePath();
-    browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox'] });
-    const page = await browser.newPage();
-    await page.setUserAgent(USER_AGENTS[0]);
-    
-    const searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(dork)}`;
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 45000 });
-
-    const links = await page.evaluate(() => {
-      const results = Array.from(document.querySelectorAll('a.result__a'));
-      return results.map(a => (a as HTMLAnchorElement).href);
-    });
-
-    for (const site of links.slice(0, 10)) {
-      try {
-        const origin = new URL(site).origin;
-        await pool.query(
-          "INSERT INTO public.scan_queue (url, status, job_type, priority) VALUES ($1, 'pending', 'audit', 5) ON CONFLICT (url) DO NOTHING",
-          [origin]
-        );
-      } catch {}
-    }
-    await pool.query("UPDATE scan_queue SET status = 'completed' WHERE id = $1", [taskId]);
-  } catch (e) {
     await pool.query("UPDATE scan_queue SET status = 'failed' WHERE id = $1", [taskId]);
   } finally {
     if (browser) await browser.close();
@@ -437,22 +294,11 @@ async function startWorker() {
   while (true) {
     try {
       await checkAndFeedQueue();
-
-      const res = await pool.query(
-        "SELECT id, url, user_email, job_type FROM public.scan_queue WHERE status = 'pending' ORDER BY priority DESC, created_at ASC LIMIT 1"
-      );
-
+      const res = await pool.query("SELECT id, url, user_email FROM public.scan_queue WHERE status = 'pending' ORDER BY priority DESC, created_at ASC LIMIT 1");
       if (res.rows.length > 0) {
         const task = res.rows[0];
         await pool.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
-        
-        if (task.job_type === 'catalog_scrape') {
-          await executeCatalogScrape(task.id, task.url);
-        } else if (task.job_type === 'dork_search') {
-          await executeDorkSearch(task.id, task.url);
-        } else {
-          await executeDeterministicAudit(task.id, task.url, task.user_email);
-        }
+        await executeDeterministicAudit(task.id, task.url, task.user_email);
       } else {
         await new Promise(r => setTimeout(r, 10000));
       }
