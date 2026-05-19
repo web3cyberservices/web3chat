@@ -4,7 +4,6 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseProvider } from "@/components/providers/firebase-provider";
-import { CookieBanner } from "@/components/ui/cookie-banner";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -56,7 +55,6 @@ export default function RootLayout({
         <FirebaseProvider>
           {children}
           <Toaster />
-          <CookieBanner />
         </FirebaseProvider>
       </body>
     </html>

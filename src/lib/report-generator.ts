@@ -1,6 +1,7 @@
 
 import puppeteer from 'puppeteer';
 import fs from 'fs';
+import path from 'path';
 
 /**
  * Professional PDF Report Generator - Unified Design
@@ -49,6 +50,13 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
     const cleanFindings = Array.from(uniqueMap.values());
     const isCompliant = cleanFindings.length === 0;
 
+    // Path to the logo for absolute referencing
+    const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+    let logoBase64 = '';
+    if (fs.existsSync(logoPath)) {
+      logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
+    }
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -56,68 +64,80 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
         <meta charset="UTF-8">
         <style>
           @page { size: A4; margin: 0; }
-          body { font-family: 'Helvetica', Arial, sans-serif; color: #1e293b; margin: 0; padding: 40px; background: #fff; line-height: 1.5; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; }
-          .logo-box { display: flex; align-items: center; gap: 12px; }
-          .logo-circle { width: 44px; height: 44px; background: #3b82f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 22px; }
-          .logo-text { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
+          body { font-family: 'Inter', 'Helvetica', Arial, sans-serif; color: #1e293b; margin: 0; padding: 40px; background: #fff; line-height: 1.5; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #3b82f6; padding-bottom: 24px; margin-bottom: 40px; }
+          .logo-box { display: flex; align-items: center; gap: 10px; }
+          .logo-icon { 
+            width: 32px; 
+            height: 32px; 
+            background: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+          }
+          .logo-icon img { width: 22px; height: 22px; object-fit: contain; }
+          .logo-text { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.04em; }
           .logo-text span { color: #3b82f6; }
+          
           .company-details { text-align: right; font-size: 10px; color: #64748b; line-height: 1.6; }
-          
           .report-meta { margin-bottom: 40px; }
-          .report-title { font-size: 32px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.03em; text-transform: uppercase; }
-          .target-info { font-size: 14px; color: #64748b; margin-top: 10px; font-weight: 500; }
+          .report-title { font-size: 34px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.04em; text-transform: uppercase; }
+          .target-info { font-size: 14px; color: #64748b; margin-top: 12px; font-weight: 500; font-family: monospace; }
           
-          .finding-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 30px; page-break-inside: avoid; background: #fff; }
-          .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+          .finding-card { border: 1px solid #e2e8f0; border-radius: 20px; padding: 28px; margin-bottom: 32px; page-break-inside: avoid; background: #fff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
+          .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
           .type-label { font-weight: 800; text-transform: uppercase; font-size: 14px; color: #0f172a; letter-spacing: 0.05em; }
-          .severity-badge { font-size: 10px; padding: 5px 12px; border-radius: 8px; font-weight: 800; }
+          .severity-badge { font-size: 10px; padding: 6px 14px; border-radius: 9999px; font-weight: 800; text-transform: uppercase; }
           .sev-critical { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
           .sev-high { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; }
           
-          .section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; letter-spacing: 0.1em; }
-          .content-block { margin-bottom: 20px; }
-          .desc-text { font-size: 13px; color: #334155; }
+          .section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; letter-spacing: 0.1em; }
+          .content-block { margin-bottom: 24px; }
+          .desc-text { font-size: 14px; color: #334155; line-height: 1.6; }
           
-          .liability-box { background: #fff1f2; padding: 15px; border-radius: 10px; border: 1px solid #fecaca; margin-bottom: 20px; }
-          .liability-text { color: #be123c; font-size: 12px; font-weight: 700; }
+          .liability-box { background: #fff1f2; padding: 20px; border-radius: 12px; border: 1px solid #fecaca; margin-bottom: 24px; }
+          .liability-text { color: #be123c; font-size: 14px; font-weight: 800; }
 
-          .recommendation-box { background: #f8fafc; padding: 20px; border-radius: 12px; font-size: 12px; border-left: 5px solid #3b82f6; color: #1e293b; }
+          .recommendation-box { background: #f8fafc; padding: 24px; border-radius: 16px; font-size: 13px; border-left: 6px solid #3b82f6; color: #1e293b; }
           
-          .compliant-hero { text-align: center; padding: 80px 40px; border: 3px dashed #10b981; border-radius: 30px; background: #f0fdf4; margin-top: 40px; }
-          .compliant-status { font-size: 28px; font-weight: 900; color: #065f46; }
+          .compliant-hero { text-align: center; padding: 100px 40px; border: 4px dashed #10b981; border-radius: 40px; background: #f0fdf4; margin-top: 40px; }
+          .compliant-status { font-size: 32px; font-weight: 900; color: #065f46; letter-spacing: -0.02em; }
           
-          .footer-note { position: fixed; bottom: 30px; left: 40px; right: 40px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 15px; }
+          .footer-note { position: fixed; bottom: 30px; left: 40px; right: 40px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; font-weight: 500; }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="logo-box">
-            <div class="logo-circle">H</div>
+            <div class="logo-icon">
+              ${logoBase64 ? `<img src="data:image/png;base64,${logoBase64}" alt="Logo">` : '<div style="width:20px; height:20px; background:#3b82f6; border-radius:4px;"></div>'}
+            </div>
             <div class="logo-text">Humango<span>Compliance</span></div>
           </div>
           <div class="company-details">
             <strong>Operator: Humango Limited</strong> | Co. No: 16750477<br>
             Address: 182-184 High Street North, London, E6 2JA<br>
-            DPO Contact: abuse@humango.app | RFC 9309 Audit Node
+            Verification: abuse@humango.app | RFC 9309 Audit Node
           </div>
         </div>
 
         <div class="report-meta">
-          <h1 class="report-title">Statutory Audit Report</h1>
-          <div class="target-info">Target Domain: <strong>${safeDomain}</strong> | Timestamp: ${new Date().toLocaleString('en-GB')}</div>
+          <h1 class="report-title">Compliance Audit Report</h1>
+          <div class="target-info">AUDIT TARGET: <strong>${safeDomain.toUpperCase()}</strong> | DATE: ${new Date().toLocaleDateString('en-GB')}</div>
         </div>
 
         ${isCompliant ? `
           <div class="compliant-hero">
-            <div class="compliant-status">SYSTEM COMPLIANT</div>
-            <p style="color:#065f46; margin-top:15px; font-weight: 500;">No high-priority statutory violations or unauthorized data transfers were identified during the automated audit.</p>
+            <div class="compliant-status">STATUTORY COMPLIANCE VERIFIED</div>
+            <p style="color:#065f46; margin-top:20px; font-size: 16px; font-weight: 500;">No high-priority statutory violations or unauthorized data transfers were identified during the automated audit of the infrastructure.</p>
           </div>
         ` : cleanFindings.map(v => `
           <div class="finding-card">
             <div class="card-head">
               <span class="type-label">${(v.issue_type || 'Compliance Violation').replace(/_/g, ' ')}</span>
-              <span class="severity-badge sev-${(v.severity || 'high').toLowerCase()}">HIGH RISK</span>
+              <span class="severity-badge sev-${(v.severity || 'high').toLowerCase()}">High Risk</span>
             </div>
             
             <div class="content-block">
@@ -127,30 +147,30 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
 
             <div class="content-block">
               <div class="section-title">Legal Foundation</div>
-              <div class="desc-text" style="font-weight: 700;">${v.law_name || 'EU GDPR'}</div>
+              <div class="desc-text" style="font-weight: 800; color: #0f172a;">${v.law_name || 'EU GDPR Framework'}</div>
             </div>
 
             <div class="content-block">
-              <div class="section-title">Business & Regulatory Risk</div>
-              <div class="desc-text">${v.business_impact || 'Potential regulatory investigation and loss of platform trust.'}</div>
+              <div class="section-title">Risk Analysis</div>
+              <div class="desc-text">${v.business_impact || 'Regulatory investigation risk and potential loss of platform trust.'}</div>
             </div>
 
             ${v.potential_fine ? `
             <div class="liability-box">
-              <div class="section-title" style="color: #be123c;">Potential Liability</div>
+              <div class="section-title" style="color: #be123c;">Statutory Liability</div>
               <div class="liability-text">${v.potential_fine}</div>
             </div>
             ` : ''}
 
             <div class="recommendation-box">
-              <div class="section-title" style="color: #3b82f6;">Remediation Action</div>
-              <div style="font-weight: 600;">${v.recommendation}</div>
+              <div class="section-title" style="color: #3b82f6;">Required Remediation</div>
+              <div style="font-weight: 700; font-size: 14px;">${v.recommendation}</div>
             </div>
           </div>
         `).join('')}
 
         <div class="footer-note">
-          bot.humango.app | Pan-European Compliance Standard | © 2026 Humango Limited
+          humango.app | Statutory Compliance Verified | © 2026 Humango Limited
         </div>
       </body>
       </html>
