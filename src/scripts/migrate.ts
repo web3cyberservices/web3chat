@@ -13,7 +13,6 @@ async function migrate() {
   try {
     console.log('[Migration] Starting Lead Triage database update...');
     
-    // Core Scan Queue with all columns
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.scan_queue (
         id SERIAL PRIMARY KEY, 
@@ -38,13 +37,11 @@ async function migrate() {
       );
     `);
 
-    // Dynamic Column Sync
     const columns = [
       { name: 'audit_findings', type: 'jsonb DEFAULT \'[]\'::jsonb' },
       { name: 'extracted_emails', type: 'jsonb DEFAULT \'[]\'::jsonb' },
       { name: 'extracted_phones', type: 'jsonb DEFAULT \'[]\'::jsonb' },
       { name: 'closing_price', type: 'decimal(12,2)' },
-      { name: 'priority', type: 'int DEFAULT 0' },
       { name: 'crm_status', type: 'varchar(50) DEFAULT \'ready_for_sales\'' },
       { name: 'analyst_notes', type: 'text' }
     ];
@@ -60,7 +57,6 @@ async function migrate() {
       `);
     }
 
-    // Site Violations (Historical Log)
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.site_violations (
         id SERIAL PRIMARY KEY,
@@ -79,11 +75,9 @@ async function migrate() {
       );
     `);
 
-    // Ensure site_violations has potential_fine and country
     const violationCols = [
       { name: 'potential_fine', type: 'text' },
       { name: 'country', type: 'varchar(10)' },
-      { name: 'explanation', type: 'text' },
       { name: 'business_impact', type: 'text' }
     ];
 
@@ -98,12 +92,11 @@ async function migrate() {
       `);
     }
 
-    // Bot Settings & Events
     await client.query(`CREATE TABLE IF NOT EXISTS public.bot_settings (id int PRIMARY KEY DEFAULT 1, is_active boolean DEFAULT true, updated_at timestamp DEFAULT NOW());`);
     await client.query(`CREATE TABLE IF NOT EXISTS public.bot_events (id SERIAL PRIMARY KEY, type varchar(50), message text, timestamp timestamp DEFAULT NOW());`);
     await client.query(`INSERT INTO public.bot_settings (id, is_active) VALUES (1, true) ON CONFLICT DO NOTHING;`);
 
-    console.log('[Migration] SUCCESS: Lead Triage Schema is ready.');
+    console.log('[Migration] SUCCESS: Database is up to date.');
   } catch (err: any) { 
     console.error('[Migration] ERROR:', err.message); 
   } finally { 

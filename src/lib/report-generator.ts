@@ -20,11 +20,9 @@ async function getExecutablePath() {
 
 interface Finding {
   type?: string;
-  basis?: string;
-  summary: string;
-  description: string;
-  liability: string;
-  action?: string;
+  summary?: string;
+  description?: string;
+  liability?: string;
   recommendation?: string;
 }
 
@@ -54,8 +52,6 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
           .logo-img { width: 48px; height: 48px; object-fit: contain; }
           .logo-text { font-size: 24px; font-weight: 900; color: #0f172a; letter-spacing: -0.03em; }
           .logo-text span { color: #3b82f6; }
-          .company-details { text-align: right; font-size: 11px; color: #0f172a; font-weight: 500; }
-          .company-details a { color: #3b82f6; text-decoration: none; font-weight: 800; }
           .report-meta { margin-bottom: 40px; border-left: 4px solid #3b82f6; padding-left: 20px; }
           .report-title { font-size: 32px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; }
           .target-info { font-size: 14px; color: #3b82f6; margin-top: 8px; font-family: monospace; font-weight: 700; }
@@ -66,6 +62,7 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
           .liability-box { background: #fff1f2; padding: 15px; border-radius: 10px; border: 1px solid #fecaca; margin-bottom: 15px; }
           .liability-text { color: #be123c; font-size: 14px; font-weight: 800; }
           .recommendation-box { background: #eff6ff; padding: 20px; border-radius: 10px; font-size: 13px; border-left: 5px solid #3b82f6; }
+          .footer { margin-top: 50px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; pt: 20px; }
         </style>
       </head>
       <body>
@@ -74,10 +71,10 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
             ${logoBase64 ? `<img src="${logoBase64}" class="logo-img">` : `<div style="width:40px;height:40px;background:#3b82f6;border-radius:8px;"></div>`}
             <div class="logo-text">Humango<span>Compliance</span></div>
           </div>
-          <div class="company-details">
+          <div style="text-align:right; font-size: 11px;">
             <strong>Humango Limited</strong> | UK Co. No: 16750477<br>
             182-184 High Street North, London, E6 2JA<br>
-            <a href="mailto:abuse@humango.app">abuse@humango.app</a>
+            <a href="mailto:abuse@humango.app" style="color:#3b82f6; text-decoration:none;">abuse@humango.app</a>
           </div>
         </div>
         <div class="report-meta">
@@ -87,6 +84,7 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
         ${findings.length === 0 ? `
           <div style="text-align:center; padding: 100px; border: 4px dashed #10b981; border-radius: 30px; background: #f0fdf4;">
             <h2 style="color:#065f46; font-size: 28px; font-weight: 900;">STATUTORY COMPLIANCE VERIFIED</h2>
+            <p>No critical privacy or legal risks identified on the analyzed domain.</p>
           </div>
         ` : findings.map(f => `
           <div class="finding-card">
@@ -99,10 +97,13 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
             </div>
             <div class="recommendation-box">
               <div style="font-size:10px; text-transform:uppercase; color:#3b82f6; font-weight:800;">Required Action</div>
-              <div style="font-weight:700; color:#1e3a8a;">${f.recommendation || f.action}</div>
+              <div style="font-weight:700; color:#1e3a8a;">${f.recommendation}</div>
             </div>
           </div>
         `).join('')}
+        <div class="footer">
+          &copy; ${new Date().getFullYear()} Humango Limited. This report is generated automatically by the Humango Audit Engine.
+        </div>
       </body>
       </html>
     `;
