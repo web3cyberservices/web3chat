@@ -174,7 +174,6 @@ export default function ManagerDashboard() {
       </header>
 
       <main className="flex-1 p-8 space-y-12 max-w-7xl mx-auto w-full">
-        {/* PERSONAL STATS HEADER */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
            <Card className="bg-white/[0.03] border-white/10">
              <CardContent className="pt-6 flex items-center gap-4">
@@ -328,8 +327,8 @@ export default function ManagerDashboard() {
 
       {/* LEAD CARD DIALOG */}
       <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
-        <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-5xl p-0 overflow-hidden">
-          <div className="flex flex-col md:flex-row h-[750px]">
+        <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-5xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
             {/* LEFT SIDE: General info and Status */}
             <div className="w-full md:w-1/3 border-r border-white/5 p-8 space-y-8 bg-white/[0.01] overflow-y-auto">
               <DialogHeader>
@@ -343,7 +342,7 @@ export default function ManagerDashboard() {
               </DialogHeader>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Воронка продаж</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Статус</label>
                 <Select 
                   defaultValue={selectedTask?.status} 
                   onValueChange={(val) => handleStatusChange(selectedTask.id, val)}
@@ -364,14 +363,16 @@ export default function ManagerDashboard() {
               <div className="space-y-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-white/5 pb-2">Детали нарушений</h3>
                 <div className="space-y-4">
-                  {selectedTask?.audit_findings?.length > 0 ? selectedTask.audit_findings.map((f: any, i: number) => (
+                  {selectedTask?.audit_findings && selectedTask.audit_findings.length > 0 ? selectedTask.audit_findings.map((f: any, i: number) => (
                     <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2 group hover:border-rose-500/30 transition-all">
                       <div className="flex items-center gap-2">
                          <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
-                         <span className="text-[10px] font-bold text-rose-400 uppercase">{f.type}</span>
+                         <span className="text-[10px] font-bold text-rose-400 uppercase">{f.type?.replace(/_/g, ' ') || 'Нарушение'}</span>
                       </div>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">{f.summary}</p>
-                      <p className="text-[9px] text-slate-500 italic">Штраф: {f.liability}</p>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">{f.summary || f.description}</p>
+                      {f.liability && (
+                        <p className="text-[9px] text-slate-500 italic">Штраф: {f.liability}</p>
+                      )}
                     </div>
                   )) : (
                     <p className="text-xs text-slate-500 italic">Нарушения не детализированы</p>
@@ -407,7 +408,7 @@ export default function ManagerDashboard() {
                 <div>
                   <h3 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-400"><Phone className="w-4 h-4" /> Телефоны</h3>
                   <div className="space-y-3">
-                    {selectedTask?.contacts?.phones?.length > 0 ? selectedTask.contacts.phones.map((phone: string, i: number) => (
+                    {selectedTask?.contacts?.phones && selectedTask.contacts.phones.length > 0 ? selectedTask.contacts.phones.map((phone: string, i: number) => (
                       <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
                         <span className="text-sm text-white font-mono">{phone}</span>
                         <Button variant="ghost" size="sm" className="h-7 text-[10px] hover:text-primary">Call</Button>
