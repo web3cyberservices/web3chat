@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -23,7 +22,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/dialog"; // Adjusted import path if necessary, but keep original if it works
+} from "@/components/ui/dialog";
 import { 
   Accordion,
   AccordionContent,

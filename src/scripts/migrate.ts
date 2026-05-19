@@ -1,4 +1,3 @@
-
 import { Pool } from 'pg';
 import * as dotenv from 'dotenv';
 
@@ -92,6 +91,32 @@ async function migrate() {
         END $$;
       `);
     }
+
+    // Bot Settings Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS public.bot_settings (
+        id int PRIMARY KEY DEFAULT 1,
+        is_active boolean DEFAULT true,
+        updated_at timestamp DEFAULT NOW()
+      );
+    `);
+
+    // Bot Events Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS public.bot_events (
+        id SERIAL PRIMARY KEY,
+        type varchar(50),
+        message text,
+        timestamp timestamp DEFAULT NOW()
+      );
+    `);
+
+    // Ensure default settings exist
+    await client.query(`
+      INSERT INTO public.bot_settings (id, is_active) 
+      VALUES (1, true) 
+      ON CONFLICT DO NOTHING;
+    `);
 
     console.log('[Migration] SUCCESS: All tables and columns synchronized.');
   } catch (err: any) { 
