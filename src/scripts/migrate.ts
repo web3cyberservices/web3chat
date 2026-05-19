@@ -14,7 +14,7 @@ async function migrate() {
   try {
     console.log('[Migration] Starting database update...');
     
-    // Scan Queue Core
+    // Core Scan Queue
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.scan_queue (
         id SERIAL PRIMARY KEY, 
@@ -36,7 +36,29 @@ async function migrate() {
       );
     `);
 
-    // Violations Table (Fallback for old logic)
+    // Ensure all audit columns exist
+    const columns = [
+      { name: 'audit_findings', type: 'jsonb DEFAULT \'[]\'::jsonb' },
+      { name: 'extracted_emails', type: 'jsonb DEFAULT \'[]\'::jsonb' },
+      { name: 'extracted_phones', type: 'jsonb DEFAULT \'[]\'::jsonb' },
+      { name: 'closing_price', type: 'decimal(12,2)' },
+      { name: 'priority', type: 'int DEFAULT 0' },
+      { name: 'pdf_report_path', type: 'varchar(500)' },
+      { name: 'crm_status', type: 'varchar(20) DEFAULT \'free\'' }
+    ];
+
+    for (const col of columns) {
+      await client.query(`
+        DO $$ 
+        BEGIN 
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='scan_queue' AND column_name='${col.name}') THEN
+            ALTER TABLE public.scan_queue ADD COLUMN ${col.name} ${col.type};
+          END IF;
+        END $$;
+      `);
+    }
+
+    // Site Violations (Fallback table)
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.site_violations (
         id SERIAL PRIMARY KEY,
@@ -53,7 +75,6 @@ async function migrate() {
       );
     `);
 
-    // Ensure columns exist in site_violations
     const violationCols = [
       { name: 'potential_fine', type: 'text' },
       { name: 'country', type: 'varchar(10)' },
@@ -67,27 +88,6 @@ async function migrate() {
         BEGIN 
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='site_violations' AND column_name='${col.name}') THEN
             ALTER TABLE public.site_violations ADD COLUMN ${col.name} ${col.type};
-          END IF;
-        END $$;
-      `);
-    }
-
-    // Ensure columns exist in scan_queue
-    const queueCols = [
-      { name: 'audit_findings', type: 'jsonb DEFAULT \'[]\'::jsonb' },
-      { name: 'extracted_emails', type: 'jsonb DEFAULT \'[]\'::jsonb' },
-      { name: 'extracted_phones', type: 'jsonb DEFAULT \'[]\'::jsonb' },
-      { name: 'closing_price', type: 'decimal(12,2)' },
-      { name: 'priority', type: 'int DEFAULT 0' },
-      { name: 'pdf_report_path', type: 'varchar(500)' }
-    ];
-
-    for (const col of queueCols) {
-      await client.query(`
-        DO $$ 
-        BEGIN 
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='scan_queue' AND column_name='${col.name}') THEN
-            ALTER TABLE public.scan_queue ADD COLUMN ${col.name} ${col.type};
           END IF;
         END $$;
       `);

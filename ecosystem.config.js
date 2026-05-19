@@ -13,7 +13,8 @@ module.exports = {
         NEXT_PUBLIC_BASE_URL: 'https://bot.humango.app'
       },
       max_restarts: 10,
-      restart_delay: 4000
+      restart_delay: 4000,
+      exp_backoff_restart_delay: 100
     },
     {
       name: 'humango-worker',
