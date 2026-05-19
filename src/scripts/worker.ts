@@ -78,6 +78,16 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     console.log(`[Audit Engine] Analyzing: ${domainName}`);
     await page.goto(urlObj.origin, { waitUntil: 'networkidle2', timeout: 35000 });
     
+    // --- 0. EXTRACT CONTACTS ---
+    const extractedContacts = await page.evaluate(() => {
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4,6}/g;
+      const text = document.body.innerText;
+      const emails = [...new Set(text.match(emailRegex) || [])];
+      const phones = [...new Set(text.match(phoneRegex) || [])];
+      return { emails, phones };
+    });
+
     // --- 1. NETWORK & COOKIES ---
     const hasGoogleFonts = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
     if (hasGoogleFonts) {
@@ -165,30 +175,22 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     }
 
     // --- 4. SAVE RESULTS ---
-    await pool.query("DELETE FROM public.site_violations WHERE domain = $1", [domainName]);
-    for (const f of finalFindings) {
-      await pool.query(
-        `INSERT INTO public.site_violations (domain, issue_type, severity, description, law_name, recommendation, potential_fine, business_impact, country) 
-         VALUES ($1, $2, 'high', $3, $4, $5, $6, $7, $8)`,
-        [domainName, f.type, f.summary, f.basis, f.action, f.liability, f.risk, f.country]
-      );
-    }
-
     await pool.query(
       `UPDATE public.scan_queue 
        SET status = 'completed', 
            violations_count = $1, 
            audit_findings = $2,
+           contacts = $3,
            crm_status = CASE WHEN $1 > 0 THEN 'new' ELSE 'completed' END
-       WHERE id = $3`,
-      [finalFindings.length, JSON.stringify(finalFindings), taskId]
+       WHERE id = $4`,
+      [finalFindings.length, JSON.stringify(finalFindings), JSON.stringify(extractedContacts), taskId]
     );
 
     console.log(`[Audit Engine] Audit for ${domainName} finished with ${finalFindings.length} findings.`);
 
   } catch (err: any) {
     console.error(`[Worker Error] Task ${taskId} (${domainUrl}) failed:`, err.message);
-    await pool.query("UPDATE public.scan_queue SET status = 'failed' WHERE id = $1", [taskId]);
+    await pool.query("UPDATE scan_queue SET status = 'failed' WHERE id = $1", [taskId]);
   } finally {
     if (browser) await browser.close();
   }

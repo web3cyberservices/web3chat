@@ -27,7 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, Briefcase, Globe, Clock, CheckCircle2, LogOut, 
-  ExternalLink, Phone, Mail, ChevronRight, AlertCircle, UserCheck, ShieldAlert, User, History, TrendingUp
+  ExternalLink, Phone, Mail, ChevronRight, AlertCircle, UserCheck, ShieldAlert, User, History, TrendingUp, Copy
 } from "lucide-react";
 import Image from 'next/image';
 import Link from 'next/link';
@@ -114,10 +114,11 @@ export default function ManagerDashboard() {
   };
 
   const handleSendEmail = async () => {
-    if (!selectedTask || !selectedTask.user_email) return;
+    const targetEmail = selectedTask?.user_email || (selectedTask?.contacts?.emails && selectedTask.contacts.emails[0]);
+    if (!selectedTask || !targetEmail) return;
     setIsSendingEmail(true);
     try {
-      const res = await sendAuditEmailAction(selectedTask.id, session.email, selectedTask.user_email, emailBody);
+      const res = await sendAuditEmailAction(selectedTask.id, session.email, targetEmail, emailBody);
       if (res.success) {
         toast({ title: "Email отправлен", description: "Отчет успешно доставлен клиенту." });
         setIsEmailModalOpen(false);
@@ -414,21 +415,47 @@ export default function ManagerDashboard() {
               <div className="space-y-8">
                 <div>
                   <h3 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-400"><UserCheck className="w-4 h-4" /> Контактные данные (Extract)</h3>
-                  <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between group hover:border-primary/30 transition-all">
-                    <span className="text-sm font-mono text-white">{selectedTask?.user_email || 'Email не найден'}</span>
-                    {selectedTask?.user_email && (
-                      <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold text-slate-500 hover:text-primary" onClick={() => { navigator.clipboard.writeText(selectedTask.user_email); toast({ title: "Скопировано" }); }}>Copy</Button>
-                    )}
+                  <div className="space-y-3">
+                    {/* Primary Email */}
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between group hover:border-primary/30 transition-all">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-slate-500 uppercase font-bold mb-1">Target Email (Seed)</span>
+                        <span className="text-sm font-mono text-white">{selectedTask?.user_email || 'Email не найден'}</span>
+                      </div>
+                      {selectedTask?.user_email && (
+                        <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold text-slate-500 hover:text-primary" onClick={() => { navigator.clipboard.writeText(selectedTask.user_email); toast({ title: "Скопировано" }); }}>
+                          <Copy className="w-3 h-3 mr-1" /> Copy
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Extracted Emails */}
+                    {selectedTask?.contacts?.emails && selectedTask.contacts.emails.length > 0 && selectedTask.contacts.emails.map((email: string, i: number) => (
+                      <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between group hover:border-emerald-500/30 transition-all">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-emerald-500 uppercase font-bold mb-1">Found on site</span>
+                          <span className="text-sm font-mono text-white">{email}</span>
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold text-slate-500 hover:text-primary" onClick={() => { navigator.clipboard.writeText(email); toast({ title: "Скопировано" }); }}>
+                          <Copy className="w-3 h-3 mr-1" /> Copy
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-400"><Phone className="w-4 h-4" /> Телефоны</h3>
+                  <h3 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-400"><Phone className="w-4 h-4" /> Телефоны (Found on site)</h3>
                   <div className="space-y-3">
                     {selectedTask?.contacts?.phones && selectedTask.contacts.phones.length > 0 ? selectedTask.contacts.phones.map((phone: string, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                      <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 group hover:border-primary/30 transition-all">
                         <span className="text-sm text-white font-mono">{phone}</span>
-                        <Button variant="ghost" size="sm" className="h-7 text-[10px] hover:text-primary">Call</Button>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" className="h-7 text-[10px] hover:text-primary" onClick={() => { navigator.clipboard.writeText(phone); toast({ title: "Скопировано" }); }}>
+                             <Copy className="w-3 h-3 mr-1" /> Copy
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-[10px] hover:text-emerald-500 uppercase font-bold">Call</Button>
+                        </div>
                       </div>
                     )) : (
                       <p className="text-xs text-slate-500 italic px-2">Номера не обнаружены</p>
@@ -454,8 +481,8 @@ export default function ManagerDashboard() {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Получатель:</label>
-                <div className="p-3 bg-white/5 rounded-lg border border-white/5 text-sm text-slate-300 font-mono">
-                  {selectedTask?.user_email}
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-sm text-slate-300 font-mono">
+                  {selectedTask?.user_email || (selectedTask?.contacts?.emails && selectedTask.contacts.emails[0]) || 'Email не найден'}
                 </div>
               </div>
 
@@ -482,7 +509,7 @@ export default function ManagerDashboard() {
             <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-[#0b1120] pb-2">
               <Button variant="ghost" onClick={() => setIsEmailModalOpen(false)}>Отмена</Button>
               <Button 
-                disabled={isSendingEmail || !selectedTask?.user_email}
+                disabled={isSendingEmail || (!selectedTask?.user_email && (!selectedTask?.contacts?.emails || selectedTask.contacts.emails.length === 0))}
                 onClick={handleSendEmail}
                 className="bg-primary hover:bg-primary/90 px-8 font-bold"
               >

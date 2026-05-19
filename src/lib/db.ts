@@ -72,7 +72,7 @@ export async function getViolations(limit: number = 100) {
     SELECT 
       q.id, q.url as domain, q.url, q.status, q.crm_status,
       q.assigned_to as "assignedTo", q.manager_name as "managerName", q.assigned_at as "assignedAt",
-      q.violations_count as violation_count
+      q.violations_count as violation_count, q.audit_findings, q.contacts
     FROM public.scan_queue q
     ORDER BY q.violations_count DESC, q.created_at DESC LIMIT $1
   `, [limit]);
@@ -90,7 +90,9 @@ export async function getViolations(limit: number = 100) {
     managerName: row.managerName,
     assignedAt: row.assignedAt,
     status: row.status,
-    crm_status: row.crm_status
+    crm_status: row.crm_status,
+    audit_findings: row.audit_findings,
+    contacts: row.contacts
   }));
 }
 
