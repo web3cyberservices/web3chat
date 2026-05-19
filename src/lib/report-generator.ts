@@ -4,6 +4,7 @@ import fs from 'fs';
 
 /**
  * Professional PDF Report Generator - Unified Design
+ * Pan-European Compliance Standard v2026
  */
 
 const CHROME_PATHS = [
@@ -64,7 +65,7 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
           .company-details { text-align: right; font-size: 10px; color: #64748b; line-height: 1.6; }
           
           .report-meta { margin-bottom: 40px; }
-          .report-title { font-size: 36px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.03em; }
+          .report-title { font-size: 32px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.03em; text-transform: uppercase; }
           .target-info { font-size: 14px; color: #64748b; margin-top: 10px; font-weight: 500; }
           
           .finding-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 30px; page-break-inside: avoid; background: #fff; }
@@ -73,9 +74,8 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
           .severity-badge { font-size: 10px; padding: 5px 12px; border-radius: 8px; font-weight: 800; }
           .sev-critical { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
           .sev-high { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; }
-          .sev-medium { background: #fef9c3; color: #ca8a04; border: 1px solid #fef08a; }
           
-          .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; letter-spacing: 0.1em; }
+          .section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; letter-spacing: 0.1em; }
           .content-block { margin-bottom: 20px; }
           .desc-text { font-size: 13px; color: #334155; }
           
@@ -99,35 +99,40 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
           <div class="company-details">
             <strong>Operator: Humango Limited</strong> | Co. No: 16750477<br>
             Address: 182-184 High Street North, London, E6 2JA<br>
-            Verification Contact: abuse@humango.app | RFC 9309 Statutory Audit Node
+            DPO Contact: abuse@humango.app | RFC 9309 Audit Node
           </div>
         </div>
 
         <div class="report-meta">
           <h1 class="report-title">Statutory Audit Report</h1>
-          <div class="target-info">Target Domain: <strong>${safeDomain}</strong> | Generated: ${new Date().toLocaleString('en-GB')}</div>
+          <div class="target-info">Target Domain: <strong>${safeDomain}</strong> | Timestamp: ${new Date().toLocaleString('en-GB')}</div>
         </div>
 
         ${isCompliant ? `
           <div class="compliant-hero">
-            <div class="compliant-status">STATUTORY COMPLIANCE VERIFIED</div>
-            <p style="color:#065f46; margin-top:15px;">No high-risk behaviors or missing mandatory disclosures were identified.</p>
+            <div class="compliant-status">SYSTEM COMPLIANT</div>
+            <p style="color:#065f46; margin-top:15px; font-weight: 500;">No high-priority statutory violations or unauthorized data transfers were identified during the automated audit.</p>
           </div>
         ` : cleanFindings.map(v => `
           <div class="finding-card">
             <div class="card-head">
               <span class="type-label">${(v.issue_type || 'Compliance Violation').replace(/_/g, ' ')}</span>
-              <span class="severity-badge sev-${(v.severity || 'medium').toLowerCase()}">${(v.severity || 'MEDIUM').toUpperCase()}</span>
+              <span class="severity-badge sev-${(v.severity || 'high').toLowerCase()}">HIGH RISK</span>
             </div>
             
             <div class="content-block">
-              <div class="section-title">Description</div>
+              <div class="section-title">Detection Summary</div>
               <div class="desc-text">${v.description}</div>
             </div>
 
             <div class="content-block">
               <div class="section-title">Legal Foundation</div>
-              <div class="desc-text" style="font-weight: 600;">${v.law_name || 'GDPR / National Law'}</div>
+              <div class="desc-text" style="font-weight: 700;">${v.law_name || 'EU GDPR'}</div>
+            </div>
+
+            <div class="content-block">
+              <div class="section-title">Business & Regulatory Risk</div>
+              <div class="desc-text">${v.business_impact || 'Potential regulatory investigation and loss of platform trust.'}</div>
             </div>
 
             ${v.potential_fine ? `
@@ -138,14 +143,14 @@ export async function generatePdfReport(domain: string, findings: Finding[] = []
             ` : ''}
 
             <div class="recommendation-box">
-              <div class="section-title" style="color: #3b82f6;">Required Action</div>
+              <div class="section-title" style="color: #3b82f6;">Remediation Action</div>
               <div style="font-weight: 600;">${v.recommendation}</div>
             </div>
           </div>
         `).join('')}
 
         <div class="footer-note">
-          bot.humango.app | Statutory Compliance Verified | © 2026 Humango Limited
+          bot.humango.app | Pan-European Compliance Standard | © 2026 Humango Limited
         </div>
       </body>
       </html>
