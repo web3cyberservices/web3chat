@@ -78,7 +78,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     console.log(`[Audit Engine] Analyzing: ${domainName}`);
     await page.goto(urlObj.origin, { waitUntil: 'networkidle2', timeout: 35000 });
     
-    // 1. NETWORK & COOKIES (Always independent)
+    // --- 1. NETWORK & COOKIES ---
     const hasGoogleFonts = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
     if (hasGoogleFonts) {
       finalFindings.push({
@@ -122,7 +122,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       });
     }
 
-    // 2. DOCUMENT VALIDATION (Hard Check)
+    // --- 2. LEGAL DOCUMENT VALIDATION ---
     const pageText = await page.evaluate(() => document.body.innerText.toLowerCase());
     const markerCount = LEGAL_MARKERS.filter(m => pageText.includes(m.toLowerCase())).length;
     let isValidDocument = (pageText.length > 400 && markerCount >= 2);
@@ -138,7 +138,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         country: countryCode
       });
     } else {
-      // 3. CONTENT ANALYSIS (Only if doc exists)
+      // --- 3. CONTENT ANALYSIS ---
       if (!RIGHTS_KEYWORDS.some(kw => pageText.includes(kw))) {
         finalFindings.push({
           type: 'MISSING_GDPR_RIGHTS',
@@ -164,7 +164,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       }
     }
 
-    // --- SAVE TO DATABASE ---
+    // --- 4. SAVE RESULTS ---
     await pool.query("DELETE FROM public.site_violations WHERE domain = $1", [domainName]);
     for (const f of finalFindings) {
       await pool.query(
@@ -184,10 +184,10 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       [finalFindings.length, JSON.stringify(finalFindings), taskId]
     );
 
-    console.log(`[Audit Engine] COMPLETED: ${domainName}. Found ${finalFindings.length} violations.`);
+    console.log(`[Audit Engine] Audit for ${domainName} finished with ${finalFindings.length} findings.`);
 
   } catch (err: any) {
-    console.error(`[Worker Error] ${domainUrl}:`, err.message);
+    console.error(`[Worker Error] Task ${taskId} (${domainUrl}) failed:`, err.message);
     await pool.query("UPDATE public.scan_queue SET status = 'failed' WHERE id = $1", [taskId]);
   } finally {
     if (browser) await browser.close();
@@ -195,6 +195,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
 }
 
 async function startWorker() {
+  console.log('[Worker] Starting audit engine...');
   while (true) {
     try {
       const res = await pool.query(
@@ -202,6 +203,7 @@ async function startWorker() {
       );
       if (res.rows.length > 0) {
         const task = res.rows[0];
+        console.log(`[Worker] Picking up task ${task.id}: ${task.url}`);
         await pool.query("UPDATE scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
         await executeDeterministicAudit(task.id, task.url, task.user_email);
       } else {

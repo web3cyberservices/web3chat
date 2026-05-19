@@ -148,13 +148,16 @@ export default function ManagerDashboard() {
     };
   }, [myTasks]);
 
-  // Парсинг находок для отображения в карточке
   const findings = useMemo(() => {
     if (!selectedTask?.audit_findings) return [];
     if (Array.isArray(selectedTask.audit_findings)) return selectedTask.audit_findings;
     try {
-      return JSON.parse(selectedTask.audit_findings);
+      const parsed = typeof selectedTask.audit_findings === 'string' 
+        ? JSON.parse(selectedTask.audit_findings) 
+        : selectedTask.audit_findings;
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
+      console.error("Error parsing audit_findings:", e);
       return [];
     }
   }, [selectedTask]);
@@ -373,7 +376,7 @@ export default function ManagerDashboard() {
 
               <div className="space-y-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-white/5 pb-2">Детали нарушений</h3>
-                <div className="space-y-4">
+                <div className="space-y-4 overflow-y-auto max-h-[400px] pr-2 scrollbar-hide">
                   {findings && findings.length > 0 ? findings.map((f: any, i: number) => (
                     <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2 group hover:border-rose-500/30 transition-all">
                       <div className="flex items-center gap-2">
@@ -440,50 +443,52 @@ export default function ManagerDashboard() {
 
       {/* EMAIL COMPOSER MODAL */}
       <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
-        <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-2xl p-8 space-y-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
-              <Mail className="w-6 h-6 text-primary" /> Отправка отчета (Reply-To: {session?.email})
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="p-8 space-y-6 overflow-y-auto scrollbar-hide">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3 text-xl font-bold">
+                <Mail className="w-6 h-6 text-primary" /> Отправка отчета (Reply-To: {session?.email})
+              </DialogTitle>
+            </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Получатель:</label>
-              <div className="p-3 bg-white/5 rounded-lg border border-white/5 text-sm text-slate-300 font-mono">
-                {selectedTask?.user_email}
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Получатель:</label>
+                <div className="p-3 bg-white/5 rounded-lg border border-white/5 text-sm text-slate-300 font-mono">
+                  {selectedTask?.user_email}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Текст письма:</label>
+                <Textarea 
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  className="min-h-[250px] bg-white/5 border-white/10 text-sm leading-relaxed"
+                />
+              </div>
+
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-4">
+                <div className="bg-primary/20 p-2 rounded-lg">
+                  <ShieldAlert className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">Вложение: PDF Отчет</p>
+                  <p className="text-[10px] text-slate-500">Humango_Audit_{selectedTask?.url?.replace(/^https?:\/\//, '')}.pdf</p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Текст письма:</label>
-              <Textarea 
-                value={emailBody}
-                onChange={(e) => setEmailBody(e.target.value)}
-                className="min-h-[250px] bg-white/5 border-white/10 text-sm leading-relaxed"
-              />
+            <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-[#0b1120] pb-2">
+              <Button variant="ghost" onClick={() => setIsEmailModalOpen(false)}>Отмена</Button>
+              <Button 
+                disabled={isSendingEmail || !selectedTask?.user_email}
+                onClick={handleSendEmail}
+                className="bg-primary hover:bg-primary/90 px-8 font-bold"
+              >
+                {isSendingEmail ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Отправка...</> : "Отправить письмо"}
+              </Button>
             </div>
-
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-4">
-              <div className="bg-primary/20 p-2 rounded-lg">
-                <ShieldAlert className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-white">Вложение: PDF Отчет</p>
-                <p className="text-[10px] text-slate-500">Humango_Audit_{selectedTask?.url?.replace(/^https?:\/\//, '')}.pdf</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="ghost" onClick={() => setIsEmailModalOpen(false)}>Отмена</Button>
-            <Button 
-              disabled={isSendingEmail || !selectedTask?.user_email}
-              onClick={handleSendEmail}
-              className="bg-primary hover:bg-primary/90 px-8 font-bold"
-            >
-              {isSendingEmail ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Отправка...</> : "Отправить письмо"}
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
