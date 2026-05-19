@@ -70,51 +70,32 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     const urlObj = new URL(cleanUrl);
     const domainName = urlObj.hostname;
     const tld = domainName.split('.').pop()?.toLowerCase() || '';
+    const countryCode = tld === 'com' || tld === 'net' ? 'EU' : tld.toUpperCase();
 
     console.log(`[Audit Hub] Running deep scan: ${domainName}`);
     
-    // Заходим на сайт. Ничего не кликаем!
     await page.goto(urlObj.origin, { waitUntil: 'networkidle2', timeout: 35000 });
     
     // =========================================================================
     // БЛОК 1: СЕТЬ И КУКИ (Выполняется ВСЕГДА)
     // =========================================================================
     
-    // 1.1. Проверка на трекеры до согласия
-    const cookies = await page.cookies();
-    const forbiddenMarkers = ['_ga', '_gid', '_fbp', '_fr', 'ads', 'metrics', 'tt_pixel', 'hotjar'];
-    const illegalCookies = cookies.filter(c => forbiddenMarkers.some(m => c.name.toLowerCase().includes(m)));
-
-    if (illegalCookies.length > 0) {
-      finalFindings.push({
-        type: 'COOKIE_CONSENT_VIOLATION',
-        basis: 'Art. 6 & 7 GDPR (Planet49 Ruling)',
-        summary: `The website placed ${illegalCookies.length} tracking cookies into the browser prior to any interaction with the consent banner.`,
-        risk: 'Direct non-compliance with EU case law. High vulnerability during routine data protection audits.',
-        liability: FINE_GDPR,
-        action: 'Implement a hard-blocking mechanism for all marketing cookies until affirmative consent is given.',
-        country: 'EU'
-      });
-    }
-
-    // 1.2. Проверка Google Fonts ( Munich Court Ruling)
+    // 1.1. Проверка на трекеры и Google Fonts
     const hasGoogleFonts = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
     if (hasGoogleFonts) {
       finalFindings.push({
         type: 'GOOGLE_FONTS_PRIVACY_VIOLATION',
         basis: 'Art. 6(1)(a) GDPR & Munich Court Precedent',
         summary: 'External Google Fonts are loaded directly from US servers, transmitting user IP addresses without consent.',
-        risk: 'Major trigger for automated legal claims (Abmahnung) in DACH regions.',
-        liability: 'Up to €250,000 per violation claim.',
+        risk: 'Direct trigger for automated legal claims (Abmahnung) in EU.',
+        liability: 'Up to €250,000 per claim or GDPR standard.',
         action: 'Self-host all fonts locally and remove external CSS calls to googleapis.com.',
-        country: tld === 'de' || tld === 'at' ? tld.toUpperCase() : 'EU'
+        country: countryCode
       });
     }
 
-    // 1.3. Скрытые трекеры в сети
     const hasAnalytics = networkUrls.some(url => url.includes('google-analytics.com') || url.includes('analytics.google'));
     const hasFacebook = networkUrls.some(url => url.includes('connect.facebook.net') || url.includes('facebook.com/tr'));
-    
     if (hasAnalytics || hasFacebook) {
       finalFindings.push({
         type: 'TRACKING_TRAFFIC_DETECTED',
@@ -123,7 +104,24 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         risk: 'Critical risk of heavy regulatory fines for illegal processing of tracking data.',
         liability: FINE_GDPR,
         action: 'Block tag manager initialization until user consent is recorded.',
-        country: 'EU'
+        country: countryCode
+      });
+    }
+
+    // 1.2. Проверка куки в хранилище
+    const cookies = await page.cookies();
+    const forbiddenMarkers = ['_ga', '_gid', '_fbp', '_fr', 'ads', 'metrics'];
+    const illegalCookies = cookies.filter(c => forbiddenMarkers.some(m => c.name.toLowerCase().includes(m)));
+
+    if (illegalCookies.length > 0) {
+      finalFindings.push({
+        type: 'COOKIE_CONSENT_VIOLATION',
+        basis: 'Art. 6 & 7 GDPR (Planet49 Ruling)',
+        summary: `Site placed ${illegalCookies.length} tracking cookies into the browser prior to any user interaction.`,
+        risk: 'Direct non-compliance with EU case law.',
+        liability: FINE_GDPR,
+        action: 'Implement a hard-blocking mechanism for all marketing cookies until affirmative consent.',
+        country: countryCode
       });
     }
 
@@ -132,28 +130,28 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     // =========================================================================
     
     const pageText = await page.evaluate(() => document.body.innerText.toLowerCase());
-    const legalText = pageText; // Упрощенно берем весь текст главной, если не перешли глубже
+    const legalText = pageText;
 
     if (!legalText || legalText.trim().length < 200) {
       finalFindings.push({
         type: 'MISSING_CORE_FRAMEWORK',
         basis: 'Art. 13 GDPR',
         summary: 'No statutory legal disclosures or accessible Privacy Policy found in the primary site architecture.',
-        risk: 'Immediate trigger for regulatory sanctions and platform bans (Meta/Google Ads).',
+        risk: 'Immediate trigger for regulatory sanctions and platform bans.',
         liability: FINE_GDPR,
         action: 'Create a visible /privacy page and link it prominently in your website footer.',
-        country: 'EU'
+        country: countryCode
       });
     }
 
     // =========================================================================
-    // БЛОК 3: АНАЛИЗ ТЕКСТА (Выполняется ТОЛЬКО если текст есть)
+    // БЛОК 3: АНАЛИЗ ТЕКСТА (Только если есть контент)
     // =========================================================================
     
     if (legalText && legalText.trim().length >= 200) {
       const textLower = legalText.toLowerCase();
 
-      // 3.1. Сроки хранения (Data Retention)
+      // 3.1. Сроки хранения
       const retentionMarkers = ['retention period', 'store for', 'stored for', 'months', 'years', 'period of', 'retain'];
       if (!retentionMarkers.some(m => textLower.includes(m))) {
         finalFindings.push({
@@ -162,56 +160,56 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
           summary: 'The privacy policy fails to state specific timeframes for how long user data is stored.',
           risk: 'Violation of the storage limitation principle.',
           liability: FINE_GDPR,
-          action: 'Update your policy with a table stating retention periods for each data category (e.g., 24 months for marketing logs).',
-          country: 'EU'
+          action: 'Update policy with a table stating retention periods for each data category.',
+          country: countryCode
         });
       }
 
-      // 3.2. Безопасность финансов
-      const finKeywords = ['credit card', 'payment info', 'bank account', 'billing details', 'платежные данные'];
-      const secKeywords = ['stripe', 'paypal', 'pci-dss', 'secure gateway', 'encrypted'];
-      
-      if (finKeywords.some(kw => textLower.includes(kw)) && !secKeywords.some(kw => textLower.includes(kw))) {
-        finalFindings.push({
-          type: 'UNSECURED_FINANCIAL_DECLARATION',
-          basis: 'Art. 32 GDPR',
-          summary: 'Financial data collection declared without stating use of encrypted payment gateways.',
-          risk: 'Perceived lack of data security frameworks by regulators.',
-          liability: FINE_GDPR,
-          action: 'Explicitly state that payments are handled by PCI-DSS compliant providers like Stripe or PayPal.',
-          country: 'EU'
-        });
-      }
-
-      // 3.3. Немецкий Impressum
-      if (tld === 'de' || tld === 'at' || textLower.includes('impressum')) {
+      // 3.2. Национальные требования (Германия)
+      if (countryCode === 'DE' || textLower.includes('impressum')) {
         const impressumKeywords = ['handelsregister', 'registernummer', 'ihk', 'steuer-id', 'ust-idnr', 'amtsgericht'];
         if (!impressumKeywords.some(kw => textLower.includes(kw))) {
           finalFindings.push({
             type: 'GERMAN_IMPRESSUM_INCOMPLETE',
             basis: '§ 5 DDG (Germany)',
-            summary: 'The mandatory legal notice is missing critical business identifiers (VAT ID or Registry Number).',
+            summary: 'The mandatory legal notice is missing critical business identifiers.',
             risk: 'Extremely high risk of Abmahnung (legal warning letters) from competitors.',
             liability: 'Up to €50,000.',
-            action: 'Add your Commercial Registry number and local court jurisdiction to the Impressum.',
-            country: tld.toUpperCase()
+            action: 'Add Commercial Registry number and local court jurisdiction to the Impressum.',
+            country: 'DE'
           });
         }
       }
+
+      // 3.3. Финансы
+      const finKeywords = ['credit card', 'payment info', 'bank account', 'billing details'];
+      const secKeywords = ['stripe', 'paypal', 'pci-dss', 'encrypted', 'secure gateway'];
+      if (finKeywords.some(kw => textLower.includes(kw)) && !secKeywords.some(kw => textLower.includes(kw))) {
+        finalFindings.push({
+          type: 'UNSECURED_FINANCIAL_DECLARATION',
+          basis: 'Art. 32 GDPR',
+          summary: 'Financial data collection declared without stating use of encrypted payment gateways.',
+          risk: 'High priority audit risk by financial regulators.',
+          liability: FINE_GDPR,
+          action: 'Explicitly state that payments are handled by PCI-DSS compliant providers.',
+          country: countryCode
+        });
+      }
     }
 
-    // --- SAVE & DELIVER ---
+    // --- SAVE ---
     await pool.query("DELETE FROM public.site_violations WHERE domain = $1", [domainName]);
     for (const f of finalFindings) {
       await pool.query(
         `INSERT INTO public.site_violations (domain, issue_type, severity, description, law_name, recommendation, potential_fine, business_impact, country) 
          VALUES ($1, $2, 'high', $3, $4, $5, $6, $7, $8)`,
-        [domainName, f.type, f.summary, f.basis, f.action, f.liability, f.risk, f.country || 'EU']
+        [domainName, f.type, f.summary, f.basis, f.action, f.liability, f.risk, f.country]
       );
     }
 
     await pool.query("UPDATE public.scan_queue SET status = 'completed', violations_count = $1 WHERE id = $2", [finalFindings.length, taskId]);
 
+    // --- DELIVER ---
     const pdfBuffer = await generatePdfReport(domainName, finalFindings);
     if (userEmail && pdfBuffer) {
       await transporter.sendMail({
@@ -245,6 +243,7 @@ async function startWorker() {
         await new Promise(r => setTimeout(r, 5000));
       }
     } catch (e: any) {
+      console.error('[Worker Loop Error]', e.message);
       await new Promise(r => setTimeout(r, 10000));
     }
   }

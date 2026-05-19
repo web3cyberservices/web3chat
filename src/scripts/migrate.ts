@@ -13,7 +13,7 @@ async function migrate() {
   const client = await pool.connect();
   try {
     console.log('==================================================');
-    console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR V37.2     ');
+    console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR          ');
     console.log('==================================================');
     
     // Users table
@@ -59,7 +59,7 @@ async function migrate() {
       );
     `);
 
-    // site_violations table with potential_fine
+    // site_violations table
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.site_violations (
         id SERIAL PRIMARY KEY,
@@ -74,17 +74,19 @@ async function migrate() {
         recommendation text,
         business_impact text,
         potential_fine text,
+        country varchar(10),
         report_type varchar(20) DEFAULT 'SaaS',
         created_at timestamp DEFAULT NOW()
       );
     `);
 
-    // Ensure all columns exist
+    // Ensure all columns exist (Idempotent)
     const violationsColumns = [
       { name: 'potential_fine', type: 'text' },
       { name: 'law_name', type: 'text' },
       { name: 'recommendation', type: 'text' },
-      { name: 'business_impact', type: 'text' }
+      { name: 'business_impact', type: 'text' },
+      { name: 'country', type: 'varchar(10)' }
     ];
 
     for (const col of violationsColumns) {
