@@ -42,12 +42,10 @@ async function getExecutablePath() {
 const USER_AGENT = "HumangoBot/1.0 (+https://bot.humango.app)";
 const FINE_GDPR = "Up to €20,000,000 or 4% of global annual turnover.";
 
-// LEGAL VALIDATION MARKERS
-const LEGAL_MARKERS = [
-  'privacy', 'policy', 'terms', 'gdpr', 'datenschutz', 
-  'personal data', 'information we collect', 'cookies', 
-  'legal notice', 'impressum', 'protection des données'
-];
+const LEGAL_MARKERS = ['privacy', 'policy', 'terms', 'gdpr', 'datenschutz', 'personal data', 'information we collect', 'cookies', 'legal notice', 'impressum'];
+const FINANCE_KEYWORDS = ['credit card', 'payment', 'billing', 'transaction', 'bank', 'wallet', 'purchases', 'checkout', 'financial info'];
+const SECURE_KEYWORDS = ['stripe', 'paypal', 'pci-dss', 'secure gateway', 'braintree', 'encrypted', 'certified'];
+const RIGHTS_KEYWORDS = ['withdraw', 'right to access', 'erasure', 'right to be forgotten', 'delete account', 'access your data', 'rectification'];
 
 async function executeDeterministicAudit(taskId: number, domainUrl: string, userEmail: string) {
   let browser: any = null;
@@ -65,7 +63,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
 
-    // 1. NETWORK & COOKIE ANALYSIS (ALWAY RUNS)
+    // 1. NETWORK ANALYTICS
     await page.setRequestInterception(true);
     page.on('request', request => {
       networkUrls.push(request.url().toLowerCase());
@@ -82,7 +80,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
     console.log(`[Audit Engine] Analyzing: ${domainName}`);
     await page.goto(urlObj.origin, { waitUntil: 'networkidle2', timeout: 35000 });
     
-    // 1.1 Google Fonts Check
+    // 1.1 Google Fonts
     const hasGoogleFonts = networkUrls.some(url => url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com'));
     if (hasGoogleFonts) {
       finalFindings.push({
@@ -96,17 +94,17 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       });
     }
 
-    // 1.2 Tracking Traffic Check
+    // 1.2 Tracking Before Consent
     const hasAnalytics = networkUrls.some(url => url.includes('google-analytics.com') || url.includes('analytics.google'));
     const hasFacebook = networkUrls.some(url => url.includes('connect.facebook.net') || url.includes('facebook.com/tr'));
     if (hasAnalytics || hasFacebook) {
       finalFindings.push({
         type: 'TRACKING_TRAFFIC_DETECTED',
         basis: 'Art. 5(1)(a) & Art. 6 GDPR',
-        summary: 'The system detected active network traffic to advertising/analytics platforms before any user interaction.',
-        risk: 'Direct violation of the Planet49 ruling. High risk of regulatory intervention.',
+        summary: 'Marketing and analytics scripts were activated automatically before any user interaction.',
+        risk: 'Critical violation of the Planet49 ruling. High risk of regulatory intervention.',
         liability: FINE_GDPR,
-        action: 'Configure your CMP (Consent Management Platform) to block analytics scripts until explicit "Accept" event.',
+        action: 'Configure your consent banner to block all non-essential scripts until the user clicks "Accept".',
         country: countryCode
       });
     }
@@ -120,29 +118,20 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
       finalFindings.push({
         type: 'COOKIE_CONSENT_VIOLATION',
         basis: 'ePrivacy Directive & Art. 7 GDPR',
-        summary: `Website placed ${illegalCookies.length} tracking/marketing cookies into storage before user consent.`,
-        risk: 'Significant compliance failure during routine audits.',
+        summary: `The system detected ${illegalCookies.length} tracking cookies placed in storage prior to consent.`,
+        risk: 'Direct non-compliance with statutory data protection standards.',
         liability: FINE_GDPR,
-        action: 'Implement hard-blocking for non-essential cookies. No analytical storage allowed before affirmative action.',
+        action: 'Implement a hard-blocking cookie mechanism for all analytical and tracking providers.',
         country: countryCode
       });
     }
 
-    // 2. LEGAL DOCUMENT VALIDATION (THE CORE FIX)
+    // 2. LEGAL DOCUMENT VALIDATION
     const pageText = await page.evaluate(() => document.body.innerText.toLowerCase());
-    
-    // Strictly validate if the current page is actually a legal document
     const markerMatches = LEGAL_MARKERS.filter(m => pageText.includes(m.toLowerCase()));
-    let legalText = pageText;
-
-    // RULE: If length > 200 but markers < 2, it's a false positive (e.g. Home page)
-    if (legalText.length < 200 || markerMatches.length < 2) {
-      legalText = ''; 
-    }
+    let legalText = (pageText.length > 200 && markerMatches.length >= 2) ? pageText : '';
 
     if (!legalText) {
-      // BLOCK 2: MISSING DOCUMENT
-      console.log(`[Validation Failed] ${domainName} has no valid legal framework.`);
       finalFindings.push({
         type: 'MISSING_CORE_FRAMEWORK',
         basis: 'Art. 13 GDPR',
@@ -152,11 +141,10 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         action: 'Create a dedicated /privacy page with all mandatory disclosures and link it in the footer.',
         country: countryCode
       });
-      // Skip text-based checks as there is no document to analyze
     } else {
-      // BLOCK 3: DEEP TEXT ANALYSIS (ONLY IF VALID DOCUMENT FOUND)
+      // 3. DEEP CONTENT ANALYSIS
       
-      // 3.1 Data Retention Check
+      // 3.1 Data Retention
       const retentionMarkers = ['retention period', 'store for', 'stored for', 'months', 'years', 'period of', 'retain'];
       if (!retentionMarkers.some(m => legalText.includes(m))) {
         finalFindings.push({
@@ -165,12 +153,38 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
           summary: 'The privacy policy fails to specify mandatory data retention timeframes.',
           risk: 'Violation of the storage limitation principle.',
           liability: FINE_GDPR,
-          action: 'Insert specific storage durations for each category of processed data.',
+          action: 'Update your policy with specific storage durations for each data category.',
           country: countryCode
         });
       }
 
-      // 3.2 German Compliance (Impressum)
+      // 3.2 User Rights (DSAR)
+      if (!RIGHTS_KEYWORDS.some(kw => legalText.includes(kw))) {
+        finalFindings.push({
+          type: 'MISSING_GDPR_RIGHTS',
+          basis: 'Art. 15-21 GDPR',
+          summary: 'The policy lacks mandatory clauses regarding user rights (Erasure, Access, Withdrawal).',
+          risk: 'High liability for failing to inform users about their statutory control over data.',
+          liability: FINE_GDPR,
+          action: 'Insert explicit clauses for the "Right to be Forgotten" and "Right to Withdraw Consent".',
+          country: countryCode
+        });
+      }
+
+      // 3.3 Financial Protection
+      if (FINANCE_KEYWORDS.some(kw => legalText.includes(kw)) && !SECURE_KEYWORDS.some(kw => legalText.includes(kw))) {
+        finalFindings.push({
+          type: 'UNSECURED_FINANCIAL_DECLARATION',
+          basis: 'Art. 32 GDPR',
+          summary: 'Financial processing declared without specifying security frameworks (PCI-DSS/Encryption).',
+          risk: 'Perceived lack of data security frameworks triggers high-priority audits.',
+          liability: FINE_GDPR,
+          action: 'State clearly that transactions are handled via PCI-DSS compliant gateways like Stripe or PayPal.',
+          country: countryCode
+        });
+      }
+
+      // 3.4 German Compliance
       if (countryCode === 'DE' || domainName.includes('.de') || legalText.includes('impressum')) {
         const impressumKeywords = ['handelsregister', 'registernummer', 'ihk', 'amtsgericht', 'ust-idnr'];
         if (!impressumKeywords.some(kw => legalText.includes(kw))) {
@@ -178,27 +192,12 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
             type: 'GERMAN_IMPRESSUM_INCOMPLETE',
             basis: '§ 5 DDG (Germany)',
             summary: 'Mandatory German legal disclosure is missing critical identifiers (Registry/Court info).',
-            risk: 'Extremely high risk of Abmahnung (legal warning letters) from competitors.',
+            risk: 'High risk of Abmahnung (legal warning letters) from competitors.',
             liability: 'Up to €50,000 for statutory errors.',
-            action: 'Update your Impressum with Registry number, Local Court, and VAT/Tax ID.',
+            action: 'Update your Impressum with Registry number, Local Court, and VAT ID.',
             country: 'DE'
           });
         }
-      }
-
-      // 3.3 Financial Data Protection
-      const finKeywords = ['credit card', 'payment info', 'bank account', 'billing details'];
-      const secKeywords = ['stripe', 'paypal', 'pci-dss', 'encrypted', 'secure gateway'];
-      if (finKeywords.some(kw => legalText.includes(kw)) && !secKeywords.some(kw => legalText.includes(kw))) {
-        finalFindings.push({
-          type: 'UNSECURED_FINANCIAL_DECLARATION',
-          basis: 'Art. 32 GDPR',
-          summary: 'Financial data processing declared without specifying security frameworks (PCI-DSS/Encryption).',
-          risk: 'High risk indicator for financial regulators and automated safety audits.',
-          liability: FINE_GDPR,
-          action: 'Explicitly state that payments are handled by certified providers like Stripe/PayPal.',
-          country: countryCode
-        });
       }
     }
 
@@ -221,7 +220,7 @@ async function executeDeterministicAudit(taskId: number, domainUrl: string, user
         from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `Statutory Audit Complete: ${domainName}`,
-        text: `The statutory audit for ${domainName} is complete. Identified ${finalFindings.length} non-compliance issues. Report attached.`,
+        text: `The statutory audit for ${domainName} is complete. Identified ${finalFindings.length} non-compliance issues.`,
         attachments: [{ filename: `Humango_Audit_${domainName}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
       });
     }

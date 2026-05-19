@@ -16,7 +16,6 @@ async function migrate() {
     console.log('   HUMANGO COMPLIANCE DATABASE MIGRATOR          ');
     console.log('==================================================');
     
-    // Users table
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.users (
         id SERIAL PRIMARY KEY,
@@ -27,7 +26,6 @@ async function migrate() {
       );
     `);
 
-    // Bot settings
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.bot_settings (
         id int DEFAULT 1 PRIMARY KEY, 
@@ -39,7 +37,6 @@ async function migrate() {
       ON CONFLICT (id) DO NOTHING;
     `);
 
-    // Enhanced Scan Queue
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.scan_queue (
         id SERIAL PRIMARY KEY, 
@@ -59,7 +56,6 @@ async function migrate() {
       );
     `);
 
-    // site_violations table
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.site_violations (
         id SERIAL PRIMARY KEY,
@@ -80,7 +76,6 @@ async function migrate() {
       );
     `);
 
-    // Ensure all columns exist (Idempotent)
     const violationsColumns = [
       { name: 'potential_fine', type: 'text' },
       { name: 'law_name', type: 'text' },
@@ -100,7 +95,6 @@ async function migrate() {
       `);
     }
 
-    // Events table
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.bot_events (
         id SERIAL PRIMARY KEY, 
