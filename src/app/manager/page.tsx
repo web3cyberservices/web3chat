@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { takeTaskInWork, getAvailableTasks, getMyTasks, updateTaskStatusAction } from '@/app/actions/crm-actions';
 import { sendAuditEmailAction } from '@/app/actions/crm-email-actions';
 import { logoutAction, getSession } from '@/app/actions/auth-actions';
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select,
   SelectContent,
@@ -26,7 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, Briefcase, Globe, Clock, CheckCircle2, LogOut, 
-  ExternalLink, Phone, Mail, ChevronRight, AlertCircle, UserCheck, ShieldAlert
+  ExternalLink, Phone, Mail, ChevronRight, AlertCircle, UserCheck, ShieldAlert, User, History, TrendingUp
 } from "lucide-react";
 import Image from 'next/image';
 import Link from 'next/link';
@@ -136,6 +137,17 @@ export default function ManagerDashboard() {
     router.push('/login');
   };
 
+  const myStats = useMemo(() => {
+    const completed = myTasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+    const active = myTasks.filter(t => ['in_work', 'negotiation', 'in_progress'].includes(t.status)).length;
+    return {
+      total: myTasks.length,
+      completed,
+      active,
+      conversion: myTasks.length > 0 ? Math.round((completed / myTasks.length) * 100) : 0
+    };
+  }, [myTasks]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center">
@@ -152,102 +164,166 @@ export default function ManagerDashboard() {
           <span className="font-bold text-lg">Manager CRM</span>
         </div>
         <div className="flex items-center gap-4">
-          <Badge variant="outline" className="text-[10px] text-slate-500 border-white/10 uppercase font-mono tracking-widest">{session?.email}</Badge>
+          <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+            <User className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{session?.email}</span>
+          </div>
           <Button variant="ghost" size="sm" asChild className="text-slate-400 hover:text-white"><Link href="/admin">Admin Hub</Link></Button>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"><LogOut className="w-4 h-4 mr-2" /> Выход</Button>
         </div>
       </header>
 
       <main className="flex-1 p-8 space-y-12 max-w-7xl mx-auto w-full">
-        <Card className="bg-white/[0.03] border-white/10 shadow-2xl overflow-hidden">
-          <CardHeader className="border-b border-white/5 pb-4 bg-emerald-500/5">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <Globe className="w-4 h-4 text-emerald-500" /> Свободные задачи с нарушениями ({availableTasks.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader className="bg-white/[0.02]">
-                <TableRow className="border-white/5">
-                  <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Домен</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500 text-center">Нарушений</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Обнаружено</TableHead>
-                  <TableHead className="text-right text-[10px] uppercase font-bold tracking-widest text-slate-500">Действие</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {availableTasks.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-12 text-slate-500 text-xs">Нет доступных задач с нарушениями</TableCell></TableRow>
-                ) : availableTasks.map((task) => (
-                  <TableRow key={task.id} className="border-white/5 hover:bg-white/[0.01] transition-colors">
-                    <TableCell className="text-xs font-medium text-white">{task.url?.replace(/^https?:\/\//, '')}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className="bg-rose-500/20 text-rose-500 border-rose-500/20">{task.violations_count}</Badge>
-                    </TableCell>
-                    <TableCell className="text-[10px] text-slate-400">
-                      {new Date(task.created_at).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        size="sm" 
-                        onClick={() => handleTakeTask(task.id)}
-                        disabled={processingId === task.id.toString()}
-                        className="h-8 text-[10px] bg-primary hover:bg-primary/90 font-bold px-6 rounded-lg"
-                      >
-                        {processingId === task.id.toString() ? <Loader2 className="w-3 h-3 animate-spin" /> : "Взять в работу"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {/* PERSONAL STATS HEADER */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+           <Card className="bg-white/[0.03] border-white/10">
+             <CardContent className="pt-6 flex items-center gap-4">
+               <div className="bg-primary/20 p-2 rounded-lg"><TrendingUp className="w-5 h-5 text-primary" /></div>
+               <div>
+                 <p className="text-[10px] uppercase font-bold text-slate-500">Всего заказов</p>
+                 <p className="text-2xl font-bold">{myStats.total}</p>
+               </div>
+             </CardContent>
+           </Card>
+           <Card className="bg-white/[0.03] border-white/10">
+             <CardContent className="pt-6 flex items-center gap-4">
+               <div className="bg-emerald-500/20 p-2 rounded-lg"><CheckCircle2 className="w-5 h-5 text-emerald-500" /></div>
+               <div>
+                 <p className="text-[10px] uppercase font-bold text-slate-500">Выполнено</p>
+                 <p className="text-2xl font-bold text-emerald-500">{myStats.completed}</p>
+               </div>
+             </CardContent>
+           </Card>
+           <Card className="bg-white/[0.03] border-white/10">
+             <CardContent className="pt-6 flex items-center gap-4">
+               <div className="bg-amber-500/20 p-2 rounded-lg"><Clock className="w-5 h-5 text-amber-500" /></div>
+               <div>
+                 <p className="text-[10px] uppercase font-bold text-slate-500">В процессе</p>
+                 <p className="text-2xl font-bold text-amber-500">{myStats.active}</p>
+               </div>
+             </CardContent>
+           </Card>
+           <Card className="bg-white/[0.03] border-white/10">
+             <CardContent className="pt-6 flex items-center gap-4">
+               <div className="bg-blue-500/20 p-2 rounded-lg"><TrendingUp className="w-5 h-5 text-blue-500" /></div>
+               <div>
+                 <p className="text-[10px] uppercase font-bold text-slate-500">Конверсия</p>
+                 <p className="text-2xl font-bold text-blue-500">{myStats.conversion}%</p>
+               </div>
+             </CardContent>
+           </Card>
+        </div>
 
-        <Card className="bg-white/[0.03] border-white/10 shadow-2xl overflow-hidden">
-          <CardHeader className="border-b border-white/5 pb-4 bg-primary/5">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-primary" /> Мои активные задачи ({myTasks.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader className="bg-white/[0.02]">
-                <TableRow className="border-white/5">
-                  <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Сайт</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Взято</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Статус</TableHead>
-                  <TableHead className="text-right text-[10px] uppercase font-bold tracking-widest text-slate-500">Управление</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {myTasks.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-12 text-slate-500 text-xs">У вас нет активных задач</TableCell></TableRow>
-                ) : myTasks.map((task) => (
-                  <TableRow key={task.id} className="border-white/5 hover:bg-white/[0.01] transition-colors group cursor-pointer" onClick={() => setSelectedTask(task)}>
-                    <TableCell className="text-xs font-medium text-white">
-                      <div className="flex items-center gap-2">
-                        {task.url?.replace(/^https?:\/\//, '')}
-                        <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-50" />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-[10px] text-slate-400">
-                      {new Date(task.assigned_at).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[9px] uppercase tracking-tighter border-white/10">
-                        {task.status.replace('_', ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-2">Открыть карточку <ChevronRight className="w-3 h-3" /></Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="available" className="w-full space-y-6">
+          <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl">
+            <TabsTrigger value="available" className="data-[state=active]:bg-primary rounded-lg text-xs font-bold gap-2">
+              <Globe className="w-3.5 h-3.5" /> Свободные задачи
+            </TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-primary rounded-lg text-xs font-bold gap-2">
+              <History className="w-3.5 h-3.5" /> Мои заказы (Все)
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="available">
+            <Card className="bg-white/[0.03] border-white/10 shadow-2xl overflow-hidden">
+              <CardHeader className="border-b border-white/5 pb-4 bg-emerald-500/5">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-emerald-500" /> Свободные задачи с нарушениями ({availableTasks.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-white/[0.02]">
+                    <TableRow className="border-white/5">
+                      <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Домен</TableHead>
+                      <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500 text-center">Нарушений</TableHead>
+                      <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Обнаружено</TableHead>
+                      <TableHead className="text-right text-[10px] uppercase font-bold tracking-widest text-slate-500">Действие</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {availableTasks.length === 0 ? (
+                      <TableRow><TableCell colSpan={4} className="text-center py-12 text-slate-500 text-xs">Нет доступных задач с нарушениями</TableCell></TableRow>
+                    ) : availableTasks.map((task) => (
+                      <TableRow key={task.id} className="border-white/5 hover:bg-white/[0.01] transition-colors">
+                        <TableCell className="text-xs font-medium text-white">{task.url?.replace(/^https?:\/\//, '')}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className="bg-rose-500/20 text-rose-500 border-rose-500/20">{task.violations_count}</Badge>
+                        </TableCell>
+                        <TableCell className="text-[10px] text-slate-400">
+                          {new Date(task.created_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleTakeTask(task.id)}
+                            disabled={processingId === task.id.toString()}
+                            className="h-8 text-[10px] bg-primary hover:bg-primary/90 font-bold px-6 rounded-lg"
+                          >
+                            {processingId === task.id.toString() ? <Loader2 className="w-3 h-3 animate-spin" /> : "Взять в работу"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="history">
+            <Card className="bg-white/[0.03] border-white/10 shadow-2xl overflow-hidden">
+              <CardHeader className="border-b border-white/5 pb-4 bg-primary/5">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-primary" /> История всех моих заказов ({myTasks.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-white/[0.02]">
+                    <TableRow className="border-white/5">
+                      <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Сайт</TableHead>
+                      <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Взято</TableHead>
+                      <TableHead className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Статус</TableHead>
+                      <TableHead className="text-right text-[10px] uppercase font-bold tracking-widest text-slate-500">Управление</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {myTasks.length === 0 ? (
+                      <TableRow><TableCell colSpan={4} className="text-center py-12 text-slate-500 text-xs">У вас нет активных задач</TableCell></TableRow>
+                    ) : myTasks.map((task) => (
+                      <TableRow key={task.id} className="border-white/5 hover:bg-white/[0.01] transition-colors group cursor-pointer" onClick={() => setSelectedTask(task)}>
+                        <TableCell className="text-xs font-medium text-white">
+                          <div className="flex items-center gap-2">
+                            {task.url?.replace(/^https?:\/\//, '')}
+                            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-[10px] text-slate-400">
+                          {new Date(task.assigned_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[9px] uppercase tracking-tighter border-white/10 ${
+                              task.status === 'done' || task.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 
+                              task.status === 'rejected' ? 'bg-rose-500/10 text-rose-500' : 'bg-amber-500/10 text-amber-500'
+                            }`}
+                          >
+                            {task.status.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-2">Открыть карточку <ChevronRight className="w-3 h-3" /></Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* LEAD CARD DIALOG */}

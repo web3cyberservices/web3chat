@@ -49,7 +49,8 @@ import {
   Users,
   CheckCircle2,
   Clock,
-  Filter
+  Filter,
+  TrendingUp
 } from "lucide-react";
 
 interface DetectedIssue {
@@ -72,6 +73,7 @@ interface ManagerStat {
   name: string;
   task_count: number;
   completed_count: number;
+  in_progress_count: number;
 }
 
 export default function AdminDashboard() {
@@ -339,7 +341,10 @@ export default function AdminDashboard() {
                     <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 group hover:border-primary/20 transition-all">
                       <div className="space-y-1">
                         <p className="text-xs font-bold text-white">{mgr.name}</p>
-                        <p className="text-[9px] text-slate-500 uppercase tracking-tighter">Tasks in Work: {mgr.task_count}</p>
+                        <div className="flex gap-2 text-[8px] uppercase tracking-tighter">
+                          <span className="text-blue-400">Total: {mgr.task_count}</span>
+                          <span className="text-amber-400">Process: {mgr.in_progress_count}</span>
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-bold text-emerald-500">{mgr.completed_count}</div>

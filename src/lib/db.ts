@@ -107,7 +107,8 @@ export async function getManagersStats() {
     SELECT 
       manager_name as name, 
       count(*) as task_count,
-      count(*) FILTER (WHERE status = 'done' OR status = 'completed') as completed_count
+      count(*) FILTER (WHERE status = 'done' OR status = 'completed') as completed_count,
+      count(*) FILTER (WHERE status IN ('in_work', 'negotiation', 'in_progress')) as in_progress_count
     FROM public.scan_queue 
     WHERE assigned_to IS NOT NULL 
     GROUP BY manager_name
