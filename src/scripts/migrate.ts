@@ -11,39 +11,42 @@ const pool = new Pool({
 async function migrate() {
   const client = await pool.connect();
   try {
-    console.log('[Migration] Starting database update...');
+    console.log('[Migration] Starting Lead Triage database update...');
     
-    // Core Scan Queue
+    // Core Scan Queue with all columns
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.scan_queue (
         id SERIAL PRIMARY KEY, 
         url text UNIQUE, 
-        status varchar(20) DEFAULT 'pending', 
+        status varchar(50) DEFAULT 'pending', 
         priority int DEFAULT 0, 
         user_email varchar(255),
         assigned_to int,
         manager_name varchar(255),
         assigned_at timestamp,
         created_at timestamp DEFAULT NOW(),
-        crm_status varchar(20) DEFAULT 'free',
+        crm_status varchar(50) DEFAULT 'ready_for_sales',
         violations_count int DEFAULT 0,
         audit_findings jsonb DEFAULT '[]'::jsonb,
         extracted_emails jsonb DEFAULT '[]'::jsonb,
         extracted_phones jsonb DEFAULT '[]'::jsonb,
         closing_price decimal(12,2),
-        pdf_report_path varchar(500)
+        pdf_report_path varchar(500),
+        analyst_notes text,
+        auto_message_sent boolean DEFAULT false,
+        auto_message_sent_at timestamp
       );
     `);
 
-    // Ensure all audit columns exist
+    // Dynamic Column Sync
     const columns = [
       { name: 'audit_findings', type: 'jsonb DEFAULT \'[]\'::jsonb' },
       { name: 'extracted_emails', type: 'jsonb DEFAULT \'[]\'::jsonb' },
       { name: 'extracted_phones', type: 'jsonb DEFAULT \'[]\'::jsonb' },
       { name: 'closing_price', type: 'decimal(12,2)' },
       { name: 'priority', type: 'int DEFAULT 0' },
-      { name: 'pdf_report_path', type: 'varchar(500)' },
-      { name: 'crm_status', type: 'varchar(20) DEFAULT \'free\'' }
+      { name: 'crm_status', type: 'varchar(50) DEFAULT \'ready_for_sales\'' },
+      { name: 'analyst_notes', type: 'text' }
     ];
 
     for (const col of columns) {
@@ -57,11 +60,12 @@ async function migrate() {
       `);
     }
 
-    // Site Violations (Fallback table)
+    // Site Violations (Historical Log)
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.site_violations (
         id SERIAL PRIMARY KEY,
         domain varchar(255),
+        page_url text,
         issue_type varchar(255),
         severity varchar(50),
         description text,
@@ -70,14 +74,16 @@ async function migrate() {
         business_impact text,
         potential_fine text,
         country varchar(10),
+        explanation text,
         created_at timestamp DEFAULT NOW()
       );
     `);
 
+    // Ensure site_violations has potential_fine and country
     const violationCols = [
       { name: 'potential_fine', type: 'text' },
       { name: 'country', type: 'varchar(10)' },
-      { name: 'law_name', type: 'text' },
+      { name: 'explanation', type: 'text' },
       { name: 'business_impact', type: 'text' }
     ];
 
@@ -92,33 +98,12 @@ async function migrate() {
       `);
     }
 
-    // Bot Settings Table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS public.bot_settings (
-        id int PRIMARY KEY DEFAULT 1,
-        is_active boolean DEFAULT true,
-        updated_at timestamp DEFAULT NOW()
-      );
-    `);
+    // Bot Settings & Events
+    await client.query(`CREATE TABLE IF NOT EXISTS public.bot_settings (id int PRIMARY KEY DEFAULT 1, is_active boolean DEFAULT true, updated_at timestamp DEFAULT NOW());`);
+    await client.query(`CREATE TABLE IF NOT EXISTS public.bot_events (id SERIAL PRIMARY KEY, type varchar(50), message text, timestamp timestamp DEFAULT NOW());`);
+    await client.query(`INSERT INTO public.bot_settings (id, is_active) VALUES (1, true) ON CONFLICT DO NOTHING;`);
 
-    // Bot Events Table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS public.bot_events (
-        id SERIAL PRIMARY KEY,
-        type varchar(50),
-        message text,
-        timestamp timestamp DEFAULT NOW()
-      );
-    `);
-
-    // Ensure default settings exist
-    await client.query(`
-      INSERT INTO public.bot_settings (id, is_active) 
-      VALUES (1, true) 
-      ON CONFLICT DO NOTHING;
-    `);
-
-    console.log('[Migration] SUCCESS: All tables and columns synchronized.');
+    console.log('[Migration] SUCCESS: Lead Triage Schema is ready.');
   } catch (err: any) { 
     console.error('[Migration] ERROR:', err.message); 
   } finally { 

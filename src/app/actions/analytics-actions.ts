@@ -1,4 +1,3 @@
-
 'use server';
 
 import { pool } from '@/lib/db';
@@ -6,7 +5,7 @@ import { getSession } from './auth-actions';
 import { revalidatePath } from 'next/cache';
 
 /**
- * @fileOverview Analytics Actions - Manual data correction for Analysts
+ * @fileOverview Analytics Actions - Data Enrichment (Needs Analyst -> Ready for Sales)
  */
 
 export async function getTasksForReview() {
@@ -15,13 +14,13 @@ export async function getTasksForReview() {
 
   const res = await pool.query(`
     SELECT * FROM public.scan_queue 
-    WHERE crm_status = 'need_review' 
+    WHERE crm_status = 'needs_analyst' 
     ORDER BY priority DESC, created_at DESC
   `);
   return res.rows;
 }
 
-export async function updateAndReleaseTask(taskId: number, emails: any[], phones: any[]) {
+export async function updateAndReleaseTask(taskId: number, emails: any[], phones: any[], notes: string) {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
 
@@ -30,10 +29,11 @@ export async function updateAndReleaseTask(taskId: number, emails: any[], phones
       `UPDATE public.scan_queue 
        SET extracted_emails = $1, 
            extracted_phones = $2, 
-           crm_status = 'free',
-           manager_name = 'Analyst Verified'
-       WHERE id = $3`,
-      [JSON.stringify(emails), JSON.stringify(phones), taskId]
+           analyst_notes = $3,
+           crm_status = 'ready_for_sales',
+           manager_name = 'Verified by Analyst'
+       WHERE id = $4`,
+      [JSON.stringify(emails), JSON.stringify(phones), notes, taskId]
     );
 
     revalidatePath('/analytics');

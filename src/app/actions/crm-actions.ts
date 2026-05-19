@@ -1,13 +1,11 @@
-
 'use server';
 
 import { pool, getManagersStats } from '@/lib/db';
 import { getSession } from './auth-actions';
-import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 
 /**
- * @fileOverview CRM Server Actions - Atomic Locking & Lead Scoring Order
+ * @fileOverview CRM Server Actions - Sales Qualified Leads Logic
  */
 
 export async function takeTaskInWork(taskId: number) {
@@ -18,26 +16,24 @@ export async function takeTaskInWork(taskId: number) {
   try {
     await client.query('BEGIN');
 
-    // ATOMIC LOCK: SELECT FOR UPDATE
+    // ATOMIC LOCK
     const checkRes = await client.query(
       'SELECT crm_status, assigned_to FROM public.scan_queue WHERE id = $1 FOR UPDATE',
       [taskId]
     );
 
-    if (checkRes.rows.length === 0) {
-      throw new Error("Задача не найдена");
-    }
+    if (checkRes.rows.length === 0) throw new Error("Task not found");
 
     const task = checkRes.rows[0];
-    if (task.crm_status === 'in_work' || task.assigned_to !== null) {
-      return { success: false, error: "Эта задача уже занята другим менеджером" };
+    if (task.crm_status === 'in_progress' || task.assigned_to !== null) {
+      return { success: false, error: "Task already assigned" };
     }
 
-    // Assign to current manager
+    // Assign to sales manager
     await client.query(
       `UPDATE public.scan_queue 
-       SET crm_status = 'in_work', 
-           status = 'in_work', 
+       SET crm_status = 'in_progress', 
+           status = 'in_progress', 
            assigned_to = $1, 
            manager_name = $2, 
            assigned_at = NOW() 
@@ -47,7 +43,6 @@ export async function takeTaskInWork(taskId: number) {
 
     await client.query('COMMIT');
     revalidatePath('/manager');
-    revalidatePath('/admin');
     return { success: true };
   } catch (error: any) {
     await client.query('ROLLBACK');
@@ -62,32 +57,21 @@ export async function updateTaskStatusAction(taskId: number, status: string, clo
   if (!session) throw new Error("Unauthorized");
 
   try {
-    const check = await pool.query(
-      'SELECT assigned_to FROM public.scan_queue WHERE id = $1',
-      [taskId]
-    );
-
-    if (parseInt(check.rows[0]?.assigned_to) !== parseInt(session.id)) {
-      throw new Error("Access denied: You don't own this task.");
-    }
-
-    if (status === 'completed' || status === 'done') {
-        if (!closingPrice || closingPrice <= 0) {
-            return { success: false, error: "Для завершения заказа необходимо указать сумму сделки." };
-        }
+    if (status === 'won' || status === 'completed' || status === 'done') {
+        if (!closingPrice || closingPrice <= 0) return { success: false, error: "Closing price is required for won deals." };
         await pool.query(
-            'UPDATE public.scan_queue SET status = $1, crm_status = \'completed\', closing_price = $2 WHERE id = $3',
+            'UPDATE public.scan_queue SET status = $1, crm_status = \'won\', closing_price = $2 WHERE id = $3',
             [status, closingPrice, taskId]
         );
     } else {
+        const crmStatus = (status === 'lost' || status === 'rejected') ? 'lost' : 'in_progress';
         await pool.query(
-            'UPDATE public.scan_queue SET status = $1 WHERE id = $2',
-            [status, taskId]
+            'UPDATE public.scan_queue SET status = $1, crm_status = $2 WHERE id = $3',
+            [status, crmStatus, taskId]
         );
     }
 
     revalidatePath('/manager');
-    revalidatePath('/admin');
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -104,13 +88,12 @@ export async function getAvailableTasks() {
   const session = await getSession();
   if (!session) return [];
 
-  // Managers ONLY see 'free' tasks. 'need_review' tasks stay in Analytics.
+  // Mangers only see 'ready_for_sales' tasks.
   const res = await pool.query(`
     SELECT * FROM public.scan_queue 
-    WHERE crm_status = 'free' 
-      AND status IN ('completed', 'failed') 
-      AND (violations_count > 0)
-    ORDER BY priority DESC, violations_count DESC, created_at DESC
+    WHERE crm_status = 'ready_for_sales' 
+      AND violations_count > 0
+    ORDER BY priority DESC, created_at DESC
   `);
   return res.rows;
 }
