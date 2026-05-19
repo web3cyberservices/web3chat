@@ -23,7 +23,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/dialog"; // Adjusted import path if necessary, but keep original if it works
 import { 
   Accordion,
   AccordionContent,
@@ -94,6 +94,7 @@ export default function AdminDashboard() {
   const [metrics, setMetrics] = useState({
     pagesScanned: 0,
     issuesFound: 0,
+    activeManagers: 0
   });
 
   useEffect(() => {
@@ -117,7 +118,8 @@ export default function AdminDashboard() {
       setIsActive(statusRes.isActive);
       setMetrics({ 
         pagesScanned: statsRes.pagesScanned || 0, 
-        issuesFound: statsRes.issuesFound || 0 
+        issuesFound: statsRes.issuesFound || 0,
+        activeManagers: statsRes.activeManagers || managersData.length || 0
       });
       setRecentIssues(violationsRes.violations || []);
       setSystemLogs(logsRes.logs || []);
@@ -133,7 +135,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAuthenticated === true) {
       fetchData();
-      pollingRef.current = setInterval(fetchData, 4000);
+      pollingRef.current = setInterval(fetchData, 5000);
     }
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [isAuthenticated, fetchData]);
@@ -261,7 +263,7 @@ export default function AdminDashboard() {
             </Card>
             <Card className="bg-white/[0.03] border-white/10">
               <CardHeader className="pb-2"><CardTitle className="text-[10px] text-slate-500 uppercase tracking-widest">Active Managers</CardTitle></CardHeader>
-              <CardContent><div className="text-3xl font-bold text-blue-400">{managerStats.length}</div></CardContent>
+              <CardContent><div className="text-3xl font-bold text-blue-400">{metrics.activeManagers}</div></CardContent>
             </Card>
           </div>
 
