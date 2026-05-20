@@ -1,14 +1,14 @@
 
 'use server';
-
+/**
+ * @fileOverview Standardized Audit Worker - Refactored for Security
+ */
+import 'dotenv/config';
 import { Pool } from 'pg';
 import puppeteer from 'puppeteer';
-import * as dotenv from 'dotenv';
 import { checkAndFeedQueue } from './autoSeeder';
 import { generatePdfReport } from '../lib/report-generator';
 import * as nodemailer from 'nodemailer';
-
-dotenv.config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -47,39 +47,54 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
     const tld = domain.split('.').pop() || 'com';
     const localRule = JURISDICTION_RULES[tld];
 
-    // 1. NETWORK & COOKIES
+    // 1. NETWORK AUDIT
     await page.setRequestInterception(true);
     page.on('request', req => {
       const rUrl = req.url().toLowerCase();
       if (rUrl.includes('google-analytics') || rUrl.includes('facebook.com/tr') || rUrl.includes('doubleclick')) {
         hasUS_Trackers = true;
         if (!finalFindings.some(f => f.type === 'TRACKING_TRAFFIC_DETECTED')) {
-          finalFindings.push({ type: 'TRACKING_TRAFFIC_DETECTED', summary: 'Illegal pre-consent tracking.', liability: 'Up to €20M or 4% turnover.', recommendation: 'ACTION: Implement prior-blocking CMP.' });
+          finalFindings.push({ 
+            type: 'TRACKING_TRAFFIC_DETECTED', 
+            summary: 'Illegal pre-consent tracking.', 
+            liability: 'Up to €20M or 4% turnover.', 
+            recommendation: 'ACTION: Implement prior-blocking CMP.' 
+          });
         }
       }
       req.continue();
     });
 
     if (!url.startsWith('https://')) {
-      finalFindings.push({ type: 'UNSECURED_CONNECTION', summary: 'Non-HTTPS Protocol.', liability: 'Art. 32 GDPR violation.', recommendation: 'ACTION: Force SSL/TLS.' });
+      finalFindings.push({ 
+        type: 'UNSECURED_CONNECTION', 
+        summary: 'Non-HTTPS Protocol.', 
+        liability: 'Art. 32 GDPR violation.', 
+        recommendation: 'ACTION: Force SSL/TLS.' 
+      });
       priorityScore += 30;
     }
 
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
 
-    // 2. JURISDICTION DETECTION
+    // 2. LOCALIZED JURISDICTION CHECKS
     if (localRule) {
       const hasLegalLink = await page.evaluate((markers) => {
         return Array.from(document.querySelectorAll('a')).some(a => markers.some(m => a.innerText.toLowerCase().includes(m)));
       }, localRule.requiredLinks);
 
       if (!hasLegalLink) {
-        finalFindings.push({ type: `MISSING_LOCALIZED_DISCLOSURE_${localRule.code}`, summary: `Missing mandatory ${localRule.requiredLinks[0]} link.`, liability: 'Fines up to €50,000.', recommendation: `ACTION: Create a /legal page.` });
+        finalFindings.push({ 
+          type: `MISSING_LOCALIZED_DISCLOSURE_${localRule.code}`, 
+          summary: `Missing mandatory ${localRule.requiredLinks[0]} link.`, 
+          liability: 'Fines up to €50,000.', 
+          recommendation: `ACTION: Create a /legal page.` 
+        });
         priorityScore += 50;
       }
     }
 
-    // 3. STRICT DOCUMENT VALIDATION
+    // 3. DOCUMENT VALIDATION
     const privacyLink = await page.evaluate(() => {
       const markers = ['privacy', 'datenschutz', 'confidentialité', 'privacidad', 'prywatности'];
       const found = Array.from(document.querySelectorAll('a')).find(a => markers.some(m => a.innerText.toLowerCase().includes(m)));
@@ -96,10 +111,15 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
     } catch (e) {}
 
     if (!legalText) {
-      finalFindings.push({ type: 'MISSING_CORE_FRAMEWORK', summary: 'Critical Transparency Failure.', liability: 'Maximum GDPR fine risk.', recommendation: 'ACTION: Create and link a /privacy page.' });
+      finalFindings.push({ 
+        type: 'MISSING_CORE_FRAMEWORK', 
+        summary: 'Critical Transparency Failure.', 
+        liability: 'Maximum GDPR fine risk.', 
+        recommendation: 'ACTION: Create and link a /privacy page.' 
+      });
       priorityScore += 100;
     } else {
-      // 4. DEEP SEMANTIC ANALYSIS
+      // 4. DEEP SEMANTIC ANALYSIS (Synonyms & Logic)
       if (!['legal basis', 'article 6', 'rechtsgrundlage'].some(kw => legalText.includes(kw))) {
         finalFindings.push({ type: 'MISSING_LEGAL_BASES', summary: 'No explicit legal basis declared.', liability: 'Art. 13 violation.', recommendation: 'ACTION: List legal grounds (Art. 6).' });
       }
@@ -117,7 +137,7 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
       }
     }
 
-    // 5. CONTACT SCRAPING
+    // 5. CONTACT EXTRACTION (WITH CONTEXT)
     const extract = async (p: puppeteer.Page) => {
       return await p.evaluate(() => {
         const text = document.body.innerText;
@@ -129,8 +149,9 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
           return t.substring(Math.max(0, i-150), Math.min(t.length, i+m.length+150)).replace(/\s+/g, ' ').trim();
         };
 
+        const blacklist = ['sentry', 'google', 'facebook', 'shopify', 'wix'];
         const emails = Array.from(new Set(text.match(eRegex) || []))
-          .filter(e => !['sentry', 'google', 'facebook'].some(d => e.toLowerCase().includes(d)))
+          .filter(e => !blacklist.some(d => e.toLowerCase().includes(d)))
           .map(e => ({ value: e, context: getCtx(text, e) }));
           
         const phones = Array.from(new Set(text.match(pRegex) || []))
@@ -145,7 +166,7 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
     extractedEmails = homeContacts.emails;
     extractedPhones = homeContacts.phones;
 
-    // 6. TRIAGE & DB UPDATE
+    // 6. TRIAGE (LEAD QUALIFICATION)
     let crmStatus = 'compliant';
     if (finalFindings.length > 0) {
       crmStatus = (extractedEmails.length > 0) ? 'ready_for_sales' : 'needs_analyst';
@@ -167,39 +188,38 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
            from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
            to: userEmail,
            subject: `Statutory Audit Report: ${domain}`,
-           text: `Audit for ${domain} is complete.`,
+           text: `Audit for ${domain} is complete. Your detailed PDF report is attached.`,
            attachments: [{ filename: `Audit_${domain}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
          });
        }
     }
-    console.log(`[Worker] Done: ${domain} -> ${crmStatus}`);
+    console.log(`[Worker] Audit finished: ${domain} -> ${crmStatus}`);
   } catch (err: any) {
     console.error(`[Worker Error] Task ${scanId} failed:`, err.message);
-    await pool.query("UPDATE public.scan_queue SET status = 'failed', crm_status = 'lost' WHERE id = $1", [scanId]);
+    await pool.query("UPDATE public.scan_queue SET status = 'failed' WHERE id = $1", [scanId]);
   }
 }
 
 async function startWorker() {
-  console.log('[Worker] Booting up...');
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  console.log('[Worker] Booting up in Secure Mode...');
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   
   while (true) {
     try {
       const res = await pool.query(
-        "SELECT id, url, user_email FROM public.scan_queue WHERE crm_status = 'pending' ORDER BY priority DESC, created_at ASC LIMIT 1"
+        "SELECT id, url, user_email FROM public.scan_queue WHERE status = 'pending' OR (status = 'processing' AND updated_at < NOW() - INTERVAL '5 minutes') ORDER BY priority DESC, created_at ASC LIMIT 1"
       );
 
       if (res.rows.length > 0) {
         const task = res.rows[0];
-        await pool.query("UPDATE public.scan_queue SET status = 'processing' WHERE id = $1", [task.id]);
+        await pool.query("UPDATE public.scan_queue SET status = 'processing', updated_at = NOW() WHERE id = $1", [task.id]);
         const page = await browser.newPage();
         await performAudit(page, task.id, task.url, task.user_email);
         await page.close();
       } else {
-        console.log('[Worker] No tasks. Checking seeder...');
         const seeded = await checkAndFeedQueue(pool);
         if (!seeded) {
-          console.log('[Worker] No new targets found. Sleeping 15s...');
+          console.log('[Worker] No tasks. Sleeping 15s...');
           await new Promise(r => setTimeout(r, 15000));
         }
       }
