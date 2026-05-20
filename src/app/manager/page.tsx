@@ -2,20 +2,18 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { takeTaskInWork, getAvailableTasks, getMyTasks, updateTaskStatusAction } from '@/app/actions/crm-actions';
-import { sendAuditEmailAction } from '@/app/actions/crm-email-actions';
 import { logoutAction, getSession } from '@/app/actions/auth-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Loader2, Globe, CheckCircle2, LogOut, ChevronRight, UserCheck, ShieldAlert, User, TrendingUp, Copy, Zap, Eye, Download, DollarSign, Mail, StickyNote 
+  Loader2, Globe, CheckCircle2, LogOut, ChevronRight, UserCheck, ShieldAlert, User, TrendingUp, Copy, Eye, Download, DollarSign, Mail, StickyNote 
 } from "lucide-react";
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -26,11 +24,9 @@ export default function ManagerDashboard() {
   const [myTasks, setMyTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<any>(null);
-  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [emailBody, setEmailBody] = useState("");
   const [closingPrice, setClosingPrice] = useState("");
-  const [showClosingPriceDialog, setShowClosingPriceDialog] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState<any>(null);
+  const [showPriceDialog, setShowPriceDialog] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<any>(null);
   
   const { toast } = useToast();
   const router = useRouter();
@@ -55,22 +51,22 @@ export default function ManagerDashboard() {
   };
 
   const handleStatusChange = async (taskId: number, newStatus: string) => {
-    if (['won', 'done', 'completed'].includes(newStatus)) {
-        setPendingStatusChange({id: taskId, status: newStatus});
-        setShowClosingPriceDialog(true);
+    if (newStatus === 'won') {
+        setPendingStatus({id: taskId, status: newStatus});
+        setShowPriceDialog(true);
         return;
     }
     const res = await updateTaskStatusAction(taskId, newStatus);
     if (res.success) { toast({ title: "Status Updated" }); fetchData(); }
   };
 
-  const confirmWonDeal = async () => {
+  const confirmDeal = async () => {
     const price = parseFloat(closingPrice);
-    if (!price || price <= 0) return toast({ variant: "destructive", title: "Error", description: "Enter valid price" });
-    const res = await updateTaskStatusAction(pendingStatusChange.id, pendingStatusChange.status, price);
+    if (!price || price <= 0) return toast({ variant: "destructive", title: "Enter valid price" });
+    const res = await updateTaskStatusAction(pendingStatus.id, pendingStatus.status, price);
     if (res.success) {
-        toast({ title: "Deal Won!" });
-        setShowClosingPriceDialog(false);
+        toast({ title: "Deal Closed!" });
+        setShowPriceDialog(false);
         setClosingPrice("");
         fetchData();
         setSelectedTask(null);
@@ -78,8 +74,9 @@ export default function ManagerDashboard() {
   };
 
   const findings = useMemo(() => {
-    if (!selectedTask?.audit_findings) return [];
-    return typeof selectedTask.audit_findings === 'string' ? JSON.parse(selectedTask.audit_findings) : selectedTask.audit_findings;
+    const raw = selectedTask?.audit_findings;
+    if (!raw) return [];
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
   }, [selectedTask]);
 
   if (loading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
@@ -118,14 +115,14 @@ export default function ManagerDashboard() {
 
         <Tabs defaultValue="qualified" className="w-full space-y-6">
           <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl">
-            <TabsTrigger value="qualified" className="text-xs font-bold gap-2">Qualified Leads</TabsTrigger>
-            <TabsTrigger value="active" className="text-xs font-bold gap-2">Active Deals</TabsTrigger>
+            <TabsTrigger value="qualified" className="text-xs font-bold gap-2">Ready to Claim</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs font-bold gap-2">My Active Pipeline</TabsTrigger>
           </TabsList>
 
           <TabsContent value="qualified">
             <Card className="bg-white/[0.03] border-white/10 overflow-hidden shadow-2xl">
               <Table>
-                <TableHeader className="bg-white/[0.02]"><TableRow className="border-white/5"><TableHead className="text-[10px] uppercase font-bold">Domain</TableHead><TableHead className="text-[10px] uppercase font-bold text-center">Score</TableHead><TableHead className="text-[10px] uppercase font-bold text-center">Violations</TableHead><TableHead className="text-right text-[10px] uppercase font-bold">Action</TableHead></TableRow></TableHeader>
+                <TableHeader className="bg-white/[0.02]"><TableRow className="border-white/5"><TableHead className="text-[10px] uppercase font-bold">Domain</TableHead><TableHead className="text-[10px] uppercase font-bold text-center">Score</TableHead><TableHead className="text-[10px] uppercase font-bold text-center">Issues</TableHead><TableHead className="text-right text-[10px] uppercase font-bold">Action</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {availableTasks.map((task) => (
                     <TableRow key={task.id} className="border-white/5 hover:bg-white/[0.01]">
@@ -169,13 +166,12 @@ export default function ManagerDashboard() {
             <div className="w-full md:w-1/3 border-r border-white/5 p-8 space-y-6 bg-white/[0.01] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold truncate">{selectedTask?.url?.replace(/^https?:\/\//, '')}</DialogTitle>
-                <div className="flex flex-wrap gap-2 mt-2"><Badge className="bg-rose-500/20 text-rose-500 border-rose-500/20">{findings.length} Violations</Badge></div>
               </DialogHeader>
 
               {selectedTask?.assigned_to === parseInt(session?.id) && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Sales Status</label>
-                  <Select defaultValue={selectedTask?.status} onValueChange={(v) => handleStatusChange(selectedTask.id, v)}>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Lead Status</label>
+                  <Select defaultValue={selectedTask?.crm_status} onValueChange={(v) => handleStatusChange(selectedTask.id, v)}>
                     <SelectTrigger className="bg-white/5 border-white/10 h-10 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-[#0b1120] border-white/10 text-white">
                       <SelectItem value="in_progress">In Progress</SelectItem>
@@ -189,19 +185,19 @@ export default function ManagerDashboard() {
 
               {selectedTask?.analyst_notes && (
                 <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">
-                  <h4 className="text-[10px] font-bold text-amber-500 flex items-center gap-2 uppercase"><StickyNote className="w-3 h-3" /> Analyst Intelligence</h4>
+                  <h4 className="text-[10px] font-bold text-amber-500 flex items-center gap-2 uppercase"><StickyNote className="w-3 h-3" /> Analyst Notes</h4>
                   <p className="text-xs text-slate-400 italic">"{selectedTask.analyst_notes}"</p>
                 </div>
               )}
 
               <div className="space-y-4">
-                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-white/5 pb-2">Violation Insights</h3>
+                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-white/5 pb-2">Violations Found</h3>
                 <div className="space-y-3">
                   {findings.map((f: any, i: number) => (
                     <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2">
                       <div className="flex items-center gap-2"><ShieldAlert className="w-3 h-3 text-rose-500" /><span className="text-[10px] font-bold text-rose-400 uppercase">{f.type}</span></div>
                       <p className="text-[11px] text-slate-300">{f.summary}</p>
-                      <p className="text-[9px] text-rose-400 font-bold">Potential Fine: {f.liability}</p>
+                      <p className="text-[9px] text-rose-400 font-bold">Liability: {f.liability}</p>
                     </div>
                   ))}
                 </div>
@@ -210,12 +206,12 @@ export default function ManagerDashboard() {
 
             <div className="flex-1 p-8 space-y-8 bg-[#020617] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" className="h-20 flex-col gap-2 border-white/10" asChild><a href={`/api/admin/report-pdf?domain=${selectedTask?.url}`} target="_blank"><Download className="w-6 h-6 text-emerald-500" /><span className="text-[10px] font-bold uppercase">Report PDF</span></a></Button>
-                <Button className="h-20 flex-col gap-2 bg-primary" onClick={() => setIsEmailModalOpen(true)} disabled={selectedTask?.assigned_to !== parseInt(session?.id)}><Mail className="w-6 h-6 text-white" /><span className="text-[10px] font-bold uppercase">Send Audit</span></Button>
+                <Button variant="outline" className="h-20 flex-col gap-2 border-white/10" asChild><a href={`/api/admin/report-pdf?domain=${selectedTask?.url}`} target="_blank"><Download className="w-6 h-6 text-emerald-500" /><span className="text-[10px] font-bold uppercase">View PDF Report</span></a></Button>
+                <Button className="h-20 flex-col gap-2 bg-primary" disabled={selectedTask?.assigned_to !== parseInt(session?.id)}><Mail className="w-6 h-6 text-white" /><span className="text-[10px] font-bold uppercase">Send to Client</span></Button>
               </div>
 
               <div className="space-y-6">
-                <h3 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-400 uppercase tracking-widest"><UserCheck className="w-4 h-4" /> Enriched Contacts</h3>
+                <h3 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-400 uppercase tracking-widest"><UserCheck className="w-4 h-4" /> Validated Contacts</h3>
                 <div className="space-y-4">
                   {(selectedTask?.extracted_emails || []).map((e: any, i: number) => (
                     <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
@@ -230,13 +226,13 @@ export default function ManagerDashboard() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showClosingPriceDialog} onOpenChange={setShowClosingPriceDialog}>
+      <Dialog open={showPriceDialog} onOpenChange={setShowPriceDialog}>
         <DialogContent className="bg-[#0b1120] border-white/10 text-slate-50 max-w-md p-8">
             <DialogHeader><DialogTitle className="flex items-center gap-2 text-emerald-500"><DollarSign className="w-5 h-5" /> Lock Won Deal</DialogTitle></DialogHeader>
             <div className="space-y-6 pt-4">
-                <p className="text-sm text-slate-400">Enter the total contract value to close this deal.</p>
+                <p className="text-sm text-slate-400">Enter final contract value to close this lead.</p>
                 <Input type="number" placeholder="500" value={closingPrice} onChange={(e) => setClosingPrice(e.target.value)} className="bg-white/5 border-white/10 h-12 text-lg font-bold" />
-                <Button className="w-full bg-emerald-600 hover:bg-emerald-500 font-bold h-12" onClick={confirmWonDeal}>Confirm & Finish</Button>
+                <Button className="w-full bg-emerald-600 hover:bg-emerald-500 font-bold h-12" onClick={confirmDeal}>Complete Sale</Button>
             </div>
         </DialogContent>
       </Dialog>

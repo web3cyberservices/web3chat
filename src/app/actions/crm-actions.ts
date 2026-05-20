@@ -16,7 +16,6 @@ export async function takeTaskInWork(taskId: number) {
   try {
     await client.query('BEGIN');
 
-    // ATOMIC LOCK
     const checkRes = await client.query(
       'SELECT crm_status, assigned_to FROM public.scan_queue WHERE id = $1 FOR UPDATE',
       [taskId]
@@ -29,7 +28,6 @@ export async function takeTaskInWork(taskId: number) {
       return { success: false, error: "Task already assigned" };
     }
 
-    // Assign to sales manager
     await client.query(
       `UPDATE public.scan_queue 
        SET crm_status = 'in_progress', 
@@ -57,14 +55,14 @@ export async function updateTaskStatusAction(taskId: number, status: string, clo
   if (!session) throw new Error("Unauthorized");
 
   try {
-    if (status === 'won' || status === 'completed' || status === 'done') {
+    if (status === 'won') {
         if (!closingPrice || closingPrice <= 0) return { success: false, error: "Closing price is required for won deals." };
         await pool.query(
-            'UPDATE public.scan_queue SET status = $1, crm_status = \'won\', closing_price = $2 WHERE id = $3',
-            [status, closingPrice, taskId]
+            'UPDATE public.scan_queue SET status = \'completed\', crm_status = \'won\', closing_price = $1 WHERE id = $2',
+            [closingPrice, taskId]
         );
     } else {
-        const crmStatus = (status === 'lost' || status === 'rejected') ? 'lost' : 'in_progress';
+        const crmStatus = (status === 'lost') ? 'lost' : 'in_progress';
         await pool.query(
             'UPDATE public.scan_queue SET status = $1, crm_status = $2 WHERE id = $3',
             [status, crmStatus, taskId]
@@ -88,11 +86,10 @@ export async function getAvailableTasks() {
   const session = await getSession();
   if (!session) return [];
 
-  // Mangers only see 'ready_for_sales' tasks.
   const res = await pool.query(`
     SELECT * FROM public.scan_queue 
     WHERE crm_status = 'ready_for_sales' 
-      AND violations_count > 0
+      AND (assigned_to IS NULL OR assigned_to = 0)
     ORDER BY priority DESC, created_at DESC
   `);
   return res.rows;

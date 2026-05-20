@@ -1,4 +1,3 @@
-
 'use server';
 
 import { queueTask, getTaskStatus, normalizeUrl } from '@/lib/db';
@@ -19,12 +18,12 @@ export async function startCrawlAction(rawUrl: string, rawEmail: string) {
   const cleanUrl = normalizeUrl(url);
   
   try {
-    // Priority set to 10 for manually triggered audits from the home page
-    const queuedUrl = await queueTask(cleanUrl, email, 10);
+    // High Priority (100) ensures manual user requests are processed first
+    const queuedUrl = await queueTask(cleanUrl, email, 100);
     return { 
       status: 'success', 
       url: queuedUrl,
-      message: 'Audit added to priority queue. Processing...' 
+      message: 'Audit added to priority queue. Your report will be ready in 30-60 seconds.' 
     };
   } catch (e: any) {
     console.error('[Action Error] startCrawlAction:', e.message);
