@@ -16,18 +16,17 @@ export async function loginAction(formData: FormData) {
 
   const validation = LoginSchema.safeParse({ email, password });
   if (!validation.success) {
-    return { success: false, error: "Некорректный email или пароль" };
+    return { success: false, error: "Invalid email or password" };
   }
 
   try {
-    // Важно: Ищем точно так же, как записываем в сиде
     const res = await pool.query(
       "SELECT id, email, name FROM public.users WHERE email = $1 AND password = $2",
       [email.toLowerCase().trim(), password]
     );
 
     if (res.rows.length === 0) {
-      return { success: false, error: "Пользователь не найден или пароль неверен" };
+      return { success: false, error: "User not found or password incorrect" };
     }
 
     const user = res.rows[0];
@@ -47,8 +46,17 @@ export async function loginAction(formData: FormData) {
     return { success: true };
   } catch (error: any) {
     console.error('Login database error:', error.message);
-    return { success: false, error: "Системная ошибка базы данных" };
+    return { success: false, error: "System database error" };
   }
+}
+
+export async function verifyAdminPassphrase(passphrase: string) {
+  const secret = process.env.ADMIN_PASSPHRASE;
+  if (!secret) {
+    console.error("ADMIN_PASSPHRASE environment variable is not set.");
+    return false;
+  }
+  return passphrase === secret;
 }
 
 export async function logoutAction() {

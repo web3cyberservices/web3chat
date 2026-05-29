@@ -17,17 +17,20 @@ const pool = new Pool({
 });
 
 async function seed() {
-  const email = 'abuse@humango.app';
-  const password = 'Web3p00d@3';
-  const name = 'Compliance Manager';
+  // Use environment variables for the initial admin account
+  const email = process.env.ADMIN_EMAIL || 'admin@example.com';
+  const password = process.env.ADMIN_PASSWORD || 'InitialAdminPassword123!';
+  const name = process.env.ADMIN_NAME || 'Compliance Manager';
 
-  // Маскируем пароль в логах для безопасности
+  if (!process.env.ADMIN_PASSWORD) {
+    console.warn('[Seed] WARNING: ADMIN_PASSWORD not found in .env. Using default insecure password.');
+  }
+
   const maskedUrl = dbUrl!.replace(/:([^:@]+)@/, ':****@');
   console.log(`[Seed] Connecting to: ${maskedUrl}`);
 
   const client = await pool.connect();
   try {
-    // Сначала убедимся, что таблица существует
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.users (
         id SERIAL PRIMARY KEY,
@@ -43,10 +46,10 @@ async function seed() {
        VALUES ($1, $2, $3) 
        ON CONFLICT (email) DO UPDATE SET password = $2, name = $3
        RETURNING id;`,
-      [email, password, name]
+      [email.toLowerCase().trim(), password, name]
     );
 
-    console.log(`[Seed] SUCCESS: Manager ${email} is ready in the database (ID: ${res.rows[0].id}).`);
+    console.log(`[Seed] SUCCESS: Admin account ${email} is ready in the database (ID: ${res.rows[0].id}).`);
   } catch (error: any) {
     console.error('[Seed] ERROR:', error.message);
   } finally {

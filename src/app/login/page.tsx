@@ -25,14 +25,14 @@ export default function LoginPage() {
     const result = await loginAction(formData);
 
     if (result.success) {
-      toast({ title: "Успешный вход", description: "Добро пожаловать в терминал." });
+      toast({ title: "Login Successful", description: "Welcome to the terminal." });
       router.push('/manager');
       router.refresh();
     } else {
       toast({ 
         variant: "destructive", 
-        title: "Ошибка входа", 
-        description: result.error || "Неверный email или пароль." 
+        title: "Login Error", 
+        description: result.error || "Invalid email or password." 
       });
       setLoading(false);
     }
@@ -43,7 +43,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md bg-white/[0.03] border-white/10 backdrop-blur-xl shadow-2xl p-8 space-y-8">
         <div className="flex flex-col items-center text-center space-y-4">
           <Image src="/logo.png" alt="Logo" width={64} height={64} priority />
-          <h1 className="text-2xl font-bold tracking-tight text-white">Вход в терминал</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Terminal Login</h1>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
@@ -51,14 +51,14 @@ export default function LoginPage() {
             <Input 
               name="email"
               type="email" 
-              placeholder="abuse@humango.app" 
+              placeholder="manager@company.com" 
               className="bg-white/5 border-white/10 h-12 text-white"
               required
               disabled={loading}
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Пароль</label>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Password</label>
             <Input 
               name="password"
               type="password" 
@@ -70,12 +70,12 @@ export default function LoginPage() {
           </div>
           <Button type="submit" disabled={loading} className="w-full h-12 bg-primary mt-4 font-bold">
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
-            {loading ? "Авторизация..." : "Войти"}
+            {loading ? "Authorizing..." : "Login"}
           </Button>
         </form>
         <div className="text-center">
           <Link href="/" className="text-[10px] text-slate-500 hover:text-white transition-colors uppercase tracking-widest font-bold">
-            Вернуться на главную
+            Back to Home
           </Link>
         </div>
       </Card>

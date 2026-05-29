@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getManagerStatsAction } from '@/app/actions/crm-actions';
+import { verifyAdminPassphrase } from '@/app/actions/auth-actions';
 import { 
   Select,
   SelectContent,
@@ -49,7 +51,8 @@ import {
   CheckCircle2,
   Clock,
   Filter,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from "lucide-react";
 
 interface DetectedIssue {
@@ -78,6 +81,7 @@ interface ManagerStat {
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [passphrase, setPassphrase] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [recentIssues, setRecentIssues] = useState<DetectedIssue[]>([]);
   const [managerStats, setManagerStats] = useState<ManagerStat[]>([]);
@@ -172,6 +176,24 @@ export default function AdminDashboard() {
     window.open('/api/admin/export', '_blank');
   };
 
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsVerifying(true);
+    try {
+      const isValid = await verifyAdminPassphrase(passphrase);
+      if (isValid) {
+        document.cookie = "admin_authenticated=true; path=/; max-age=3600; SameSite=Strict"; 
+        setIsAuthenticated(true); 
+      } else {
+        toast({ variant: "destructive", title: "Invalid Passphrase" });
+      }
+    } catch (err) {
+      toast({ variant: "destructive", title: "Verification Failed" });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const filteredRecentIssues = useMemo(() => {
     if (filterManager === "all") return recentIssues;
     return recentIssues.filter(issue => issue.managerName === filterManager);
@@ -196,17 +218,19 @@ export default function AdminDashboard() {
             <Image src="/logo.png" alt="Logo" width={64} height={64} priority />
             <h1 className="text-2xl font-bold">Terminal Access</h1>
           </div>
-          <form onSubmit={(e) => { 
-            e.preventDefault(); 
-            if (passphrase === "humango-admin-2025") { 
-              document.cookie = "admin_authenticated=true; path=/; max-age=3600; SameSite=Strict"; 
-              setIsAuthenticated(true); 
-            } else {
-              toast({ variant: "destructive", title: "Invalid Passphrase" });
-            }
-          }} className="space-y-4">
-            <Input type="password" placeholder="Passphrase" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} className="bg-white/5 text-center" />
-            <Button type="submit" className="w-full">Unlock</Button>
+          <form onSubmit={handleUnlock} className="space-y-4">
+            <Input 
+              type="password" 
+              placeholder="Passphrase" 
+              value={passphrase} 
+              onChange={(e) => setPassphrase(e.target.value)} 
+              className="bg-white/5 text-center" 
+              required
+            />
+            <Button type="submit" className="w-full" disabled={isVerifying}>
+              {isVerifying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {isVerifying ? "Verifying..." : "Unlock"}
+            </Button>
           </form>
         </Card>
       </div>
