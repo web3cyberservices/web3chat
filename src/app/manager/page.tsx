@@ -17,6 +17,7 @@ import {
   Loader2, Globe, CheckCircle2, LogOut, ChevronRight, UserCheck, ShieldAlert, User, TrendingUp, Copy, Eye, Download, DollarSign, Mail, StickyNote, BarChart3 
 } from "lucide-react";
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function ManagerDashboard() {
