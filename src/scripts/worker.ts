@@ -1,3 +1,4 @@
+import 'dotenv/config';
 /**
  * worker.ts - Modern Entry Point
  * This file bootstraps the specialized crawler engine.

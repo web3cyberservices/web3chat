@@ -1,8 +1,10 @@
-
 /**
  * PM2 Ecosystem Configuration - Secure Version
  * Sensitive data moved to .env file.
  */
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 module.exports = {
   apps: [
     {
@@ -11,7 +13,8 @@ module.exports = {
       args: 'start',
       cwd: '/var/www/bot.humango.app',
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        PORT: 3000
       },
       max_restarts: 10,
       restart_delay: 4000,
@@ -23,7 +26,8 @@ module.exports = {
       args: 'src/scripts/worker.ts',
       cwd: '/var/www/bot.humango.app',
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        SCRIPTS_RUN: 'true'
       },
       max_restarts: 10,
       restart_delay: 4000

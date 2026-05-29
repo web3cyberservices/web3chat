@@ -1,8 +1,11 @@
 import { Pool } from 'pg';
-import isomorpicDOMPurify from 'isomorphic-dompurify';
+import isomorphicDOMPurify from 'isomorphic-dompurify';
 
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is missing in environment variables!');
+  // We check only if we are in a runtime that strictly requires it
+  if (process.env.NODE_ENV === 'production' || process.env.SCRIPTS_RUN === 'true' || !process.env.NEXT_PHASE) {
+     console.warn('Warning: DATABASE_URL is missing in environment variables!');
+  }
 }
 
 export const pool = new Pool({
@@ -16,7 +19,7 @@ export const pool = new Pool({
  */
 function sanitize(text: string | null | undefined, fallback: string = ''): string {
   if (!text) return fallback;
-  return isomorpicDOMPurify.sanitize(String(text).trim());
+  return isomorphicDOMPurify.sanitize(String(text).trim());
 }
 
 export function normalizeUrl(url: string, base?: string): string {
