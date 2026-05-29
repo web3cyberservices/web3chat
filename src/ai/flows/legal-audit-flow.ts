@@ -1,7 +1,8 @@
+
 'use server';
 /**
- * @fileOverview Strict German & EU Legal Audit Flow
- * Analyzes domain data for Abmahnung (Fine) risks under German/EU law.
+ * @fileOverview Strict German & EU Statutory Audit AI
+ * Analyzes domain data for high-risk Abmahnung (Fine) liabilities.
  */
 
 import { ai } from '@/ai/genkit';
@@ -18,12 +19,12 @@ const AuditInputSchema = z.object({
 
 const AuditOutputSchema = z.object({
   report: z.array(z.object({
-    title: z.string().describe("e.g., CRITICAL INCOMPLETENESS"),
-    law: z.string().describe("e.g., § 5 DDG (Impressumspflicht)"),
-    summary: z.string().describe("Detailed factual description of the violation."),
+    title: z.string().describe("e.g., CRITICAL IMPRESSUM FAILURE"),
+    law: z.string().describe("e.g., § 5 DDG (formerly TMG)"),
+    summary: z.string().describe("Professional legal description of the gap."),
     impact: z.string().describe("Business impact: e.g., 'Risk of Abmahnung up to €50,000'."),
-    liability: z.string().describe("Specific financial fine detail."),
-    action: z.string().describe("Remediation step starting with 'ACTION: INSERT THIS TEXT ->'")
+    liability: z.string().describe("Specific financial fine details."),
+    action: z.string().describe("Remediation starting with 'ACTION: INSERT THIS TEXT ->'")
   }))
 });
 
@@ -33,26 +34,25 @@ export const legalAuditPrompt = ai.definePrompt({
   name: 'legalAuditPrompt',
   input: { schema: AuditInputSchema },
   output: { schema: AuditOutputSchema },
-  prompt: `You are a strict, merciless German Data Protection Auditor (Datenschutzbeauftragter). 
-Your task is to convert raw scan findings into a professional statutory compliance report for domain: {{{domain}}}.
+  prompt: `You are a professional German Data Protection Auditor.
+Your task is to convert raw scan data into a formal statutory compliance report for domain: {{{domain}}}.
 
 STRICT GERMAN COMPLIANCE RULES:
-1. Impressumspflicht (§ 5 DDG): Every German site MUST have an easily accessible Impressum containing full company name, registered office address (PO Box illegal), and authorized representative (Geschäftsführer). 
-2. Commercial requirements: Must list Handelsregisterauszug (HRB/HRA), the respective registration court (Amtsgericht), and VAT ID (USt-IdNr.).
-3. Datenschutzerklärung (Art. 13 DSGVO): Missing specific legal bases (Art. 6 DSGVO) or responsible entity names is a critical violation.
-4. Cookie Consent (TDDDG): "Reject All" button must be as easy as "Accept All".
-5. Schrems II: External US loading of assets (like Google Fonts) without prior consent is an illegal international data transfer.
+1. Impressumspflicht (§ 5 DDG): Every German site MUST list full company name, registered address, authorized representative (Geschäftsführer), Handelsregister number (HRB/HRA), and VAT ID (USt-IdNr.).
+2. Cookie Consent (§ 25 TDDDG): "Reject All" button must be as easy as "Accept All" (Symmetrie-Gebot). Dark patterns are illegal.
+3. US Data Transfers (Schrems II): Dynamic loading of Google Fonts or US-based scripts without prior consent is a €100-€5,000 fine per individual case, plus administrative fines.
+4. E-commerce (§ 312j BGB): Final order button must say "Zahlungspflichtig bestellen" or "Kaufen".
 
-Findings to analyze:
+Findings:
 {{#each violations}}
 - Violation: {{{issue_type}}}
 - Details: {{{description}}}
-- Foundation: {{{law_name}}}
+- Law: {{{law_name}}}
 {{/each}}
 
-For each violation, generate authoritative legal analysis. 
+For each finding, provide authoritative legal analysis. 
 Fines for Impressum errors start at €50,000. 
-GDPR fines: Up to €20M or 4% of global turnover.`,
+GDPR fines can reach 4% of global turnover.`,
 });
 
 export async function generateLegalAudit(input: z.infer<typeof AuditInputSchema>): Promise<AuditOutput> {
