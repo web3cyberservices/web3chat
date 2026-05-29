@@ -1,8 +1,15 @@
-
 import { scrapeUrl } from '@/lib/scraper';
 import { parseHtmlContent } from '@/lib/parser';
+import { extractEmails } from '@/lib/crawler/parser';
 import { isUrlAllowed } from '@/config/robots-rules';
-import { saveAuditLog, saveBotEvent, saveAuditResults, normalizeUrl, saveValidationLog } from '@/lib/db';
+import { 
+  saveAuditLog, 
+  saveBotEvent, 
+  saveAuditResults, 
+  normalizeUrl, 
+  saveValidationLog,
+  saveLeadContacts 
+} from '@/lib/db';
 import { verifyIntegrity } from '@/lib/validator';
 import { CrawlResult, Violation } from '@/types';
 import { z } from 'zod';
@@ -11,7 +18,7 @@ import { performance } from 'perf_hooks';
 const urlSchema = z.string().url();
 
 /**
- * The Loop Architecture (V35.0) - Semantic Deep Analysis & Robust URL Handling
+ * The Loop Architecture (V35.0) - Integrated Lead Gen & Legal Audit
  */
 export async function runCrawlTask(seedUrl: string, iteration: number = 1): Promise<CrawlResult> {
   const startTime = performance.now();
@@ -47,20 +54,19 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
       scrape.method === 'puppeteer'
     );
 
+    // LEAD GEN: Extract emails from home page
+    const foundEmails = extractEmails(scrape.html);
+
     // PHASE 2: SEMANTIC DEEP DIVE (FOLLOWING LEGAL CANDIDATES)
     const legalLinksRaw = { ...initialParsed.meta.legal_links };
     const legalLinksNormalized: Record<string, string | null> = {};
     
-    // Normalize discovered links against the origin
     Object.entries(legalLinksRaw).forEach(([key, val]) => {
-      if (val) {
-        legalLinksNormalized[key] = normalizeUrl(val, origin);
-      } else {
-        legalLinksNormalized[key] = null;
-      }
+      if (val) legalLinksNormalized[key] = normalizeUrl(val, origin);
+      else legalLinksNormalized[key] = null;
     });
 
-    // SMART FALLBACK: If initial search failed, try forced common paths relative to origin
+    // SMART FALLBACK
     if (!legalLinksNormalized.privacy) {
       const fallbacks = [
         normalizeUrl('/legal/privacy', origin),
@@ -84,8 +90,7 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
     let documentsFound = candidates.length > 0;
 
     if (documentsFound) {
-      await saveBotEvent('SUCCESS', `Semantic Discovery: Found legal paths. Fetching content...`);
-      
+      await saveBotEvent('SUCCESS', `Semantic Discovery: Fetching legal document content...`);
       for (const [type, href] of candidates) {
           const deepUrl = href!;
           if (deepUrl === initialNormalized) continue;
@@ -94,16 +99,17 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
             const deepScrape = await scrapeUrl(deepUrl);
             if (deepScrape.status === 'success' && deepScrape.html.length > 200) {
                 aggregatedLegalContent += `\n\n--- DOCUMENT: ${type.toUpperCase()} AT ${deepUrl} ---\n\n` + deepScrape.html;
+                // Accumulate emails from legal pages too
+                extractEmails(deepScrape.html).forEach(e => foundEmails.push(e));
             }
           } catch (e) {}
       }
     }
 
-    // PHASE 3: AI VERIFICATION & INTERCEPTION
+    // PHASE 3: AI VERIFICATION
     let verifiedFindings: Violation[] = [];
     let validationResult: any;
 
-    // Hard Intercept: If content is missing even after fallback, skip AI content check
     if (aggregatedLegalContent.trim().length < 500 && !documentsFound) {
        verifiedFindings = [{
          category: 'Privacy',
@@ -111,12 +117,12 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
          issue_type: 'MISSING CORE FRAMEWORK',
          severity: 'critical',
          evidence_html: initialNormalized,
-         description: 'No statutory legal disclosure links or content (Privacy Policy/Impressum) were identified in the site architecture.',
-         business_impact: 'Critical risk: Meta and Google advertising accounts may be suspended due to missing compliance signals.',
+         description: 'No statutory legal disclosure links or content (Privacy Policy/Impressum) were identified.',
+         business_impact: 'Critical risk: Advertising accounts may be suspended due to missing compliance signals.',
          law_name: 'Art. 12 & 13 GDPR',
          potential_fine: 'Up to €20,000,000 or 4% of global turnover.',
          explanation: 'The law requires a visible and accessible privacy policy on all commercial websites.',
-         recommendation: 'ACTION: INSERT THIS HTML -> "<footer class=\\"legal-footer\\"><a href=\\"/privacy\\">Privacy Policy</a></footer>"',
+         recommendation: 'ACTION: Create and link a dedicated /privacy page.',
          confidence_score: 1.0,
          verification_status: 'verified'
        }];
@@ -126,14 +132,15 @@ export async function runCrawlTask(seedUrl: string, iteration: number = 1): Prom
        verifiedFindings = validationResult.validated_findings;
     }
     
+    // PHASE 4: FINALIZATION & CRM SAVE
+    const uniqueEmails = [...new Set(foundEmails)];
+    await saveLeadContacts(domain, uniqueEmails);
     await saveValidationLog(initialNormalized, iteration, validationResult.integrity_status, verifiedFindings, validationResult.overall_confidence);
-
-    // PHASE 4: FINALIZATION
     await saveAuditLog(domain, 200, null);
     await saveAuditResults(domain, initialNormalized, verifiedFindings, iteration > 1 ? 'deep' : 'basic');
     
     const total_ms = Math.round(performance.now() - startTime);
-    await saveBotEvent('SUCCESS', `Loop Finished: ${domain} | Findings: ${verifiedFindings.length}`);
+    await saveBotEvent('SUCCESS', `Loop Finished: ${domain} | Leads: ${uniqueEmails.length} | Findings: ${verifiedFindings.length}`);
 
     return {
       url: initialNormalized,

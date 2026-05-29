@@ -38,12 +38,29 @@ export function normalizeUrl(url: string, base?: string): string {
 export async function queueTask(url: string, email: string, priority: number = 0) {
   const cleanUrl = normalizeUrl(url);
   await pool.query(
-    `INSERT INTO public.scan_queue (url, status, priority, user_email, created_at, crm_status) 
-     VALUES ($1, 'pending', $2, $3, NOW(), 'pending') 
-     ON CONFLICT (url) DO UPDATE SET status = 'pending', priority = $2, user_email = $3, crm_status = 'pending';`,
+    `INSERT INTO public.scan_queue (url, status, priority, user_email, created_at) 
+     VALUES ($1, 'pending', $2, $3, NOW()) 
+     ON CONFLICT (url) DO UPDATE SET status = 'pending', priority = $2, user_email = $3;`,
     [cleanUrl, priority, email]
   );
   return cleanUrl;
+}
+
+export async function saveLeadContacts(domain: string, emails: string[]) {
+  const contactsJson = JSON.stringify(emails.map(e => ({ value: e, verified: true })));
+  await pool.query(
+    `UPDATE public.scan_queue SET extracted_emails = $1 WHERE url LIKE $2`,
+    [contactsJson, `%${domain}%`]
+  );
+}
+
+export async function saveAuditResults(domain: string, url: string, violations: any[], type: string) {
+  await pool.query(
+    `UPDATE public.scan_queue 
+     SET status = 'completed', violations_count = $1, audit_findings = $2, updated_at = NOW()
+     WHERE url = $3`,
+    [violations.length, JSON.stringify(violations), url]
+  );
 }
 
 export async function getTaskStatus(url: string) {
@@ -74,18 +91,18 @@ export async function getBotEvents(limit: number = 50) {
 export async function getViolations(limit: number = 100) {
   const res = await pool.query(`
     SELECT 
-      q.id, q.url as domain, q.url, q.status, q.crm_status, q.priority,
+      q.id, q.url as domain, q.url, q.status, q.crm_status,
       q.assigned_to as "assignedTo", q.manager_name as "managerName", q.assigned_at as "assignedAt",
       q.violations_count as violation_count, q.audit_findings, q.extracted_emails as contacts
     FROM public.scan_queue q
-    ORDER BY q.priority DESC, q.violations_count DESC, q.created_at DESC LIMIT $1
+    ORDER BY q.violations_count DESC, q.created_at DESC LIMIT $1
   `, [limit]);
   
   return res.rows.map(row => ({
     id: row.id,
     domain: row.domain.replace(/^https?:\/\//, ''),
     type: 'Audit',
-    level: row.priority > 50 ? 'critical' : row.violation_count > 0 ? 'high' : 'low',
+    level: row.violation_count > 5 ? 'critical' : row.violation_count > 0 ? 'high' : 'low',
     date: row.assignedAt || row.created_at || new Date(),
     summary: `Found ${row.violation_count} violations`,
     description: `Automated scan results for ${row.domain}`,
@@ -96,8 +113,7 @@ export async function getViolations(limit: number = 100) {
     status: row.status,
     crm_status: row.crm_status,
     audit_findings: row.audit_findings,
-    contacts: row.contacts,
-    priority: row.priority
+    contacts: row.contacts
   }));
 }
 
@@ -127,4 +143,23 @@ export async function getManagersStats() {
 export async function testConnection() {
   const client = await pool.connect();
   try { await client.query('SELECT 1'); return true; } finally { client.release(); }
+}
+
+export async function saveScanIssueToDb(domain: string, issue: any) {
+  // Legacy adapter for specific crawler imports
+  await pool.query(
+    'INSERT INTO site_violations (domain, issue_type, severity, description, created_at) VALUES ($1, $2, $3, $4, NOW())',
+    [domain, issue.type, issue.severity, issue.description]
+  );
+}
+
+export async function getNextQueueItem() {
+  const res = await pool.query(
+    "SELECT id, url, user_email FROM public.scan_queue WHERE status = 'pending' ORDER BY priority DESC, created_at ASC LIMIT 1"
+  );
+  return res.rows[0] || null;
+}
+
+export async function updateQueueStatus(id: number, status: string) {
+  await pool.query('UPDATE public.scan_queue SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
 }
