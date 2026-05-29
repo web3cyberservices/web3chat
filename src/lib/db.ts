@@ -1,5 +1,5 @@
-
 import { Pool } from 'pg';
+import isomorpicDOMPurify from 'isomorphic-dompurify';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is missing in environment variables!');
@@ -10,9 +10,13 @@ export const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
+/**
+ * PRODUCTION-READY SANITIZATION
+ * Uses DOMPurify to prevent XSS payloads in lead notes or findings.
+ */
 function sanitize(text: string | null | undefined, fallback: string = ''): string {
   if (!text) return fallback;
-  return String(text).trim().replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "");
+  return isomorpicDOMPurify.sanitize(String(text).trim());
 }
 
 export function normalizeUrl(url: string, base?: string): string {
@@ -35,8 +39,8 @@ export async function queueTask(url: string, email: string, priority: number = 0
   const cleanUrl = normalizeUrl(url);
   await pool.query(
     `INSERT INTO public.scan_queue (url, status, priority, user_email, created_at, crm_status) 
-     VALUES ($1, 'pending', $2, $3, NOW(), 'free') 
-     ON CONFLICT (url) DO UPDATE SET status = 'pending', priority = $2, user_email = $3, crm_status = 'free';`,
+     VALUES ($1, 'pending', $2, $3, NOW(), 'pending') 
+     ON CONFLICT (url) DO UPDATE SET status = 'pending', priority = $2, user_email = $3, crm_status = 'pending';`,
     [cleanUrl, priority, email]
   );
   return cleanUrl;
@@ -72,7 +76,7 @@ export async function getViolations(limit: number = 100) {
     SELECT 
       q.id, q.url as domain, q.url, q.status, q.crm_status, q.priority,
       q.assigned_to as "assignedTo", q.manager_name as "managerName", q.assigned_at as "assignedAt",
-      q.violations_count as violation_count, q.audit_findings, q.contacts
+      q.violations_count as violation_count, q.audit_findings, q.extracted_emails as contacts
     FROM public.scan_queue q
     ORDER BY q.priority DESC, q.violations_count DESC, q.created_at DESC LIMIT $1
   `, [limit]);
@@ -110,7 +114,7 @@ export async function getManagersStats() {
     SELECT 
       manager_name as name, 
       count(*) as task_count,
-      count(*) FILTER (WHERE status = 'done' OR status = 'completed') as completed_count,
+      count(*) FILTER (WHERE status = 'completed') as completed_count,
       count(*) FILTER (WHERE status IN ('in_work', 'negotiation', 'in_progress')) as in_progress_count
     FROM public.scan_queue 
     WHERE assigned_to IS NOT NULL 

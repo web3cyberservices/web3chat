@@ -1,7 +1,6 @@
-
 'use server';
 /**
- * @fileOverview Standardized Audit Worker - Refactored for Security
+ * @fileOverview Refactored Audit Worker - Optimized for 8GB RAM environments
  */
 import 'dotenv/config';
 import { Pool } from 'pg';
@@ -27,12 +26,40 @@ const transporter = nodemailer.createTransport({
 });
 
 const JURISDICTION_RULES: Record<string, any> = {
-  'de': { name: 'Germany', requiredLinks: ['impressum'], tokens: ['handelsregister', 'ust-idnr'], code: 'DE' },
-  'at': { name: 'Austria', requiredLinks: ['impressum'], tokens: ['firmenbuch', 'uid-nummer'], code: 'AT' },
-  'fr': { name: 'France', requiredLinks: ['mentions légales'], tokens: ['siret', 'r.c.s'], code: 'FR' },
-  'es': { name: 'Spain', requiredLinks: ['aviso legal'], tokens: ['cif', 'nif'], code: 'ES' },
-  'it': { name: 'Italy', requiredLinks: ['note legali'], tokens: ['partita iva'], code: 'IT' }
+  'de': { lang: ['datenschutz', 'impressum'], requiredLinks: ['impressum'], prefix: 'DE_AT' },
+  'at': { lang: ['datenschutz', 'impressum'], requiredLinks: ['impressum'], prefix: 'DE_AT' },
+  'fr': { lang: ['confidentialité', 'mentions légales'], requiredLinks: ['mentions légales'], prefix: 'FR' },
+  'es': { lang: ['privacidad', 'aviso legal'], requiredLinks: ['aviso legal'], prefix: 'ES' },
+  'it': { lang: ['privacy', 'note legali'], requiredLinks: ['note legali'], prefix: 'IT' },
+  'nl': { lang: ['privacybeleid', 'colofon'], requiredLinks: ['colofon'], prefix: 'NL' }
 };
+
+let tasksProcessed = 0;
+let currentBrowser: puppeteer.Browser | null = null;
+
+async function getBrowserInstance() {
+  if (currentBrowser && tasksProcessed < 50) {
+    return currentBrowser;
+  }
+  
+  if (currentBrowser) {
+    console.log('[Worker] Gracefully rotating browser instance to prevent memory leaks...');
+    await currentBrowser.close().catch(() => {});
+    tasksProcessed = 0;
+  }
+
+  currentBrowser = await puppeteer.launch({ 
+    headless: true, 
+    args: [
+      '--no-sandbox', 
+      '--disable-setuid-sandbox', 
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--no-first-run'
+    ] 
+  });
+  return currentBrowser;
+}
 
 async function performAudit(page: puppeteer.Page, scanId: number, url: string, userEmail?: string) {
   const finalFindings: any[] = [];
@@ -40,25 +67,31 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
   let extractedPhones: any[] = [];
   let hasUS_Trackers = false;
   let legalText = '';
-  let priorityScore = 0;
+  let leadScore = 0;
 
   try {
     const domain = new URL(url).hostname.toLowerCase();
     const tld = domain.split('.').pop() || 'com';
     const localRule = JURISDICTION_RULES[tld];
 
-    // 1. NETWORK AUDIT
     await page.setRequestInterception(true);
     page.on('request', req => {
+      const resourceType = req.resourceType();
       const rUrl = req.url().toLowerCase();
+
+      // MEMORY OPTIMIZATION: Block heavy assets
+      if (['image', 'media', 'font', 'stylesheet'].includes(resourceType)) {
+        return req.abort();
+      }
+
       if (rUrl.includes('google-analytics') || rUrl.includes('facebook.com/tr') || rUrl.includes('doubleclick')) {
         hasUS_Trackers = true;
         if (!finalFindings.some(f => f.type === 'TRACKING_TRAFFIC_DETECTED')) {
-          finalFindings.push({ 
-            type: 'TRACKING_TRAFFIC_DETECTED', 
-            summary: 'Illegal pre-consent tracking.', 
-            liability: 'Up to €20M or 4% turnover.', 
-            recommendation: 'ACTION: Implement prior-blocking CMP.' 
+          finalFindings.push({
+            type: 'TRACKING_TRAFFIC_DETECTED',
+            summary: 'Illegal pre-consent tracking detected.',
+            liability: 'Up to €20,000,000 or 4% of turnover.',
+            recommendation: 'ACTION: Implement strict prior-blocking CMP.'
           });
         }
       }
@@ -66,107 +99,74 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
     });
 
     if (!url.startsWith('https://')) {
-      finalFindings.push({ 
-        type: 'UNSECURED_CONNECTION', 
-        summary: 'Non-HTTPS Protocol.', 
-        liability: 'Art. 32 GDPR violation.', 
-        recommendation: 'ACTION: Force SSL/TLS.' 
-      });
-      priorityScore += 30;
+      finalFindings.push({ type: 'UNSECURED_CONNECTION', summary: 'Non-HTTPS Protocol.', liability: 'Art. 32 GDPR violation.', recommendation: 'ACTION: Force SSL/TLS.' });
+      leadScore += 30;
     }
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
 
-    // 2. LOCALIZED JURISDICTION CHECKS
+    const extractContacts = async (p: puppeteer.Page) => {
+      return await p.evaluate(() => {
+        const text = document.body.innerText;
+        const eRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+        return Array.from(new Set(text.match(eRegex) || []))
+          .filter(e => !['sentry', 'google', 'facebook', 'example'].some(d => e.toLowerCase().includes(d)));
+      });
+    };
+    
+    const mainPageEmails = await extractContacts(page);
+    extractedEmails.push(...mainPageEmails);
+
     if (localRule) {
       const hasLegalLink = await page.evaluate((markers) => {
         return Array.from(document.querySelectorAll('a')).some(a => markers.some(m => a.innerText.toLowerCase().includes(m)));
       }, localRule.requiredLinks);
 
       if (!hasLegalLink) {
-        finalFindings.push({ 
-          type: `MISSING_LOCALIZED_DISCLOSURE_${localRule.code}`, 
-          summary: `Missing mandatory ${localRule.requiredLinks[0]} link.`, 
-          liability: 'Fines up to €50,000.', 
-          recommendation: `ACTION: Create a /legal page.` 
+        finalFindings.push({
+          type: `MISSING_LOCALIZED_DISCLOSURE_${localRule.prefix}`,
+          summary: `Missing mandatory ${localRule.requiredLinks[0]} link.`,
+          liability: 'Administrative fines apply.',
+          recommendation: `ACTION: Create a legal notice page.`
         });
-        priorityScore += 50;
+        leadScore += 50;
       }
     }
 
-    // 3. DOCUMENT VALIDATION
     const privacyLink = await page.evaluate(() => {
-      const markers = ['privacy', 'datenschutz', 'confidentialité', 'privacidad', 'prywatности'];
+      const markers = ['privacy', 'datenschutz', 'confidentialité', 'privacidad', 'prywatności'];
       const found = Array.from(document.querySelectorAll('a')).find(a => markers.some(m => a.innerText.toLowerCase().includes(m)));
       return found ? found.href : null;
     });
 
     let targetLegalUrl = privacyLink || `${new URL(url).origin}/privacy`;
     try {
-      await page.goto(targetLegalUrl, { waitUntil: 'networkidle2', timeout: 25000 });
+      await page.goto(targetLegalUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
       const rawText = await page.evaluate(() => document.body.innerText);
-      if (rawText.length > 200 && ['privacy', 'policy', 'datenschutz'].some(m => rawText.toLowerCase().includes(m))) {
+      if (rawText.length > 200 && ['privacy', 'policy', 'datenschutz', 'personal data'].some(m => rawText.toLowerCase().includes(m))) {
         legalText = rawText.toLowerCase();
       }
+      const privEmails = await extractContacts(page);
+      extractedEmails.push(...privEmails);
     } catch (e) {}
 
+    extractedEmails = [...new Set(extractedEmails)].map(e => ({ value: e, context: "Scraped" }));
+
     if (!legalText) {
-      finalFindings.push({ 
-        type: 'MISSING_CORE_FRAMEWORK', 
-        summary: 'Critical Transparency Failure.', 
-        liability: 'Maximum GDPR fine risk.', 
-        recommendation: 'ACTION: Create and link a /privacy page.' 
-      });
-      priorityScore += 100;
+      finalFindings.push({ type: 'MISSING_CORE_FRAMEWORK', summary: 'Critical Transparency Failure.', liability: 'Maximum GDPR fine.', recommendation: 'ACTION: Create and link a /privacy page.' });
+      leadScore += 100;
     } else {
-      // 4. DEEP SEMANTIC ANALYSIS (Synonyms & Logic)
-      if (!['legal basis', 'article 6', 'rechtsgrundlage'].some(kw => legalText.includes(kw))) {
-        finalFindings.push({ type: 'MISSING_LEGAL_BASES', summary: 'No explicit legal basis declared.', liability: 'Art. 13 violation.', recommendation: 'ACTION: List legal grounds (Art. 6).' });
+      if (!['legal basis', 'article 6', 'rechtsgrundlage', 'base légale'].some(kw => legalText.includes(kw))) {
+        finalFindings.push({ type: 'MISSING_LEGAL_BASES', summary: 'No explicit legal basis declared.', liability: 'Art. 13(1)(c) violation.', recommendation: 'ACTION: Explicitly cite processing grounds.' });
       }
       if (/ip address(es)? (are|is) not personal/i.test(legalText)) {
-        finalFindings.push({ type: 'MISCLASSIFIED_PERSONAL_DATA', summary: 'Incorrect IP data classification.', liability: 'High litigation risk.', recommendation: 'ACTION: Correct IP classification.' });
+        finalFindings.push({ type: 'MISCLASSIFIED_PERSONAL_DATA', summary: 'IP Address misclassification.', liability: 'High risk of litigation.', recommendation: 'ACTION: Correct IP data classification.' });
       }
       if (['as long as', 'indefinitely', 'unbestimmte zeit'].some(kw => legalText.includes(kw))) {
-        finalFindings.push({ type: 'VAGUE_RETENTION_PERIOD', summary: 'Vague data retention terms.', liability: 'Art. 5(1)(e) violation.', recommendation: 'ACTION: Specify exact periods.' });
-      }
-      if (!['dpo', 'data protection officer', 'datenschutzbeauftragter'].some(kw => legalText.includes(kw))) {
-        finalFindings.push({ type: 'MISSING_DPO_DETAILS', summary: 'No DPO details found.', liability: 'Art. 13(1)(b) violation.', recommendation: 'ACTION: Declare DPO contact.' });
-      }
-      if (hasUS_Trackers && !['standard contractual clauses', 'scc', 'standardvertragsklauseln'].some(kw => legalText.includes(kw))) {
-        finalFindings.push({ type: 'MISSING_INTERNATIONAL_TRANSFERS', summary: 'Undeclared US data transfers.', liability: 'Schrems II violation.', recommendation: 'ACTION: Include SCC clauses.' });
+        finalFindings.push({ type: 'VAGUE_RETENTION_PERIOD', summary: 'Vague data retention terms.', liability: 'Art. 5(1)(e) violation.', recommendation: 'ACTION: Define exact periods.' });
       }
     }
 
-    // 5. CONTACT EXTRACTION (WITH CONTEXT)
-    const extract = async (p: puppeteer.Page) => {
-      return await p.evaluate(() => {
-        const text = document.body.innerText;
-        const eRegex = /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/g;
-        const pRegex = /\+?[0-9]{1,4}[-.\s]?\(?[0-9]{1,3}\)?[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}/g;
-        
-        const getCtx = (t: string, m: string) => {
-          const i = t.indexOf(m);
-          return t.substring(Math.max(0, i-150), Math.min(t.length, i+m.length+150)).replace(/\s+/g, ' ').trim();
-        };
-
-        const blacklist = ['sentry', 'google', 'facebook', 'shopify', 'wix'];
-        const emails = Array.from(new Set(text.match(eRegex) || []))
-          .filter(e => !blacklist.some(d => e.toLowerCase().includes(d)))
-          .map(e => ({ value: e, context: getCtx(text, e) }));
-          
-        const phones = Array.from(new Set(text.match(pRegex) || []))
-          .filter(ph => ph.length > 8)
-          .map(ph => ({ value: ph, context: getCtx(text, ph) }));
-
-        return { emails, phones };
-      });
-    };
-
-    const homeContacts = await extract(page);
-    extractedEmails = homeContacts.emails;
-    extractedPhones = homeContacts.phones;
-
-    // 6. TRIAGE (LEAD QUALIFICATION)
     let crmStatus = 'compliant';
     if (finalFindings.length > 0) {
       crmStatus = (extractedEmails.length > 0) ? 'ready_for_sales' : 'needs_analyst';
@@ -175,25 +175,27 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
     await pool.query(
       `UPDATE public.scan_queue 
        SET status = 'completed', crm_status = $1, violations_count = $2, 
-           audit_findings = $3, extracted_emails = $4, extracted_phones = $5, 
-           priority = $6, updated_at = NOW()
-       WHERE id = $7`,
-      [crmStatus, finalFindings.length, JSON.stringify(finalFindings), JSON.stringify(extractedEmails), JSON.stringify(extractedPhones), priorityScore, scanId]
+           audit_findings = $3, extracted_emails = $4, priority = $5, updated_at = NOW()
+       WHERE id = $6`,
+      [crmStatus, finalFindings.length, JSON.stringify(finalFindings), JSON.stringify(extractedEmails), leadScore, scanId]
     );
 
     if (userEmail && userEmail.length > 5) {
-       const pdfBuffer = await generatePdfReport(domain, finalFindings);
-       if (pdfBuffer) {
-         await transporter.sendMail({
-           from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
-           to: userEmail,
-           subject: `Statutory Audit Report: ${domain}`,
-           text: `Audit for ${domain} is complete. Your detailed PDF report is attached.`,
-           attachments: [{ filename: `Audit_${domain}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
-         });
-       }
+       try {
+         const pdfBuffer = await generatePdfReport(domain, finalFindings);
+         if (pdfBuffer) {
+           await transporter.sendMail({
+             from: `"Humango Compliance" <${process.env.SMTP_USER}>`,
+             to: userEmail,
+             subject: `Statutory Audit Report: ${domain}`,
+             text: `The automated audit for ${domain} is complete. Attached is your report.`,
+             attachments: [{ filename: `Audit_${domain}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+           });
+         }
+       } catch (emailErr) {}
     }
-    console.log(`[Worker] Audit finished: ${domain} -> ${crmStatus}`);
+    tasksProcessed++;
+    console.log(`[Worker] Audit finished: ${domain} (Counter: ${tasksProcessed})`);
   } catch (err: any) {
     console.error(`[Worker Error] Task ${scanId} failed:`, err.message);
     await pool.query("UPDATE public.scan_queue SET status = 'failed' WHERE id = $1", [scanId]);
@@ -201,31 +203,32 @@ async function performAudit(page: puppeteer.Page, scanId: number, url: string, u
 }
 
 async function startWorker() {
-  console.log('[Worker] Booting up in Secure Mode...');
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  console.log('[Worker] Booting up...');
   
   while (true) {
     try {
+      const browser = await getBrowserInstance();
+      const seeded = await checkAndFeedQueue(pool);
+      
       const res = await pool.query(
-        "SELECT id, url, user_email FROM public.scan_queue WHERE status = 'pending' OR (status = 'processing' AND updated_at < NOW() - INTERVAL '5 minutes') ORDER BY priority DESC, created_at ASC LIMIT 1"
+        "SELECT id, url, user_email FROM public.scan_queue WHERE status = 'pending' ORDER BY priority DESC, created_at ASC LIMIT 1"
       );
 
       if (res.rows.length > 0) {
         const task = res.rows[0];
         await pool.query("UPDATE public.scan_queue SET status = 'processing', updated_at = NOW() WHERE id = $1", [task.id]);
+        
         const page = await browser.newPage();
         await performAudit(page, task.id, task.url, task.user_email);
         await page.close();
       } else {
-        const seeded = await checkAndFeedQueue(pool);
         if (!seeded) {
-          console.log('[Worker] No tasks. Sleeping 15s...');
           await new Promise(r => setTimeout(r, 15000));
         }
       }
     } catch (e: any) { 
-      console.error('[Worker Loop Error]', e.message); 
-      await new Promise(r => setTimeout(r, 10000)); 
+      console.error('[Worker Fatal]', e.message); 
+      await new Promise(r => setTimeout(r, 15000)); 
     }
   }
 }
