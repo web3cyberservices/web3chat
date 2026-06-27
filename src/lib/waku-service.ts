@@ -22,7 +22,7 @@ export async function initWaku(): Promise<LightNode> {
     try {
       const { createLightNode, Protocols } = await import('@waku/sdk');
 
-      // Создаем узел. В 2026 году конфигурация топиков происходит автоматически.
+      // Создаем узел. Если bootstrapPeers вызывает ошибку, используем стандартные настройки
       let node;
       try {
         node = await createLightNode({ 
@@ -36,9 +36,12 @@ export async function initWaku(): Promise<LightNode> {
 
       await node.start();
       
-      // Асинхронное ожидание пиров
-      node.waitForRemotePeer([Protocols.LightPush, Protocols.Filter, Protocols.Store], 10000)
-        .catch(() => console.warn('Waku: Still searching for peers...'));
+      // Асинхронное ожидание пиров с использованием приведения типов для обхода ошибок TS в некоторых версиях SDK
+      const typedNode = node as any;
+      if (typeof typedNode.waitForRemotePeer === 'function') {
+        typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter, Protocols.Store], 15000)
+          .catch(() => console.warn('Waku: Peer discovery is taking longer than expected...'));
+      }
 
       nodeInstance = node;
       return node;
