@@ -9,7 +9,7 @@ import type { LightNode } from '@waku/sdk';
 let nodeInstance: LightNode | null = null;
 let initPromise: Promise<LightNode> | null = null;
 
-// Стабильные DNS-адреса узлов Waku
+// Стабильные DNS-адреса узлов Waku для 2026 года
 const PRODUCTION_NODES = [
   '/dns4/node-01.do-ams3.waku.org/tcp/443/wss/p2p/16Uiu2HAmPLeTwoVYdgZ86idWAtCB88JQM6no8Y2zH7tgJaSShwLS'
 ];
@@ -22,21 +22,15 @@ export async function initWaku(): Promise<LightNode> {
     try {
       const { createLightNode, Protocols } = await import('@waku/sdk');
 
-      // Создаем узел. Если bootstrapPeers вызывает ошибку, используем стандартные настройки
-      let node;
-      try {
-        node = await createLightNode({ 
-          bootstrapPeers: PRODUCTION_NODES,
-          defaultBootstrap: true
-        });
-      } catch (e) {
-        console.warn('Waku: Custom nodes failed, using default bootstrap...', e);
-        node = await createLightNode({ defaultBootstrap: true });
-      }
+      // Создаем узел. В 2026 году SDK сам выбирает лучшие пиры, если не указаны другие.
+      const node = await createLightNode({ 
+        bootstrapPeers: PRODUCTION_NODES,
+        defaultBootstrap: true
+      });
 
       await node.start();
       
-      // Асинхронное ожидание пиров с использованием приведения типов для обхода ошибок TS
+      // Асинхронное ожидание пиров с использованием динамического приведения для обхода изменений в SDK
       const typedNode = node as any;
       if (typeof typedNode.waitForRemotePeer === 'function') {
         typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter, Protocols.Store], 15000)
@@ -71,7 +65,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       payload: new TextEncoder().encode(encryptedPayload),
     });
 
-    // В новых версиях SDK результат может не содержать поле errors напрямую
+    // Безопасная проверка результата для версий 2026 года
     return !result?.errors || (Array.isArray(result.errors) && result.errors.length === 0);
   } catch (e) {
     console.error('P2P Send Error:', e);
@@ -87,14 +81,21 @@ export async function subscribeToP2P(targetId: string, onMessage: (payload: stri
     const contentTopic = createContentTopic(targetId);
     const decoder = createDecoder(contentTopic);
 
-    const { unsubscribe } = await node.filter.subscribe([decoder], (wakuMessage) => {
+    // В 2026 SDK возвращаемое значение может быть функцией или объектом с методом unsubscribe
+    const subscription: any = await node.filter.subscribe([decoder], (wakuMessage) => {
       if (wakuMessage?.payload) {
         const text = new TextDecoder().decode(wakuMessage.payload);
         onMessage(text);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      if (typeof subscription === 'function') {
+        subscription();
+      } else if (subscription?.unsubscribe) {
+        subscription.unsubscribe();
+      }
+    };
   } catch (e) {
     console.error('P2P Subscription Failed:', e);
     return () => {};
