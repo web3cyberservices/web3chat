@@ -1,4 +1,3 @@
-
 /**
  * Утилиты для аппаратного шифрования, работы с Seed-фразами и оптимизированного Proof-of-Work.
  */
@@ -24,6 +23,10 @@ export function generateMnemonic(): string[] {
 }
 
 export async function mnemonicToId(mnemonic: string[]): Promise<string> {
+  if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
+    throw new Error('Web Crypto API is unavailable. Use HTTPS to enable encryption.');
+  }
+
   const text = mnemonic.join(' ');
   const msgUint8 = new TextEncoder().encode(text);
   const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);
@@ -43,7 +46,7 @@ export async function performPoW(payload: string): Promise<{ nonce: number; hash
     const worker = new Worker(new URL('./pow-worker.ts', import.meta.url));
     
     worker.onmessage = (e) => {
-      if (e.data.error) reject(e.data.error);
+      if (e.data.error) reject(new Error(e.data.error));
       else resolve(e.data);
       worker.terminate();
     };
@@ -58,6 +61,10 @@ export async function performPoW(payload: string): Promise<{ nonce: number; hash
 }
 
 async function getEncryptionKey(password: string): Promise<CryptoKey> {
+  if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
+    throw new Error('Crypto API missing');
+  }
+
   const enc = new TextEncoder();
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
@@ -70,7 +77,7 @@ async function getEncryptionKey(password: string): Promise<CryptoKey> {
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: enc.encode('web3-chat-salt'),
+      salt: enc.encode('web3-chat-salt-v1'),
       iterations: 100000,
       hash: 'SHA-256'
     },

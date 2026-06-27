@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ShieldCheck, ArrowRight, RefreshCw, Copy, Check, Key, History, AlertTriangle, QrCode, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, ArrowRight, RefreshCw, Copy, Check, Key, History, AlertTriangle, QrCode, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { generateMnemonic, mnemonicToId } from '@/lib/crypto-utils';
 import { QRScanner } from '@/components/qr-scanner';
@@ -17,26 +17,39 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
   const [restoreText, setRestoreText] = useState('');
   const [generatedId, setGeneratedId] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isSecure, setIsSecure] = useState(true);
   const { toast } = useToast();
 
-  const startGeneration = async () => {
-    try {
-      // Проверка наличия Crypto API (требует HTTPS)
-      if (typeof window !== 'undefined' && (!window.crypto || !window.crypto.subtle)) {
-        toast({
-          title: "Security Error",
-          description: "Web Crypto API is unavailable. Please use HTTPS or localhost to access Web3 Chat.",
-          variant: "destructive"
-        });
-        return;
-      }
+  useEffect(() => {
+    const secure = typeof window !== 'undefined' && 
+                   (window.location.protocol === 'https:' || 
+                    window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1');
+    setIsSecure(secure);
+    
+    if (!secure) {
+      console.warn("Web3 Chat: Insecure context detected. Crypto APIs might be unavailable.");
+    }
+  }, []);
 
+  const startGeneration = async () => {
+    if (!isSecure) {
+      toast({
+        title: "Insecure Connection",
+        description: "Browser blocks encryption on HTTP. Please use HTTPS to create an Identity.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
       const newMnemonic = generateMnemonic();
       const id = await mnemonicToId(newMnemonic);
       setMnemonic(newMnemonic);
       setGeneratedId(id);
       setMode('generate');
     } catch (e: any) {
+      console.error(e);
       toast({
         title: "Generation Failed",
         description: e.message || "Could not create Web3 Identity.",
@@ -46,6 +59,15 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
   };
 
   const handleRestore = async (text?: string) => {
+    if (!isSecure) {
+      toast({
+        title: "Insecure Connection",
+        description: "Browser blocks encryption on HTTP. Please use HTTPS to restore Identity.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const input = text || restoreText;
       const words = input.trim().toLowerCase().split(/\s+/);
@@ -106,18 +128,22 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
           </div>
         </div>
 
+        {!isSecure && (
+          <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-2xl flex flex-col items-center gap-3 text-center animate-in fade-in zoom-in duration-500">
+            <ShieldAlert className="w-10 h-10 text-destructive" />
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-destructive">Insecure Context Detected</p>
+              <p className="text-xs text-destructive/80 leading-relaxed">
+                Browser security policies disable encryption on <strong>HTTP</strong> connections. 
+                Please switch to <strong>HTTPS</strong> to use Web3 Chat.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="bg-card border rounded-3xl p-8 shadow-xl space-y-6">
           {mode === 'welcome' && (
             <div className="space-y-6">
-              {typeof window !== 'undefined' && window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && (
-                <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-3 text-left">
-                  <AlertCircle className="w-8 h-8 text-destructive shrink-0" />
-                  <p className="text-[10px] text-destructive font-medium">
-                    You are using an insecure connection (HTTP). Encryption features are disabled. Please use HTTPS.
-                  </p>
-                </div>
-              )}
-              
               <div className="text-left space-y-4">
                 <div className="flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">1</div>
@@ -129,7 +155,11 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
                 </div>
               </div>
               <div className="flex flex-col gap-3">
-                <Button onClick={startGeneration} className="w-full h-12 text-lg font-semibold rounded-2xl group">
+                <Button 
+                  onClick={startGeneration} 
+                  disabled={!isSecure}
+                  className="w-full h-12 text-lg font-semibold rounded-2xl group shadow-lg shadow-primary/20"
+                >
                   Create Web3 ID
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
