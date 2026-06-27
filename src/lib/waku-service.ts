@@ -9,7 +9,7 @@ import type { LightNode } from '@waku/sdk';
 let nodeInstance: LightNode | null = null;
 let initPromise: Promise<LightNode> | null = null;
 
-// Стабильные DNS-адреса узлов Waku для 2026 года
+// Стабильные DNS-адреса узлов Waku
 const PRODUCTION_NODES = [
   '/dns4/node-01.do-ams3.waku.org/tcp/443/wss/p2p/16Uiu2HAmPLeTwoVYdgZ86idWAtCB88JQM6no8Y2zH7tgJaSShwLS'
 ];
@@ -36,7 +36,7 @@ export async function initWaku(): Promise<LightNode> {
 
       await node.start();
       
-      // Асинхронное ожидание пиров с использованием приведения типов для обхода ошибок TS в некоторых версиях SDK
+      // Асинхронное ожидание пиров с использованием приведения типов для обхода ошибок TS
       const typedNode = node as any;
       if (typeof typedNode.waitForRemotePeer === 'function') {
         typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter, Protocols.Store], 15000)
@@ -67,11 +67,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const contentTopic = createContentTopic(targetId);
     const encoder = createEncoder({ contentTopic });
 
-    const result = await node.lightPush.send(encoder, {
+    const result: any = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
     });
 
-    return !result.errors || result.errors.length === 0;
+    // В новых версиях SDK результат может не содержать поле errors напрямую
+    return !result?.errors || (Array.isArray(result.errors) && result.errors.length === 0);
   } catch (e) {
     console.error('P2P Send Error:', e);
     return false;
