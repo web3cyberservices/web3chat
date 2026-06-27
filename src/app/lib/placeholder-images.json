@@ -1,0 +1,43 @@
+
+[
+  {
+    "id": "avatar-1",
+    "url": "https://picsum.photos/seed/101/200/200",
+    "hint": "profile person"
+  },
+  {
+    "id": "avatar-2",
+    "url": "https://picsum.photos/seed/102/200/200",
+    "hint": "avatar human"
+  },
+  {
+    "id": "avatar-3",
+    "url": "https://picsum.photos/seed/103/200/200",
+    "hint": "face portrait"
+  },
+  {
+    "id": "chat-bg",
+    "url": "https://picsum.photos/seed/chat/1200/800",
+    "hint": "abstract texture"
+  },
+  {
+    "id": "sticker-rocket",
+    "url": "https://picsum.photos/seed/rocket/150/150",
+    "hint": "rocket space"
+  },
+  {
+    "id": "sticker-planet",
+    "url": "https://picsum.photos/seed/planet/150/150",
+    "hint": "planet saturn"
+  },
+  {
+    "id": "sticker-alien",
+    "url": "https://picsum.photos/seed/alien/150/150",
+    "hint": "alien ufo"
+  },
+  {
+    "id": "sticker-star",
+    "url": "https://picsum.photos/seed/star/150/150",
+    "hint": "star galaxy"
+  }
+]

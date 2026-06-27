@@ -1,168 +1,113 @@
-import { Pool } from 'pg';
-import isomorphicDOMPurify from 'isomorphic-dompurify';
+import { openDB, IDBPDatabase } from 'idb';
 
-if (!process.env.DATABASE_URL) {
-  // We check only if we are in a runtime that strictly requires it
-  if (process.env.NODE_ENV === 'production' || process.env.SCRIPTS_RUN === 'true' || !process.env.NEXT_PHASE) {
-     console.warn('Warning: DATABASE_URL is missing in environment variables!');
+const DB_NAME = 'web3-chat-secure-v1';
+const DB_VERSION = 3;
+
+export interface UserCredential {
+  type: 'identity';
+  id: string;
+  createdAt: number;
+}
+
+export interface EncryptedMessage {
+  id: number;
+  chatId: string;
+  payload: string; // Зашифрованный JSON
+  sender: string;
+  senderId?: string;
+  time: string;
+}
+
+export interface ChatSession {
+  id: string; // Vortex ID собеседника или Group ID
+  name: string;
+  type: 'private' | 'group';
+  members?: string[]; // Для групп
+  lastMsg?: string;
+  time?: string;
+  avatar?: string;
+}
+
+let dbPromise: Promise<IDBPDatabase> | null = null;
+
+export function getDB() {
+  if (typeof window === 'undefined') return null;
+  if (!dbPromise) {
+    dbPromise = openDB(DB_NAME, DB_VERSION, {
+      upgrade(db, oldVersion) {
+        if (!db.objectStoreNames.contains('user_credentials')) {
+          db.createObjectStore('user_credentials', { keyPath: 'type' });
+        }
+        if (!db.objectStoreNames.contains('encrypted_messages')) {
+          const store = db.createObjectStore('encrypted_messages', { keyPath: 'id' });
+          store.createIndex('chatId', 'chatId');
+        }
+        if (!db.objectStoreNames.contains('chats')) {
+          db.createObjectStore('chats', { keyPath: 'id' });
+        }
+      },
+    });
   }
+  return dbPromise;
 }
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
-
-/**
- * PRODUCTION-READY SANITIZATION
- * Uses DOMPurify to prevent XSS payloads in lead notes or findings.
- */
-function sanitize(text: string | null | undefined, fallback: string = ''): string {
-  if (!text) return fallback;
-  return isomorphicDOMPurify.sanitize(String(text).trim());
+export async function saveIdentity(id: string) {
+  const db = await getDB();
+  if (!db) return;
+  await db.put('user_credentials', {
+    type: 'identity',
+    id,
+    createdAt: Date.now()
+  });
 }
 
-export function normalizeUrl(url: string, base?: string): string {
-  try {
-    let target = url.trim();
-    if (base) {
-      const baseUrl = base.startsWith('http') ? base : `https://${base}`;
-      return new URL(target, baseUrl).href.toLowerCase();
-    }
-    if (!target.startsWith('http')) target = `https://${target}`;
-    const u = new URL(target);
-    u.hash = ''; u.search = '';
-    return u.href.toLowerCase();
-  } catch (e) {
-    return url.startsWith('http') ? url : `https://${url}`;
-  }
+export async function getIdentity(): Promise<string | null> {
+  const db = await getDB();
+  if (!db) return null;
+  const cred = await db.get('user_credentials', 'identity');
+  return cred ? cred.id : null;
 }
 
-export async function queueTask(url: string, email: string, priority: number = 0) {
-  const cleanUrl = normalizeUrl(url);
-  await pool.query(
-    `INSERT INTO public.scan_queue (url, status, priority, user_email, created_at) 
-     VALUES ($1, 'pending', $2, $3, NOW()) 
-     ON CONFLICT (url) DO UPDATE SET status = 'pending', priority = $2, user_email = $3;`,
-    [cleanUrl, priority, email]
-  );
-  return cleanUrl;
+export async function saveLocalMessage(msg: EncryptedMessage) {
+  const db = await getDB();
+  if (!db) return;
+  await db.put('encrypted_messages', msg);
 }
 
-export async function saveLeadContacts(domain: string, emails: string[]) {
-  const contactsJson = JSON.stringify(emails.map(e => ({ value: e, verified: true })));
-  await pool.query(
-    `UPDATE public.scan_queue SET extracted_emails = $1 WHERE url LIKE $2`,
-    [contactsJson, `%${domain}%`]
-  );
+export async function deleteLocalMessage(id: number) {
+  const db = await getDB();
+  if (!db) return;
+  await db.delete('encrypted_messages', id);
 }
 
-export async function saveAuditResults(domain: string, url: string, violations: any[], type: string) {
-  await pool.query(
-    `UPDATE public.scan_queue 
-     SET status = 'completed', violations_count = $1, audit_findings = $2, updated_at = NOW()
-     WHERE url = $3`,
-    [violations.length, JSON.stringify(violations), url]
-  );
+export async function getLocalMessages(chatId: string): Promise<EncryptedMessage[]> {
+  const db = await getDB();
+  if (!db) return [];
+  return db.getAllFromIndex('encrypted_messages', 'chatId', chatId);
 }
 
-export async function getTaskStatus(url: string) {
-  const cleanUrl = normalizeUrl(url);
-  const res = await pool.query('SELECT status FROM public.scan_queue WHERE url = $1', [cleanUrl]);
-  return res.rows[0] || null;
+export async function saveChat(chat: ChatSession) {
+  const db = await getDB();
+  if (!db) return;
+  await db.put('chats', chat);
 }
 
-export async function saveBotEvent(type: string, message: string) {
-  await pool.query('INSERT INTO bot_events (type, message, timestamp) VALUES ($1, $2, NOW())', [type, sanitize(message)]);
+export async function getChats(): Promise<ChatSession[]> {
+  const db = await getDB();
+  if (!db) return [];
+  return db.getAll('chats');
 }
 
-export async function getBotStatus(): Promise<boolean> {
-  const res = await pool.query('SELECT is_active FROM bot_settings WHERE id = 1');
-  return res.rows[0]?.is_active ?? true;
+export async function getChat(id: string): Promise<ChatSession | undefined> {
+  const db = await getDB();
+  if (!db) return undefined;
+  return db.get('chats', id);
 }
 
-export async function setBotStatus(isActive: boolean) {
-  await pool.query('UPDATE public.bot_settings SET is_active = $1, updated_at = NOW() WHERE id = 1', [isActive]);
-  return { success: true };
-}
-
-export async function getBotEvents(limit: number = 50) {
-  const res = await pool.query('SELECT id, type, message, timestamp FROM public.bot_events ORDER BY timestamp DESC LIMIT $1', [limit]);
-  return res.rows;
-}
-
-export async function getViolations(limit: number = 100) {
-  const res = await pool.query(`
-    SELECT 
-      q.id, q.url as domain, q.url, q.status, q.crm_status,
-      q.assigned_to as "assignedTo", q.manager_name as "managerName", q.assigned_at as "assignedAt",
-      q.violations_count as violation_count, q.audit_findings, q.extracted_emails as contacts
-    FROM public.scan_queue q
-    ORDER BY q.violations_count DESC, q.created_at DESC LIMIT $1
-  `, [limit]);
-  
-  return res.rows.map(row => ({
-    id: row.id,
-    domain: row.domain.replace(/^https?:\/\//, ''),
-    type: 'Audit',
-    level: row.violation_count > 5 ? 'critical' : row.violation_count > 0 ? 'high' : 'low',
-    date: row.assignedAt || row.created_at || new Date(),
-    summary: `Found ${row.violation_count} violations`,
-    description: `Automated scan results for ${row.domain}`,
-    report_type: 'SaaS',
-    assignedTo: row.assignedTo,
-    managerName: row.managerName,
-    assignedAt: row.assignedAt,
-    status: row.status,
-    crm_status: row.crm_status,
-    audit_findings: row.audit_findings,
-    contacts: row.contacts
-  }));
-}
-
-export async function updateTaskStatus(taskId: number, status: string) {
-  await pool.query(
-    'UPDATE public.scan_queue SET status = $1 WHERE id = $2',
-    [status, taskId]
-  );
-  return { success: true };
-}
-
-export async function getManagersStats() {
-  const res = await pool.query(`
-    SELECT 
-      manager_name as name, 
-      count(*) as task_count,
-      count(*) FILTER (WHERE status = 'completed') as completed_count,
-      count(*) FILTER (WHERE status IN ('in_work', 'negotiation', 'in_progress')) as in_progress_count
-    FROM public.scan_queue 
-    WHERE assigned_to IS NOT NULL 
-    GROUP BY manager_name
-    ORDER BY task_count DESC
-  `);
-  return res.rows;
-}
-
-export async function testConnection() {
-  const client = await pool.connect();
-  try { await client.query('SELECT 1'); return true; } finally { client.release(); }
-}
-
-export async function saveScanIssueToDb(domain: string, issue: any) {
-  // Legacy adapter for specific crawler imports
-  await pool.query(
-    'INSERT INTO site_violations (domain, issue_type, severity, description, created_at) VALUES ($1, $2, $3, $4, NOW())',
-    [domain, issue.type, issue.severity, issue.description]
-  );
-}
-
-export async function getNextQueueItem() {
-  const res = await pool.query(
-    "SELECT id, url, user_email FROM public.scan_queue WHERE status = 'pending' ORDER BY priority DESC, created_at ASC LIMIT 1"
-  );
-  return res.rows[0] || null;
-}
-
-export async function updateQueueStatus(id: number, status: string) {
-  await pool.query('UPDATE public.scan_queue SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+export async function clearAllData() {
+  const db = await getDB();
+  if (!db) return;
+  await db.clear('user_credentials');
+  await db.clear('encrypted_messages');
+  await db.clear('chats');
 }

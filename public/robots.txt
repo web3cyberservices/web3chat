@@ -1,6 +1,0 @@
-User-agent: *
-Disallow: /admin
-Disallow: /login
-Disallow: /api/admin/
-
-Sitemap: https://bot.humango.app/sitemap.xml
