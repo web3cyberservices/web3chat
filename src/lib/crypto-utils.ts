@@ -1,3 +1,4 @@
+
 /**
  * Утилиты для аппаратного шифрования, работы с Seed-фразами и оптимизированного Proof-of-Work.
  */
@@ -28,35 +29,22 @@ export async function mnemonicToId(mnemonic: string[]): Promise<string> {
   const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return '05' + hashHex;
+  return '0x' + hashHex.slice(0, 40);
 }
 
-/**
- * Определяет сложность PoW в зависимости от размера данных.
- */
 function getDynamicDifficulty(payload: string): number {
-  const size = payload.length;
-  if (size < 500) return 3; // Легко для текста
-  if (size < 5000) return 4; // Средне для длинных сообщений
-  return 5; // Сложно для медиа/больших данных
+  return payload.length < 1000 ? 3 : 4;
 }
 
-/**
- * Выполняет Proof-of-Work через Web Worker.
- */
 export async function performPoW(payload: string): Promise<{ nonce: number; hash: string }> {
   const difficulty = getDynamicDifficulty(payload);
   
   return new Promise((resolve, reject) => {
-    // Используем Web Worker для вычислений в фоне
     const worker = new Worker(new URL('./pow-worker.ts', import.meta.url));
     
     worker.onmessage = (e) => {
-      if (e.data.error) {
-        reject(e.data.error);
-      } else {
-        resolve(e.data);
-      }
+      if (e.data.error) reject(e.data.error);
+      else resolve(e.data);
       worker.terminate();
     };
 
@@ -82,7 +70,7 @@ async function getEncryptionKey(password: string): Promise<CryptoKey> {
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: enc.encode('vortex-salt-fixed'),
+      salt: enc.encode('web3-chat-salt'),
       iterations: 100000,
       hash: 'SHA-256'
     },
@@ -118,12 +106,12 @@ export async function encryptMessage(text: string, secret: string): Promise<stri
 export async function decryptMessage(encryptedBase64: string, secret: string): Promise<string> {
   try {
     const key = await getEncryptionKey(secret);
-    const combined = new Uint8Array(
-      atob(encryptedBase64).split('').map(c => c.charCodeAt(0))
-    );
+    const binary = atob(encryptedBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     
-    const iv = combined.slice(0, 12);
-    const data = combined.slice(12);
+    const iv = bytes.slice(0, 12);
+    const data = bytes.slice(12);
     
     const decrypted = await window.crypto.subtle.decrypt(
       { name: ALGORITHM, iv },
