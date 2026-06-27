@@ -9,7 +9,7 @@ import type { LightNode } from '@waku/sdk';
 let nodeInstance: LightNode | null = null;
 let initPromise: Promise<LightNode> | null = null;
 
-// Стабильные DNS-адреса узлов Waku
+// Стабильные DNS-адреса узлов Waku для 2026 года
 const PRODUCTION_NODES = [
   '/dns4/node-01.do-ams3.waku.org/tcp/443/wss/p2p/16Uiu2HAmPLeTwoVYdgZ86idWAtCB88JQM6no8Y2zH7tgJaSShwLS'
 ];
@@ -20,9 +20,9 @@ export async function initWaku(): Promise<LightNode> {
 
   initPromise = (async () => {
     try {
-      const { createLightNode, Protocols, DefaultPubsubTopic } = await import('@waku/sdk');
+      const { createLightNode, Protocols } = await import('@waku/sdk');
 
-      // Создаем узел. Если bootstrapPeers вызывает ошибку, используем стандартные настройки
+      // Создаем узел. В 2026 году конфигурация топиков происходит автоматически.
       let node;
       try {
         node = await createLightNode({ 

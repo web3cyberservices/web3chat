@@ -3,8 +3,7 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json ./
-# Используем npm install вместо ci для гибкости при обновлении версий
+COPY package.json package-lock.json* ./
 RUN npm install
 
 FROM node:20-alpine AS builder
@@ -12,7 +11,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Отключаем телеметрию Next.js для ускорения сборки
 ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build

@@ -1,11 +1,12 @@
+
 version: '3.8'
 
 services:
-  reguscan-app:
+  web3-chat:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: reguscan-messenger
+    container_name: web3-chat-app
     restart: always
     ports:
       - "3000:3000"
@@ -13,8 +14,8 @@ services:
       - NODE_ENV=production
       - NEXT_PUBLIC_WAKU_NODES=true
     networks:
-      - reguscan-network
+      - chat-network
 
 networks:
-  reguscan-network:
+  chat-network:
     driver: bridge
