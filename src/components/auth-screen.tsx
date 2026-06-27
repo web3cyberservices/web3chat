@@ -1,11 +1,11 @@
-
 'use client';
 
 import React, { useState } from 'react';
-import { ShieldCheck, ArrowRight, RefreshCw, Copy, Check, Key, History, AlertTriangle, QrCode } from 'lucide-react';
+import { ShieldCheck, ArrowRight, RefreshCw, Copy, Check, Key, History, AlertTriangle, QrCode, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { generateMnemonic, mnemonicToId } from '@/lib/crypto-utils';
 import { QRScanner } from '@/components/qr-scanner';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthScreenProps {
   onIdentityCreated: (id: string) => void;
@@ -17,24 +17,55 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
   const [restoreText, setRestoreText] = useState('');
   const [generatedId, setGeneratedId] = useState('');
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   const startGeneration = async () => {
-    const newMnemonic = generateMnemonic();
-    const id = await mnemonicToId(newMnemonic);
-    setMnemonic(newMnemonic);
-    setGeneratedId(id);
-    setMode('generate');
+    try {
+      // Проверка наличия Crypto API (требует HTTPS)
+      if (typeof window !== 'undefined' && (!window.crypto || !window.crypto.subtle)) {
+        toast({
+          title: "Security Error",
+          description: "Web Crypto API is unavailable. Please use HTTPS or localhost to access Web3 Chat.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const newMnemonic = generateMnemonic();
+      const id = await mnemonicToId(newMnemonic);
+      setMnemonic(newMnemonic);
+      setGeneratedId(id);
+      setMode('generate');
+    } catch (e: any) {
+      toast({
+        title: "Generation Failed",
+        description: e.message || "Could not create Web3 Identity.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleRestore = async (text?: string) => {
-    const input = text || restoreText;
-    const words = input.trim().toLowerCase().split(/\s+/);
-    if (words.length !== 12) {
-      alert('Invalid Seed Phrase. Must be exactly 12 words.');
-      return;
+    try {
+      const input = text || restoreText;
+      const words = input.trim().toLowerCase().split(/\s+/);
+      if (words.length !== 12) {
+        toast({
+          title: "Invalid Phrase",
+          description: "Seed phrase must be exactly 12 words.",
+          variant: "destructive"
+        });
+        return;
+      }
+      const id = await mnemonicToId(words);
+      onIdentityCreated(id);
+    } catch (e: any) {
+      toast({
+        title: "Restore Failed",
+        description: "Check your mnemonic phrase and try again.",
+        variant: "destructive"
+      });
     }
-    const id = await mnemonicToId(words);
-    onIdentityCreated(id);
   };
 
   const handleQRScan = (data: string) => {
@@ -78,6 +109,15 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
         <div className="bg-card border rounded-3xl p-8 shadow-xl space-y-6">
           {mode === 'welcome' && (
             <div className="space-y-6">
+              {typeof window !== 'undefined' && window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && (
+                <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-3 text-left">
+                  <AlertCircle className="w-8 h-8 text-destructive shrink-0" />
+                  <p className="text-[10px] text-destructive font-medium">
+                    You are using an insecure connection (HTTP). Encryption features are disabled. Please use HTTPS.
+                  </p>
+                </div>
+              )}
+              
               <div className="text-left space-y-4">
                 <div className="flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">1</div>
