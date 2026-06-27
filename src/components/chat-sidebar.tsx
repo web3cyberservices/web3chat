@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -87,7 +88,7 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
   };
 
   const syncData = JSON.stringify({
-    type: 'vortex-sync',
+    type: 'web3chat-sync',
     id: currentUserId,
     mnemonic: "SECRET_KEY_PLACEHOLDER" 
   });
@@ -113,7 +114,7 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
               <Lock className="text-primary-foreground w-4 h-4" />
             </div>
-            <h1 className="font-bold text-xl tracking-tight">ReguScan</h1>
+            <h1 className="font-bold text-xl tracking-tight">Web3 Chat</h1>
           </div>
           <div className="flex gap-2">
             <QrCode onClick={() => setShowSyncQR(true)} className="w-5 h-5 text-muted-foreground cursor-pointer hover:text-primary transition-colors" />
@@ -143,7 +144,7 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
         
         {showAddMenu === 'private' && (
           <div className="p-3 bg-secondary/30 border rounded-xl animate-in slide-in-from-top-2 duration-200">
-            <input value={newChatId} onChange={(e) => setNewChatId(e.target.value)} placeholder="Recipient Vortex ID..." className="w-full bg-background border rounded-lg p-2 text-[10px] outline-none mb-2" />
+            <input value={newChatId} onChange={(e) => setNewChatId(e.target.value)} placeholder="Recipient Web3 ID..." className="w-full bg-background border rounded-lg p-2 text-[10px] outline-none mb-2" />
             <div className="flex gap-2">
               <button onClick={() => setShowAddMenu('none')} className="flex-1 py-1 text-[10px] bg-muted rounded">Cancel</button>
               <button onClick={handleAddPrivateChat} className="flex-1 py-1 text-[10px] bg-primary text-primary-foreground rounded">Add</button>

@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview AI Ассистент для мессенджера Vortex.
+ * @fileOverview AI Ассистент для мессенджера Web3 Chat.
  * Генерирует быстрые ответы и суммаризирует переписку.
  */
 
@@ -33,7 +33,7 @@ const chatAssistantFlow = ai.defineFlow(
       name: 'chatAssistantPrompt',
       input: { schema: ChatAssistantInputSchema },
       output: { schema: ChatAssistantOutputSchema },
-      prompt: `Ты — умный помощник мессенджера Vortex. 
+      prompt: `Ты — умный помощник мессенджера Web3 Chat. 
       Твоя задача: проанализировать сообщения и предложить 3 кратких ответа и резюме.
       Стиль ответов: дружелюбный, современный.
       

@@ -55,7 +55,7 @@ export async function initWaku(): Promise<LightNode> {
 
 export function createContentTopic(id: string) {
   // Короткие и понятные топики для лучшей маршрутизации
-  return `/reguscan/1/u-${id.slice(0, 10)}/proto`;
+  return `/web3chat/1/u-${id.slice(0, 10)}/proto`;
 }
 
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {

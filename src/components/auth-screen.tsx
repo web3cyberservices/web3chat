@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -39,7 +40,7 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
   const handleQRScan = (data: string) => {
     try {
       const payload = JSON.parse(data);
-      if (payload.type === 'vortex-sync' && payload.mnemonic) {
+      if (payload.type === 'web3chat-sync' && payload.mnemonic) {
         handleRestore(payload.mnemonic);
       } else {
         alert('Invalid QR Code format.');
@@ -69,7 +70,7 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
             <ShieldCheck className="w-10 h-10 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">ReguScan</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Web3 Chat</h1>
             <p className="text-muted-foreground mt-2">Private. Anonymous. Secure.</p>
           </div>
         </div>
