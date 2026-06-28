@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ArrowRight, RefreshCw, Copy, Check, Key, History, AlertTriangle, QrCode, AlertCircle, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Key, History, AlertTriangle, QrCode, ShieldAlert, Check, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { generateMnemonic, mnemonicToId } from '@/lib/crypto-utils';
 import { QRScanner } from '@/components/qr-scanner';
@@ -21,22 +21,19 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Проверка защищенного контекста (обязательно для crypto.subtle)
     const secure = typeof window !== 'undefined' && 
                    (window.location.protocol === 'https:' || 
                     window.location.hostname === 'localhost' || 
                     window.location.hostname === '127.0.0.1');
     setIsSecure(secure);
-    
-    if (!secure) {
-      console.warn("Web3 Chat: Insecure context detected. Crypto APIs might be unavailable.");
-    }
   }, []);
 
   const startGeneration = async () => {
     if (!isSecure) {
       toast({
         title: "Insecure Connection",
-        description: "Browser blocks encryption on HTTP. Please use HTTPS to create an Identity.",
+        description: "Browser blocks encryption on HTTP. Please use HTTPS (port 8443) to create an Identity.",
         variant: "destructive"
       });
       return;
@@ -49,10 +46,9 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
       setGeneratedId(id);
       setMode('generate');
     } catch (e: any) {
-      console.error(e);
       toast({
         title: "Generation Failed",
-        description: e.message || "Could not create Web3 Identity.",
+        description: "Could not create Web3 Identity. Ensure you are using HTTPS.",
         variant: "destructive"
       });
     }
@@ -62,7 +58,7 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
     if (!isSecure) {
       toast({
         title: "Insecure Connection",
-        description: "Browser blocks encryption on HTTP. Please use HTTPS to restore Identity.",
+        description: "Please use HTTPS to restore Identity.",
         variant: "destructive"
       });
       return;
@@ -72,21 +68,13 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
       const input = text || restoreText;
       const words = input.trim().toLowerCase().split(/\s+/);
       if (words.length !== 12) {
-        toast({
-          title: "Invalid Phrase",
-          description: "Seed phrase must be exactly 12 words.",
-          variant: "destructive"
-        });
+        toast({ title: "Invalid Phrase", description: "Seed phrase must be 12 words.", variant: "destructive" });
         return;
       }
       const id = await mnemonicToId(words);
       onIdentityCreated(id);
     } catch (e: any) {
-      toast({
-        title: "Restore Failed",
-        description: "Check your mnemonic phrase and try again.",
-        variant: "destructive"
-      });
+      toast({ title: "Restore Failed", description: "Check your phrase.", variant: "destructive" });
     }
   };
 
@@ -96,11 +84,9 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
       if (payload.type === 'web3chat-sync' && payload.mnemonic) {
         handleRestore(payload.mnemonic);
       } else {
-        alert('Invalid QR Code format.');
         setMode('welcome');
       }
     } catch (e) {
-      alert('Failed to parse QR data.');
       setMode('welcome');
     }
   };
@@ -129,13 +115,13 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
         </div>
 
         {!isSecure && (
-          <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-2xl flex flex-col items-center gap-3 text-center animate-in fade-in zoom-in duration-500">
+          <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-2xl flex flex-col items-center gap-3 animate-in fade-in zoom-in duration-500">
             <ShieldAlert className="w-10 h-10 text-destructive" />
             <div className="space-y-1">
-              <p className="text-sm font-bold text-destructive">Insecure Context Detected</p>
+              <p className="text-sm font-bold text-destructive">HTTPS Required</p>
               <p className="text-xs text-destructive/80 leading-relaxed">
-                Browser security policies disable encryption on <strong>HTTP</strong> connections. 
-                Please switch to <strong>HTTPS</strong> to use Web3 Chat.
+                Crypto APIs are disabled on <strong>HTTP</strong>. 
+                Please access via <strong>https://</strong> (port 8443).
               </p>
             </div>
           </div>
@@ -144,33 +130,21 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
         <div className="bg-card border rounded-3xl p-8 shadow-xl space-y-6">
           {mode === 'welcome' && (
             <div className="space-y-6">
-              <div className="text-left space-y-4">
-                <div className="flex gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">1</div>
-                  <p className="text-sm text-muted-foreground">No phone number or email required.</p>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">2</div>
-                  <p className="text-sm text-muted-foreground">Your identity is a unique mnemonic key.</p>
-                </div>
-              </div>
               <div className="flex flex-col gap-3">
                 <Button 
                   onClick={startGeneration} 
                   disabled={!isSecure}
-                  className="w-full h-12 text-lg font-semibold rounded-2xl group shadow-lg shadow-primary/20"
+                  className="w-full h-12 text-lg font-semibold rounded-2xl group"
                 >
                   Create Web3 ID
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="outline" onClick={() => setMode('restore')} className="h-12 rounded-2xl text-xs">
-                    <History className="mr-2 w-4 h-4" />
-                    Restore
+                    <History className="mr-2 w-4 h-4" /> Restore
                   </Button>
                   <Button variant="secondary" onClick={() => setMode('scan')} className="h-12 rounded-2xl text-xs">
-                    <QrCode className="mr-2 w-4 h-4" />
-                    Scan Sync
+                    <QrCode className="mr-2 w-4 h-4" /> Scan Sync
                   </Button>
                 </div>
               </div>
@@ -179,67 +153,43 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
 
           {mode === 'generate' && (
             <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-              <div className="space-y-4">
-                <div className="flex items-center justify-center gap-2 text-accent">
-                  <AlertTriangle className="w-5 h-5" />
-                  <span className="text-xs font-bold uppercase">Save your Recovery Phrase</span>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  {mnemonic.map((word, i) => (
-                    <div key={i} className="bg-secondary p-2 rounded-lg border border-border/50 text-[10px] flex gap-2">
-                      <span className="opacity-30 font-mono">{i + 1}</span>
-                      <span className="font-semibold">{word}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl">
-                  <p className="text-[10px] text-destructive leading-tight font-medium">
-                    If you lose this phrase, you lose access to your chats forever.
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button variant="secondary" onClick={copyMnemonic} className="flex-1 h-12 rounded-xl">
-                    {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-                    Copy
-                  </Button>
-                  <Button onClick={() => onIdentityCreated(generatedId)} className="flex-[2] h-12 rounded-xl">
-                    I've saved it
-                  </Button>
-                </div>
+              <div className="grid grid-cols-3 gap-2">
+                {mnemonic.map((word, i) => (
+                  <div key={i} className="bg-secondary p-2 rounded-lg border text-[10px] flex gap-2">
+                    <span className="opacity-30 font-mono">{i + 1}</span>
+                    <span className="font-semibold">{word}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={copyMnemonic} className="flex-1 h-12 rounded-xl">
+                  {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                  Copy
+                </Button>
+                <Button onClick={() => onIdentityCreated(generatedId)} className="flex-[2] h-12 rounded-xl">
+                  I've saved it
+                </Button>
               </div>
             </div>
           )}
 
           {mode === 'restore' && (
             <div className="space-y-6 animate-in slide-in-from-right duration-300">
-              <div className="space-y-2 text-left">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Enter your 12-word Seed Phrase</label>
-                <textarea 
-                  value={restoreText}
-                  onChange={(e) => setRestoreText(e.target.value)}
-                  placeholder="word1 word2 word3..."
-                  className="w-full bg-secondary rounded-xl p-4 text-sm font-mono h-32 outline-none focus:ring-2 focus:ring-primary/20 resize-none border border-border/50"
-                />
-              </div>
+              <textarea 
+                value={restoreText}
+                onChange={(e) => setRestoreText(e.target.value)}
+                placeholder="Enter 12-word seed phrase..."
+                className="w-full bg-secondary rounded-xl p-4 text-sm font-mono h-32 outline-none border border-border/50"
+              />
               <div className="flex gap-2">
-                <Button variant="ghost" onClick={() => setMode('welcome')} className="h-12 rounded-xl">
-                  Back
-                </Button>
+                <Button variant="ghost" onClick={() => setMode('welcome')} className="h-12 rounded-xl">Back</Button>
                 <Button onClick={() => handleRestore()} className="flex-1 h-12 rounded-xl shadow-lg shadow-primary/20">
-                  <Key className="mr-2 w-4 h-4" />
-                  Restore Identity
+                  <Key className="mr-2 w-4 h-4" /> Restore Identity
                 </Button>
               </div>
             </div>
           )}
         </div>
-
-        <p className="text-xs text-muted-foreground">
-          Your keys, your chat. Secure Web3 encryption active.
-        </p>
       </div>
     </div>
   );

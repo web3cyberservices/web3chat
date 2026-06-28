@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Децентрализованный сетевой слой Waku (v2.0 2026 Edition).
  * Оптимизирован для работы через WSS в защищенных средах.
@@ -22,7 +21,6 @@ export async function initWaku(): Promise<LightNode> {
     try {
       const { createLightNode, Protocols } = await import('@waku/sdk');
 
-      // Создаем узел. В 2026 году SDK сам выбирает лучшие пиры, если не указаны другие.
       const node = await createLightNode({ 
         bootstrapPeers: PRODUCTION_NODES,
         defaultBootstrap: true
@@ -30,11 +28,10 @@ export async function initWaku(): Promise<LightNode> {
 
       await node.start();
       
-      // Асинхронное ожидание пиров с использованием динамического приведения для обхода изменений в SDK
       const typedNode = node as any;
       if (typeof typedNode.waitForRemotePeer === 'function') {
         typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter, Protocols.Store], 15000)
-          .catch(() => console.warn('Waku: Peer discovery is taking longer than expected...'));
+          .catch(() => console.warn('Waku: Still searching for peers...'));
       }
 
       nodeInstance = node;
@@ -65,7 +62,6 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       payload: new TextEncoder().encode(encryptedPayload),
     });
 
-    // Безопасная проверка результата для версий 2026 года
     return !result?.errors || (Array.isArray(result.errors) && result.errors.length === 0);
   } catch (e) {
     console.error('P2P Send Error:', e);
@@ -81,8 +77,7 @@ export async function subscribeToP2P(targetId: string, onMessage: (payload: stri
     const contentTopic = createContentTopic(targetId);
     const decoder = createDecoder(contentTopic);
 
-    // В 2026 SDK возвращаемое значение может быть функцией или объектом с методом unsubscribe
-    const subscription: any = await node.filter.subscribe([decoder], (wakuMessage) => {
+    const subscription: any = await node.filter.subscribe([decoder], (wakuMessage: any) => {
       if (wakuMessage?.payload) {
         const text = new TextDecoder().decode(wakuMessage.payload);
         onMessage(text);
