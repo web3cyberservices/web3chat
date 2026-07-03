@@ -1,6 +1,6 @@
 /**
  * Утилиты для аппаратного шифрования, работы с Seed-фразами и оптимизированного Proof-of-Work.
- * Оптимизировано для работы с бинарными данными.
+ * Оптимизировано для работы с бинарными данными в браузере.
  */
 
 const ALGORITHM = 'AES-GCM';
@@ -16,8 +16,10 @@ const WORDLIST = [
 
 export function generateMnemonic(): string[] {
   const words: string[] = [];
+  const randomValues = new Uint32Array(12);
+  window.crypto.getRandomValues(randomValues);
   for (let i = 0; i < 12; i++) {
-    const randomIndex = Math.floor(Math.random() * WORDLIST.length);
+    const randomIndex = randomValues[i] % WORDLIST.length;
     words.push(WORDLIST[randomIndex]);
   }
   return words;
@@ -25,7 +27,7 @@ export function generateMnemonic(): string[] {
 
 export async function mnemonicToId(mnemonic: string[]): Promise<string> {
   if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
-    throw new Error('Web Crypto API is unavailable. Use HTTPS to enable encryption.');
+    throw new Error('Web Crypto API is unavailable. Use HTTPS.');
   }
 
   const text = mnemonic.join(' ');
@@ -36,29 +38,23 @@ export async function mnemonicToId(mnemonic: string[]): Promise<string> {
   return '0x' + hashHex.slice(0, 40);
 }
 
-function getDynamicDifficulty(payload: string): number {
-  return payload.length < 1000 ? 3 : 4;
-}
-
 export async function performPoW(payload: string): Promise<{ nonce: number; hash: string }> {
-  const difficulty = getDynamicDifficulty(payload);
-  
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./pow-worker.ts', import.meta.url));
-    
-    worker.onmessage = (e) => {
-      if (e.data.error) reject(new Error(e.data.error));
-      else resolve(e.data);
-      worker.terminate();
-    };
+  const target = '000'; // Умеренная сложность
+  const encoder = new TextEncoder();
+  let nonce = 0;
 
-    worker.onerror = (err) => {
-      reject(err);
-      worker.terminate();
-    };
+  while (true) {
+    const data = encoder.encode(payload + nonce);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    worker.postMessage({ payload, difficulty });
-  });
+    if (hashHex.startsWith(target)) {
+      return { nonce, hash: hashHex };
+    }
+    nonce++;
+    if (nonce % 500 === 0) await new Promise(r => setTimeout(r, 0));
+  }
 }
 
 async function getEncryptionKey(password: string): Promise<CryptoKey> {
@@ -74,7 +70,7 @@ async function getEncryptionKey(password: string): Promise<CryptoKey> {
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: enc.encode('web3-chat-salt-v2'),
+      salt: enc.encode('web3-chat-salt-v3'),
       iterations: 100000,
       hash: 'SHA-256'
     },
@@ -85,20 +81,15 @@ async function getEncryptionKey(password: string): Promise<CryptoKey> {
   );
 }
 
+// Надежная конвертация бинарных данных в Base64
 function bufferToBase64(buffer: Uint8Array): string {
-  let binary = '';
-  const len = buffer.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(buffer[i]);
-  }
-  return window.btoa(binary);
+  return btoa(String.fromCharCode.apply(null, Array.from(buffer)));
 }
 
 function base64ToBuffer(base64: string): Uint8Array {
-  const binary = window.atob(base64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
@@ -142,6 +133,6 @@ export async function decryptMessage(encryptedBase64: string, secret: string): P
     
     return new TextDecoder().decode(decrypted);
   } catch (e) {
-    return '[Error: Could not decrypt message]';
+    return '[Error: Decryption failed]';
   }
 }
