@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -77,10 +76,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Первичная подписка
+        // Initial subscription
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Переподписка каждые 30 секунд для защиты от silent drops Waku
+        // Heartbeat: Resubscribe every 30 seconds to prevent silent drops
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();
@@ -158,7 +157,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       if (!success) {
         toast({
           title: "P2P Network Busy",
-          description: "Message saved locally, but network broadcast failed.",
+          description: "Message saved locally, but broadcast failed.",
           variant: "destructive"
         });
       }

@@ -1,4 +1,3 @@
-
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
@@ -11,8 +10,8 @@ app.prepare().then(() => {
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
-  }).listen(3000, (err) => {
+  }).listen(3000, '127.0.0.1', (err) => {
     if (err) throw err;
-    console.log('> Web3 Chat: HTTP Server ready on port 3000 (Proxy Mode)');
+    console.log('> Web3 Chat: HTTP Server ready on port 3000 (Local Proxy Mode)');
   });
 });

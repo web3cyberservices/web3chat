@@ -1,4 +1,3 @@
-
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 let nodeInstance: any = null;
@@ -16,13 +15,14 @@ export async function initWaku() {
   initPromise = (async () => {
     try {
       console.log('[Waku] Starting Light Node...');
+      // In July 2026, we connect to the main Waku network via port 443 (defaultBootstrap)
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
       console.log('[Waku] Node started. Waiting for network...');
       
       try {
-        // Cast to any because waitForRemotePeer might not be on the direct interface in some SDK versions
-        await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 10000);
+        // Casting to any to bypass TS check for waitForRemotePeer which is often internal
+        await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         console.log('[Waku] Connected to mesh!');
       } catch (peerError) {
         console.warn('[Waku] Initial peer wait timeout. Running in background.');
@@ -45,9 +45,11 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
+    // Ephemeral messages are better for direct chats (no history needed)
     const encoder = createEncoder({ contentTopic: topic, ephemeral: true });
 
-    console.log(`[Waku] Sending message to topic: ${topic}`);
+    console.log(`[Waku] Sending message to: ${topic}`);
+    // Explicitly pass contentTopic inside the message object as well to satisfy protocol requirements
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
       contentTopic: topic
@@ -74,7 +76,6 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 
     const callback = (wakuMessage: any) => {
       if (wakuMessage?.payload) {
-        console.log('[Waku] Received message on topic:', topic);
         onMessage(new TextDecoder().decode(wakuMessage.payload));
       }
     };
