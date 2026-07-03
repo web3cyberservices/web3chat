@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Decentralized P2P transport powered by Waku SDK.
  * Enables internet-wide communication using a global mesh of nodes.
@@ -32,8 +31,16 @@ export async function initWaku(): Promise<LightNode> {
 
       await newNode.start();
       
-      // Wait for connections to peers that support message routing
-      await newNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter]);
+      // Wait for connections to peers that support message routing.
+      // Use defensive checks for various Waku SDK API versions.
+      const nodeAsAny = newNode as any;
+      if (typeof nodeAsAny.waitForRemotePeer === 'function') {
+        await nodeAsAny.waitForRemotePeer([Protocols.LightPush, Protocols.Filter]);
+      } else if (typeof nodeAsAny.waitForConnectedPeer === 'function') {
+        await nodeAsAny.waitForConnectedPeer([Protocols.LightPush, Protocols.Filter]);
+      } else {
+        console.warn('Waku: No standard peer wait method found. Proceeding with best effort.');
+      }
       
       node = newNode;
       return newNode;
@@ -94,8 +101,11 @@ export async function subscribeToP2P(
         try {
           const payload = new TextDecoder().decode(wakuMessage.payload);
           // Extract the target ID from the topic path
-          const topicId = wakuMessage.contentTopic.split('message-')[1].split('/')[0];
-          onMessage(payload, topicId);
+          const topicParts = wakuMessage.contentTopic.split('message-');
+          if (topicParts.length > 1) {
+            const topicId = topicParts[1].split('/')[0];
+            onMessage(payload, topicId);
+          }
         } catch (e) {
           console.error('Error decoding Waku message:', e);
         }
