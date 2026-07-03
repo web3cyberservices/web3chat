@@ -1,38 +1,37 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 250 20% 12%;
-    --foreground: 250 10% 95%;
-    --muted: 250 20% 18%;
-    --muted-foreground: 250 10% 70%;
-    --popover: 250 20% 12%;
-    --popover-foreground: 250 10% 95%;
-    --border: 250 20% 25%;
-    --input: 250 20% 25%;
-    --card: 250 20% 12%;
-    --card-foreground: 250 10% 95%;
-    --primary: 150 70% 70%;
-    --primary-foreground: 150 20% 20%;
-    --secondary: 250 20% 20%;
-    --secondary-foreground: 250 10% 98%;
-    --accent: 85 85% 85%;
-    --accent-foreground: 85 20% 20%;
-    --destructive: 25 50% 50%;
-    --destructive-foreground: 250 10% 98%;
-    --ring: 150 70% 70%;
-    --radius: 1rem;
-  }
+:root {
+  --background: 250 20% 12%;
+  --foreground: 250 10% 95%;
+  --muted: 250 20% 18%;
+  --muted-foreground: 250 10% 70%;
+  --popover: 250 20% 12%;
+  --popover-foreground: 250 10% 95%;
+  --border: 250 20% 25%;
+  --input: 250 20% 25%;
+  --card: 250 20% 12%;
+  --card-foreground: 250 10% 95%;
+  --primary: 150 70% 70%;
+  --primary-foreground: 150 20% 20%;
+  --secondary: 250 20% 20%;
+  --secondary-foreground: 250 10% 98%;
+  --accent: 85 85% 85%;
+  --accent-foreground: 85 20% 20%;
+  --destructive: 25 50% 50%;
+  --destructive-foreground: 250 10% 98%;
+  --ring: 150 70% 70%;
+  --radius: 1rem;
+}
 
-  body {
-    @apply bg-background text-foreground antialiased;
-  }
+body {
+  @apply bg-background text-foreground antialiased;
+}
 
-  * {
-    @apply border-border;
-  }
+* {
+  @apply border-border;
 }
 
 .animate-glow {

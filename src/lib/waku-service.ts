@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Decentralized P2P transport powered by Waku SDK.
  * Enables internet-wide communication using a global mesh of nodes.
@@ -32,7 +33,7 @@ export async function initWaku(): Promise<LightNode> {
       await newNode.start();
       
       // Wait for connections to peers that support message routing.
-      // Use defensive checks for various Waku SDK API versions.
+      // Defensively check for both waitForRemotePeer and waitForConnectedPeer
       const nodeAsAny = newNode as any;
       if (typeof nodeAsAny.waitForRemotePeer === 'function') {
         await nodeAsAny.waitForRemotePeer([Protocols.LightPush, Protocols.Filter]);
@@ -81,11 +82,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
 
 /**
  * Subscribes to messages for a list of IDs.
+ * Returns an unsubscribe function.
  */
 export async function subscribeToP2P(
   myIds: string[], 
   onMessage: (payload: string, topicId: string) => void
-) {
+): Promise<() => void> {
   try {
     const waku = await initWaku();
     
@@ -100,7 +102,6 @@ export async function subscribeToP2P(
         
         try {
           const payload = new TextDecoder().decode(wakuMessage.payload);
-          // Extract the target ID from the topic path
           const topicParts = wakuMessage.contentTopic.split('message-');
           if (topicParts.length > 1) {
             const topicId = topicParts[1].split('/')[0];
@@ -112,7 +113,12 @@ export async function subscribeToP2P(
       }
     );
 
-    return unsubscribe;
+    // Return the unsubscribe handler (ensuring it's a function)
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   } catch (e) {
     console.error('Subscription error:', e);
     return () => {};
