@@ -25,7 +25,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  // Реф для отслеживания текущего чата в асинхронных коллбэках без рестарта подписки
   const activeChatRef = useRef<string | null>(activeChat?.id || null);
 
   const { toast } = useToast();
@@ -34,7 +33,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     activeChatRef.current = activeChat?.id || null;
   }, [activeChat?.id]);
 
-  // Единая стабильная подписка на P2P сеть
   useEffect(() => {
     if (!currentUserId) return;
     
@@ -48,13 +46,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Подписка на личный ID и ID всех существующих чатов (для групп)
         const chats = await getChats();
         const subscribeIds = Array.from(new Set([currentUserId, ...chats.map(c => c.id)]));
 
         unsubscribe = await subscribeToP2P(subscribeIds, async (encryptedPayload, topicId) => {
           try {
-            // Личное сообщение шифруется нашим ID, групповое - ID группы (topicId)
             const secret = topicId === currentUserId ? currentUserId : topicId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
@@ -64,10 +60,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const msgId = parsed.timestamp || Date.now();
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Определяем, какому чату принадлежит сообщение
             const chatId = topicId === currentUserId ? parsed.senderId : topicId;
 
-            // Всегда сохраняем в локальную БД для истории
             await saveLocalMessage({
               id: msgId,
               chatId: chatId,
@@ -77,23 +71,18 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               time
             });
             
-            // Если чат открыт прямо сейчас - обновляем UI мгновенно
             if (chatId === activeChatRef.current) {
               setMessages(prev => {
                 if (prev.some(m => m.id === msgId)) return prev;
-                const newMsgs = [...prev, { ...parsed, id: msgId, sender: 'other', time }];
-                return newMsgs.sort((a, b) => a.id - b.id);
+                return [...prev, { ...parsed, id: msgId, sender: 'other', time }].sort((a, b) => a.id - b.id);
               });
             }
           } catch (e) {
-            console.error('Incoming message processing error', e);
+            console.error('P2P Message processing failed', e);
           }
         });
       } catch (e) {
-        if (isMounted) {
-          setNetworkStatus('error');
-          console.error('Waku setup error', e);
-        }
+        if (isMounted) setNetworkStatus('error');
       }
     };
 
@@ -105,7 +94,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     };
   }, [currentUserId]);
 
-  // Загрузка истории только при смене чата
   useEffect(() => {
     if (!activeChat) return;
     
@@ -136,17 +124,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     const textToSend = input;
     setInput('');
     setIsProcessing(true);
-    setStatusMessage("Broadcasting to P2P nodes...");
+    setStatusMessage("Broadcasting to P2P network...");
     
     try {
       const msgId = Date.now();
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
-      // Proof-of-Work для защиты от спама (обязательно в Waku)
       await performPoW(rawData);
       
-      // Шифруем для получателя
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({
@@ -162,17 +148,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       const success = await sendP2PMessage(activeChat.id, encrypted);
       if (!success) {
-        toast({ 
-          title: "Network Latency", 
-          description: "Message sent to local pool. It will propagate once peers are found." 
-        });
+        toast({ title: "Network Latency", description: "Message queued locally. Syncing with P2P peers..." });
       }
     } catch (e) {
-      toast({ 
-        title: "Security Context Error", 
-        description: "P2P and Crypto require HTTPS. Check your connection.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Encryption Error", description: "Secure context required (HTTPS).", variant: "destructive" });
     } finally {
       setIsProcessing(false);
       setStatusMessage(null);
@@ -193,7 +172,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           <Lock className="w-10 h-10 opacity-20" />
         </div>
         <h2 className="text-xl font-bold text-foreground">Secure Workspace</h2>
-        <p className="text-sm text-center max-w-xs mt-2">Messages are encrypted locally and sent via Waku P2P network.</p>
+        <p className="text-sm text-center max-w-xs mt-2">Messages are encrypted locally and distributed via decentralized Waku network.</p>
       </div>
     );
   }
@@ -215,8 +194,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'connecting' ? 'bg-accent animate-spin' : 'bg-destructive'
               }`} />
               <span className="text-[9px] uppercase tracking-widest font-bold text-muted-foreground">
-                {networkStatus === 'online' ? 'P2P Online' : 
-                 networkStatus === 'connecting' ? 'Syncing Network...' : 'Offline'}
+                {networkStatus === 'online' ? 'P2P Active' : 
+                 networkStatus === 'connecting' ? 'Discovering...' : 'Offline'}
               </span>
             </div>
           </div>
@@ -263,7 +242,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               disabled={isProcessing}
-              placeholder={isProcessing ? "Computing PoW..." : "Type encrypted message..."}
+              placeholder={isProcessing ? "Solving PoW challenge..." : "Write a secure message..."}
               className="flex-1 bg-secondary/50 rounded-2xl py-3 px-5 outline-none border border-border focus:border-primary/50 transition-all text-sm"
             />
             <button 

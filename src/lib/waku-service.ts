@@ -1,6 +1,6 @@
 /**
- * @fileOverview Децентрализованный сетевой слой Waku.
- * Исправлены ошибки типов и оптимизирована работа с топиками.
+ * @fileOverview Децентрализованный сетевой слой Waku (Версия Июнь 2026).
+ * Исправлены ошибки типизации SDK и оптимизирована работа с топиками.
  */
 
 import type { LightNode } from '@waku/sdk';
@@ -8,11 +8,9 @@ import type { LightNode } from '@waku/sdk';
 let nodeInstance: LightNode | null = null;
 let initPromise: Promise<LightNode> | null = null;
 
-// Стабильные узлы Waku
 const BOOTSTRAP_NODES = [
   '/dns4/node-01.do-ams3.waku.org/tcp/443/wss/p2p/16Uiu2HAmPLeTwoVYdgZ86idWAtCB88JQM6no8Y2zH7tgJaSShwLS',
-  '/dns4/node-01.ac-cn-hongkong-c.waku.org/tcp/443/wss/p2p/16Uiu2HAmS6NfUtFv4iP9GZc6YyW972p7GjXyK2L4Gz3L',
-  '/dns4/node-01.gc-us-central1-a.waku.org/tcp/443/wss/p2p/16Uiu2HAmIBv7v82idVv3UnYPrWb7fXm996g491s1AAsfUnP97AAn'
+  '/dns4/node-01.ac-cn-hongkong-c.waku.org/tcp/443/wss/p2p/16Uiu2HAmS6NfUtFv4iP9GZc6YyW972p7GjXyK2L4Gz3L'
 ];
 
 export async function initWaku(): Promise<LightNode> {
@@ -30,14 +28,14 @@ export async function initWaku(): Promise<LightNode> {
 
       await node.start();
       
-      // Ожидаем подключения к пирам перед возвратом ноды
       const typedNode = node as any;
       if (typeof typedNode.waitForRemotePeer === 'function') {
         try {
+          // Ожидаем основные протоколы для стабильной работы
           await typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
-          console.log('Waku: P2P Network Ready');
+          console.log('Waku: Connected to P2P network');
         } catch (e) {
-          console.warn('Waku: Peer discovery timeout, proceeding with limited connectivity');
+          console.warn('Waku: Connectivity limited, searching for more peers...');
         }
       }
 
@@ -54,7 +52,7 @@ export async function initWaku(): Promise<LightNode> {
 }
 
 export function createContentTopic(id: string) {
-  // Используем 32-символьный срез для стабильной валидации топика
+  // Стабильная валидация топика: 32 символа
   const safeId = id.startsWith('0x') ? id.slice(2, 34) : id.slice(0, 32);
   return `/web3chat/2/user-${safeId}/proto`;
 }
@@ -65,7 +63,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const { createEncoder } = await import('@waku/sdk');
     
     const contentTopic = createContentTopic(targetId);
-    // В текущей версии SDK передаем строку напрямую
+    // Передаем топик напрямую как строку для соответствия API 2026 года
     const encoder = createEncoder(contentTopic);
 
     const result = await node.lightPush.send(encoder, {
@@ -85,7 +83,7 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
     const node = await initWaku();
     const { createDecoder } = await import('@waku/sdk');
     
-    // Подписываемся на все топики одновременно, передавая строки напрямую в декордеры
+    // Создаем массив декодеров, передавая топики как строки
     const decoders = ids.map(id => createDecoder(createContentTopic(id)));
 
     const subscription = await node.filter.subscribe(decoders, (wakuMessage: any) => {
@@ -94,7 +92,7 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
           const text = new TextDecoder().decode(wakuMessage.payload);
           const topic = wakuMessage.contentTopic;
           
-          // Сопоставляем топик с ID
+          // Сопоставляем топик с ID чата
           const matchedId = ids.find(id => topic === createContentTopic(id)) || ids[0];
           onMessage(text, matchedId);
         } catch (decodeError) {
