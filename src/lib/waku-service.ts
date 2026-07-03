@@ -32,13 +32,12 @@ export async function initWaku(): Promise<LightNode> {
 
       await newNode.start();
       
-      // Wait for connections to peers that support message routing.
-      // Defensively check for both waitForRemotePeer and waitForConnectedPeer
+      // Fallback for waitForRemotePeer which might be under different names or nested in various SDK versions
       const nodeAsAny = newNode as any;
-      if (typeof nodeAsAny.waitForRemotePeer === 'function') {
-        await nodeAsAny.waitForRemotePeer([Protocols.LightPush, Protocols.Filter]);
-      } else if (typeof nodeAsAny.waitForConnectedPeer === 'function') {
-        await nodeAsAny.waitForConnectedPeer([Protocols.LightPush, Protocols.Filter]);
+      const waitMethod = nodeAsAny.waitForRemotePeer || nodeAsAny.waitForConnectedPeer;
+      
+      if (typeof waitMethod === 'function') {
+        await waitMethod.call(newNode, [Protocols.LightPush, Protocols.Filter]);
       } else {
         console.warn('Waku: No standard peer wait method found. Proceeding with best effort.');
       }
@@ -63,7 +62,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const waku = await initWaku();
     const contentTopic = `/${APP_NAME}/1/message-${targetId}/proto`;
     
-    // Use 'as any' to bypass routingInfo requirement in strict SDK types
+    // Explicitly cast options to any to bypass routingInfo requirements in strict SDK versions
     const encoder = createEncoder({ contentTopic } as any);
 
     const payload = new TextEncoder().encode(encryptedPayload);
@@ -93,7 +92,11 @@ export async function subscribeToP2P(
   try {
     const waku = await initWaku();
     
-    // Use 'as any' to bypass routingInfo requirement in strict SDK types
+    if (!waku.filter) {
+      throw new Error('Waku Filter protocol not available');
+    }
+
+    // Explicitly cast options to any to bypass routingInfo requirements
     const decoders = myIds.map(id => 
       createDecoder({ contentTopic: `/${APP_NAME}/1/message-${id}/proto` } as any)
     );
@@ -101,7 +104,7 @@ export async function subscribeToP2P(
     const unsubscribe = await waku.filter.subscribe(
       decoders,
       (wakuMessage) => {
-        if (!wakuMessage.payload) return;
+        if (!wakuMessage.payload || !wakuMessage.contentTopic) return;
         
         try {
           const payload = new TextDecoder().decode(wakuMessage.payload);
@@ -116,7 +119,6 @@ export async function subscribeToP2P(
       }
     );
 
-    // Return the unsubscribe handler as a function
     return () => {
       if (typeof unsubscribe === 'function') {
         unsubscribe();
@@ -124,6 +126,7 @@ export async function subscribeToP2P(
     };
   } catch (e) {
     console.error('Subscription error:', e);
+    // Return a dummy unsubscribe function
     return () => {};
   }
 }
