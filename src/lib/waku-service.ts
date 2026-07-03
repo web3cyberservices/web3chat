@@ -1,7 +1,7 @@
 
 /**
- * @fileOverview Децентрализованный P2P транспорт на базе Waku SDK.
- * Обеспечивает реальную передачу сообщений через глобальную сеть нод.
+ * @fileOverview Decentralized P2P transport powered by Waku SDK.
+ * Enables real internet-wide communication using a global mesh of nodes.
  */
 
 import { 
@@ -18,8 +18,7 @@ let node: LightNode | null = null;
 let nodePromise: Promise<LightNode> | null = null;
 
 /**
- * Инициализация Waku Light Node.
- * Использует defaultBootstrap для автоматического поиска пиров в сети.
+ * Initializes a Waku Light Node using default bootstrap peers.
  */
 export async function initWaku(): Promise<LightNode> {
   if (node) return node;
@@ -33,7 +32,7 @@ export async function initWaku(): Promise<LightNode> {
 
       await newNode.start();
       
-      // Ждем подключения хотя бы к одному пиру для отправки и получения данных
+      // Wait for connections to peers that support message routing
       await newNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter]);
       
       node = newNode;
@@ -49,7 +48,7 @@ export async function initWaku(): Promise<LightNode> {
 }
 
 /**
- * Отправка сообщения конкретному получателю или в группу.
+ * Sends an encrypted message to a target ID (User or Group).
  */
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
@@ -74,32 +73,38 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
 }
 
 /**
- * Подписка на входящие сообщения для списка ID (свой ID и ID групп).
+ * Subscribes to messages for a list of IDs.
  */
 export async function subscribeToP2P(
   myIds: string[], 
   onMessage: (payload: string, topicId: string) => void
 ) {
-  const waku = await initWaku();
-  
-  const decoders = myIds.map(id => 
-    createDecoder(`/${APP_NAME}/1/message-${id}/proto`)
-  );
+  try {
+    const waku = await initWaku();
+    
+    const decoders = myIds.map(id => 
+      createDecoder(`/${APP_NAME}/1/message-${id}/proto`)
+    );
 
-  const unsubscribe = await waku.filter.subscribe(
-    decoders,
-    (wakuMessage) => {
-      if (!wakuMessage.payload) return;
-      
-      try {
-        const payload = new TextDecoder().decode(wakuMessage.payload);
-        const topicId = wakuMessage.contentTopic.split('message-')[1].split('/')[0];
-        onMessage(payload, topicId);
-      } catch (e) {
-        console.error('Error decoding Waku message:', e);
+    const unsubscribe = await waku.filter.subscribe(
+      decoders,
+      (wakuMessage) => {
+        if (!wakuMessage.payload) return;
+        
+        try {
+          const payload = new TextDecoder().decode(wakuMessage.payload);
+          // Extract the target ID from the topic path
+          const topicId = wakuMessage.contentTopic.split('message-')[1].split('/')[0];
+          onMessage(payload, topicId);
+        } catch (e) {
+          console.error('Error decoding Waku message:', e);
+        }
       }
-    }
-  );
+    );
 
-  return unsubscribe;
+    return unsubscribe;
+  } catch (e) {
+    console.error('Subscription error:', e);
+    return () => {};
+  }
 }

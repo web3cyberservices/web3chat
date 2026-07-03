@@ -55,9 +55,7 @@ export default function Home() {
 
     const setupP2P = async () => {
       try {
-        await initWaku();
-        
-        // Получаем список всех ID, которые нужно слушать (свой + группы)
+        // Get all IDs to listen to (self + groups)
         const chats = await getChats();
         const groupIds = chats.filter(c => c.type === 'group').map(c => c.id);
         const myIds = [identity, ...groupIds];
@@ -105,7 +103,9 @@ export default function Home() {
     };
 
     setupP2P();
-    return () => unsubscribe?.();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [identity]);
 
   const handleIdentityCreated = async (id: string) => {
