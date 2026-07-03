@@ -1,4 +1,4 @@
-
+'use server';
 /**
  * @fileOverview Decentralized P2P transport powered by Waku SDK.
  * Optimized for Waku v1.x LightNode protocols.
@@ -29,16 +29,11 @@ export async function initWaku(): Promise<LightNode> {
 
       await newNode.start();
       
-      // Wait for peers that support LightPush and Filter
-      const nodeAsAny = newNode as any;
-      const waitMethod = nodeAsAny.waitForRemotePeer || nodeAsAny.waitForConnectedPeer;
-      
-      if (typeof waitMethod === 'function') {
-        try {
-          await waitMethod.call(newNode, [Protocols.LightPush, Protocols.Filter], 15000);
-        } catch (e) {
-          console.warn('Waku: Peer discovery still in progress...');
-        }
+      // Wait for peers that support LightPush and Filter protocols
+      try {
+        await newNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+      } catch (e) {
+        console.warn('Waku: Peer discovery still in progress...');
       }
       
       node = newNode;
@@ -56,17 +51,21 @@ export async function initWaku(): Promise<LightNode> {
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
     const waku = await initWaku();
-    const topic = `/${APP_NAME}/1/message-${targetId}/proto`;
+    const contentTopic = `/${APP_NAME}/1/message-${targetId}/proto`;
     
-    // Fix: createEncoder usually expects (topic, options) or (options)
-    const encoder = (createEncoder as any)(topic, {});
+    // Fix: Explicitly pass ephemeral flag and contentTopic to the encoder
+    const encoder = (createEncoder as any)(contentTopic, { ephemeral: true });
     const payload = new TextEncoder().encode(encryptedPayload);
     
-    const result = await waku.lightPush.send(encoder, { payload });
+    // Fix: Explicitly pass contentTopic inside the message object to fix routing errors
+    const result = await waku.lightPush.send(encoder, { 
+      payload,
+      contentTopic: contentTopic 
+    });
     
     const res = result as any;
     if (res && res.errors && res.errors.length > 0) {
-      console.error('Waku push errors:', res.errors);
+      console.error('Waku send errors:', res.errors);
       return false;
     }
 
@@ -91,6 +90,7 @@ export async function subscribeToP2P(
 
     const decoders = myIds.map(id => {
       const topic = `/${APP_NAME}/1/message-${id}/proto`;
+      // Passing 2 arguments for SDK compatibility
       return (createDecoder as any)(topic, {});
     });
 
