@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -47,12 +48,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
         unsubscribe = await subscribeToP2P(async (encryptedPayload, targetId) => {
           try {
-            // Check if message is for us or our group
             const isForMe = targetId === currentUserId;
-            const isForMyGroup = targetId.startsWith('group-'); // Simplification for demo
+            const isForMyGroup = targetId.startsWith('group-');
             
             if (!isForMe && !isForMyGroup) return;
 
+            // Секрет: мой ID для входящих приватных, ID чата для групп
             const secret = isForMe ? currentUserId : targetId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
@@ -64,19 +65,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const msgId = parsed.timestamp || Date.now();
             const chatId = isForMe ? parsed.senderId : targetId;
 
-            // Auto-create chat if it doesn't exist
-            const existingChats = await getChats();
-            if (!existingChats.some(c => c.id === chatId)) {
-              await saveChat({
-                id: chatId,
-                name: `User ${chatId.slice(0, 8)}`,
-                type: isForMe ? 'private' : 'group',
-                lastMsg: 'Encrypted message received',
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                avatar: images[Math.floor(Math.random() * 3)].url
-              });
-            }
-
+            // Сохранение в БД
             await saveLocalMessage({
               id: msgId,
               chatId: chatId,
@@ -93,9 +82,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 return [...prev, newMsg].sort((a, b) => a.id - b.id);
               });
             }
-          } catch (e) {
-            console.error('Incoming message error:', e);
-          }
+          } catch (e) {}
         });
       } catch (e) {
         if (isMounted) setNetworkStatus('error');
@@ -103,7 +90,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     };
 
     setupTransport();
-    
     return () => {
       isMounted = false;
       if (unsubscribe) unsubscribe();
@@ -122,7 +108,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       
       for (const m of stored) {
         try {
-          // Use chat ID as secret for outgoing, current user ID for incoming
           const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
           const payload = await decryptMessage(m.payload, secret);
           
@@ -166,7 +151,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
       await sendP2PMessage(activeChat.id, encrypted);
       
-      // Update chat last message
       await saveChat({
         ...activeChat,
         lastMsg: textToSend,

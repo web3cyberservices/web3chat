@@ -1,17 +1,21 @@
 
 /**
- * @fileOverview Global P2P Mesh Bus based on BroadcastChannel and localStorage.
- * Ensures guaranteed message delivery between tabs and components.
+ * @fileOverview Гарантированный P2P транспорт на базе BroadcastChannel и локального эха.
  */
 
 const P2P_NETWORK_ID = 'WEB3_CHAT_P2P_V2026';
 
 let globalChannel: BroadcastChannel | null = null;
+const listeners = new Set<(payload: string, targetId: string) => void>();
 
 function getChannel() {
   if (typeof window === 'undefined') return null;
   if (!globalChannel) {
     globalChannel = new BroadcastChannel(P2P_NETWORK_ID);
+    globalChannel.onmessage = (event) => {
+      const { payload, targetId } = event.data;
+      listeners.forEach(l => l(payload, targetId));
+    };
   }
   return globalChannel;
 }
@@ -33,13 +37,14 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       nonce: Math.random().toString(36).substring(2) + Date.now().toString()
     };
     
-    // Broadcast to other tabs
+    // Отправка в другие вкладки
     channel.postMessage(message);
     
-    // Fallback sync using localStorage for cross-tab background consistency
-    try {
-      localStorage.setItem('web3_chat_p2p_last_msg', JSON.stringify(message));
-    } catch (e) {}
+    // Локальное эхо для текущей вкладки (BroadcastChannel не шлет самому себе)
+    listeners.forEach(l => l(encryptedPayload, targetId));
+    
+    // Резервная синхронизация через localStorage
+    localStorage.setItem('web3_chat_p2p_last_msg', JSON.stringify(message));
     
     return true;
   } catch (e) {
@@ -48,41 +53,21 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
 }
 
 export async function subscribeToP2P(onMessage: (payload: string, targetId: string) => void) {
-  const channel = getChannel();
-  if (!channel) return () => {};
+  listeners.add(onMessage);
   
-  const processedNonces = new Set<string>();
-
-  const processData = (data: any) => {
-    if (!data || !data.nonce || processedNonces.has(data.nonce)) return;
-    processedNonces.add(data.nonce);
-    
-    if (processedNonces.size > 2000) {
-      const array = Array.from(processedNonces);
-      processedNonces.clear();
-      array.slice(1000).forEach(n => processedNonces.add(n));
-    }
-    
-    onMessage(data.payload, data.targetId);
-  };
-
-  const channelListener = (event: MessageEvent) => {
-    processData(event.data);
-  };
-
   const storageListener = (event: StorageEvent) => {
     if (event.key === 'web3_chat_p2p_last_msg' && event.newValue) {
       try {
-        processData(JSON.parse(event.newValue));
+        const data = JSON.parse(event.newValue);
+        onMessage(data.payload, data.targetId);
       } catch (e) {}
     }
   };
 
-  channel.addEventListener('message', channelListener);
   window.addEventListener('storage', storageListener);
 
   return () => {
-    channel.removeEventListener('message', channelListener);
+    listeners.delete(onMessage);
     window.removeEventListener('storage', storageListener);
   };
 }
