@@ -15,7 +15,6 @@ interface Message {
   sender: string;
   senderId?: string;
   time: string;
-  isEncrypted?: boolean;
 }
 
 export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { currentUserId: string, activeChat: ChatSession | null, onBack?: () => void, isMobile?: boolean }) {
@@ -27,7 +26,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Track active chat via Ref to decouple subscription from re-renders
   const activeChatRef = useRef(activeChat?.id);
 
   useEffect(() => {
@@ -37,7 +35,39 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   useEffect(() => {
     if (!currentUserId) return;
     let isMounted = true;
-    let unsubscribe: (() => void) | undefined;
+    let activeSubscription: any = null;
+    let heartbeatInterval: NodeJS.Timeout;
+
+    const handleIncoming = async (encryptedPayload: string) => {
+      try {
+        const decrypted = await decryptMessage(encryptedPayload, currentUserId);
+        if (decrypted.startsWith('[Error')) return;
+        
+        const parsed = JSON.parse(decrypted);
+        const msgId = parsed.timestamp || Date.now();
+        const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        await saveLocalMessage({
+          id: msgId,
+          chatId: parsed.senderId,
+          payload: encryptedPayload,
+          sender: 'other',
+          senderId: parsed.senderId,
+          time
+        });
+
+        if (activeChatRef.current === parsed.senderId) {
+          setMessages(prev => {
+            if (prev.some(m => m.id === msgId)) return prev;
+            return [...prev, { ...parsed, id: msgId, sender: 'other', time }].sort((a, b) => a.id - b.id);
+          });
+        } else {
+          toast({ title: "New Message", description: "You received a new secure message." });
+        }
+      } catch (e) {
+        console.error("Message handling error:", e);
+      }
+    };
 
     const setup = async () => {
       try {
@@ -46,43 +76,35 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        unsubscribe = await subscribeToP2P(currentUserId, async (encryptedPayload) => {
-          try {
-            const decrypted = await decryptMessage(encryptedPayload, currentUserId);
-            if (decrypted.startsWith('[Error')) return;
-            const parsed = JSON.parse(decrypted);
-            const msgId = parsed.timestamp || Date.now();
-            const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // Initial subscription
+        activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-            await saveLocalMessage({
-              id: msgId,
-              chatId: parsed.senderId,
-              payload: encryptedPayload,
-              sender: 'other',
-              senderId: parsed.senderId,
-              time
-            });
+        // Heartbeat: Resubscribe every 30s to prevent timeout drops
+        heartbeatInterval = setInterval(async () => {
+          if (activeSubscription) {
+            if (typeof activeSubscription === 'function') activeSubscription();
+            else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
+          }
+          activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
+          console.log('[Heartbeat] Waku Filter Resubscribed to prevent timeout');
+        }, 30000);
 
-            // Check via ref if this specific chat is currently open
-            if (activeChatRef.current === parsed.senderId) {
-              setMessages(prev => {
-                if (prev.some(m => m.id === msgId)) return prev;
-                return [...prev, { ...parsed, id: msgId, sender: 'other', time }].sort((a, b) => a.id - b.id);
-              });
-            }
-          } catch (e) {}
-        });
       } catch (e) {
         if (isMounted) setNetworkStatus('error');
       }
     };
 
     setup();
+
     return () => {
       isMounted = false;
-      if (unsubscribe) unsubscribe();
+      clearInterval(heartbeatInterval);
+      if (activeSubscription) {
+        if (typeof activeSubscription === 'function') activeSubscription();
+        else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
+      }
     };
-  }, [currentUserId]); // Subscription depends only on User Identity
+  }, [currentUserId, toast]);
 
   useEffect(() => {
     if (!activeChat) return;
@@ -135,13 +157,14 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       if (!success) {
         toast({
           title: "P2P Network Busy",
-          description: "Message saved locally, but broadcast failed. We will keep trying.",
+          description: "Message saved locally, but network broadcast failed.",
+          variant: "destructive"
         });
       }
     } catch (e) {
       toast({
         title: "Security Error",
-        description: "Failed to process encryption. Please try again.",
+        description: "Failed to process encryption.",
         variant: "destructive"
       });
     } finally {

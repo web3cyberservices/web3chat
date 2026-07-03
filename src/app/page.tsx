@@ -47,59 +47,6 @@ export default function Home() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    if (!identity) return;
-
-    let unsubscribeFn: (() => void) | undefined;
-
-    const setupP2P = async () => {
-      try {
-        const unsub = await subscribeToP2P(identity, async (encryptedPayload) => {
-          try {
-            const decrypted = await decryptMessage(encryptedPayload, identity);
-            if (decrypted.startsWith('[Error')) return;
-
-            const parsed = JSON.parse(decrypted);
-            const msgId = parsed.timestamp || Date.now();
-            const chatId = parsed.senderId;
-
-            const existing = await getChats();
-            if (!existing.some(c => c.id === chatId)) {
-              await saveChat({
-                id: chatId,
-                name: `User ${chatId.slice(0, 8)}`,
-                type: 'private',
-                lastMsg: 'Encrypted message received',
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                avatar: images[Math.floor(Math.random() * 3)].url
-              });
-            }
-
-            await saveLocalMessage({
-              id: msgId,
-              chatId: chatId,
-              payload: encryptedPayload,
-              sender: 'other',
-              senderId: parsed.senderId,
-              time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            });
-          } catch (e) {}
-        });
-
-        unsubscribeFn = unsub;
-      } catch (e) {
-        console.error('P2P Setup Error:', e);
-      }
-    };
-
-    setupP2P();
-    return () => {
-      if (typeof unsubscribeFn === 'function') {
-        unsubscribeFn();
-      }
-    };
-  }, [identity]);
-
   const handleIdentityCreated = async (id: string) => {
     await saveIdentity(id);
     setIdentity(id);

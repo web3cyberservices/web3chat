@@ -6,8 +6,7 @@ let initPromise: Promise<any> | null = null;
 const APP_NAME = 'web3chat';
 
 export function createContentTopic(id: string) {
-  if (!id) id = 'default';
-  return `/${APP_NAME}/1/u-${id.slice(0, 10)}/proto`;
+  return `/${APP_NAME}/1/u-${(id || 'default').slice(0, 10)}/proto`;
 }
 
 export async function initWaku() {
@@ -19,7 +18,7 @@ export async function initWaku() {
       console.log('[Waku] Starting Light Node...');
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
-      console.log('[Waku] Node started. Searching for peers...');
+      console.log('[Waku] Waiting for remote peers...');
       
       // Support for various SDK versions with any cast
       const newNode = node as any;
@@ -29,7 +28,7 @@ export async function initWaku() {
         await newNode.waitForConnectedPeer();
       }
       
-      console.log('[Waku] Peers found! P2P Network is ACTIVE.');
+      console.log('[Waku] P2P Network is ACTIVE.');
       nodeInstance = node;
       return node;
     } catch (error) {
@@ -45,21 +44,26 @@ export async function initWaku() {
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
     const node = await initWaku();
-    const contentTopic = createContentTopic(targetId);
+    const topic = createContentTopic(targetId);
+    console.log(`[Waku] Attempting to send to topic: ${topic}`);
     
-    // Create encoder with ephemeral flag as we don't use Store protocol
-    const encoder = createEncoder({ contentTopic, ephemeral: true } as any);
+    // Explicitly cast to avoid routingInfo errors in strict builds
+    const encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true });
 
-    // Explicitly pass contentTopic inside the message object to fix routing errors in some Waku versions
     const result = await node.lightPush.send(encoder, {
-      payload: new TextEncoder().encode(encryptedPayload),
-      contentTopic: contentTopic
-    } as any);
+      payload: new TextEncoder().encode(encryptedPayload)
+    });
 
     const res = result as any;
-    return !res?.errors || res.errors.length === 0;
+    if (res?.errors && res.errors.length > 0) {
+      console.error('[Waku] Send rejected by peer:', res.errors);
+      return false;
+    }
+    
+    console.log('[Waku] Message broadcasted successfully!');
+    return true;
   } catch (e) {
-    console.error('P2P Send Error:', e);
+    console.error('[Waku] Send Exception:', e);
     return false;
   }
 }
@@ -68,25 +72,21 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    // Compatibility wrapper for createDecoder
-    const decoder = (createDecoder as any)(topic, {} as any);
+    // Explicitly cast to avoid argument count errors
+    const decoder = (createDecoder as any)(topic);
+    console.log(`[Waku] Subscribing to topic: ${topic}`);
 
     const subscription = await node.filter.subscribe([decoder], (wakuMessage: any) => {
       if (wakuMessage?.payload) {
+        console.log('[Waku] New payload received from network!');
         const text = new TextDecoder().decode(wakuMessage.payload);
         onMessage(text);
       }
     });
 
-    return (() => {
-      if (typeof subscription === 'function') {
-        (subscription as any)();
-      } else if ((subscription as any)?.unsubscribe) {
-        (subscription as any).unsubscribe();
-      }
-    });
+    return subscription;
   } catch (e) {
-    console.error('P2P Subscription Failed:', e);
-    return () => {};
+    console.error('[Waku] Subscription Failed:', e);
+    return null;
   }
 }
