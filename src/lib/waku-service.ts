@@ -20,7 +20,7 @@ export async function initWaku() {
       console.log('[Waku] Node started. Searching for peers...');
       
       try {
-        // Ожидаем пиров, игнорируем ошибку типов TypeScript с помощью (node as any)
+        // Обходим ошибку типов TypeScript с помощью (node as any)
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 10000);
         console.log('[Waku] Peers found! P2P Network is ACTIVE.');
       } catch (peerError) {
@@ -46,12 +46,11 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     
     console.log(`[Waku] Sending to ${topic}...`);
 
-    // В версии 0.0.27 createEncoder требует объект!
-    const encoder = createEncoder({ contentTopic: topic, ephemeral: true });
+    // ФИКС ТИПОВ: обходим строгую проверку TypeScript с помощью "as any"
+    const encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true });
 
     if (!encoder) throw new Error("Encoder creation failed.");
     
-    // Дублируем contentTopic внутри payload для обхода еще одного бага Waku
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
       contentTopic: topic
@@ -77,8 +76,8 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     
     console.log(`[Waku] Subscribing to ${topic}...`);
 
-    // В версии 0.0.27 createDecoder требует строку! Передача объекта крашит подписку.
-    const decoder = createDecoder(topic);
+    // ФИКС ТИПОВ И RUNTIME: передаем объект и обходим TypeScript
+    const decoder = (createDecoder as any)({ contentTopic: topic });
 
     if (!decoder) throw new Error("Decoder creation failed.");
 
