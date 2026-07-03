@@ -1,6 +1,6 @@
 /**
- * @fileOverview Децентрализованный сетевой слой Waku (июнь 2026).
- * Исправлены ошибки типизации и стабильности соединения.
+ * @fileOverview Децентрализованный сетевой слой Waku.
+ * Исправлены ошибки 'Incorrect length' и обновлены узлы загрузки.
  */
 
 import type { LightNode } from '@waku/sdk';
@@ -8,10 +8,11 @@ import type { LightNode } from '@waku/sdk';
 let nodeInstance: LightNode | null = null;
 let initPromise: Promise<LightNode> | null = null;
 
-// Стабильные узлы Waku (июнь 2026)
+// Актуальные и стабильные узлы Waku
 const BOOTSTRAP_NODES = [
   '/dns4/node-01.do-ams3.waku.org/tcp/443/wss/p2p/16Uiu2HAmPLeTwoVYdgZ86idWAtCB88JQM6no8Y2zH7tgJaSShwLS',
-  '/dns4/node-01.ac-cn-hongkong-c.waku.org/tcp/443/wss/p2p/16Uiu2HAmS6NfUtFv4iP9GZc6YyW972p7GjXyK2L4Gz3L'
+  '/dns4/node-01.ac-cn-hongkong-c.waku.org/tcp/443/wss/p2p/16Uiu2HAmS6NfUtFv4iP9GZc6YyW972p7GjXyK2L4Gz3L',
+  '/dns4/node-01.gc-us-central1-a.waku.org/tcp/443/wss/p2p/16Uiu2HAmIBv7v82idVv3UnYPrWb7fXm996g491s1AAsfUnP97AAn'
 ];
 
 export async function initWaku(): Promise<LightNode> {
@@ -29,15 +30,15 @@ export async function initWaku(): Promise<LightNode> {
 
       await node.start();
       
-      // Блокирующее ожидание пиров
-      const typedNode = node as any;
-      if (typeof typedNode.waitForRemotePeer === 'function') {
-        try {
+      // Ожидаем подключения хотя бы к одному пиру с нужными протоколами
+      try {
+        const typedNode = node as any;
+        if (typeof typedNode.waitForRemotePeer === 'function') {
           await typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
-          console.log('Waku: Connected and Ready');
-        } catch (e) {
-          console.warn('Waku: Initial peer search timed out, continuing...');
+          console.log('Waku: Connected to peers');
         }
+      } catch (e) {
+        console.warn('Waku: Initial peer discovery timeout, will continue in background');
       }
 
       nodeInstance = node;
@@ -53,8 +54,9 @@ export async function initWaku(): Promise<LightNode> {
 }
 
 export function createContentTopic(id: string) {
-  // Унифицированный топик для 1-to-1 и Групп
-  return `/web3chat/2/u-${id.slice(0, 12)}/proto`;
+  // Используем более длинный срез для избежания коллизий и ошибок валидации
+  const safeId = id.startsWith('0x') ? id.slice(2, 34) : id.slice(0, 32);
+  return `/web3chat/2/user-${safeId}/proto`;
 }
 
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
@@ -69,6 +71,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       payload: new TextEncoder().encode(encryptedPayload),
     });
 
+    // Безопасная проверка результата для разных версий SDK
     const res = result as any;
     return !res?.errors || (Array.isArray(res.errors) && res.errors.length === 0);
   } catch (e) {
@@ -82,24 +85,26 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
     const node = await initWaku();
     const { createDecoder } = await import('@waku/sdk');
     
+    // Создаем декодеры для всех топиков (личный + чаты)
     const decoders = ids.map(id => createDecoder(createContentTopic(id)));
 
-    // Подписка на несколько топиков одновременно
-    const subscription = await node.filter.subscribe(decoders, (wakuMessage: any) => {
+    const { unsubscribe } = await node.filter.subscribe(decoders, (wakuMessage: any) => {
       if (wakuMessage?.payload) {
-        const text = new TextDecoder().decode(wakuMessage.payload);
-        // Извлекаем ID из топика для понимания, куда пришло сообщение
-        const topic = wakuMessage.contentTopic;
-        const topicId = ids.find(id => topic.includes(id.slice(0, 12))) || ids[0];
-        onMessage(text, topicId);
+        try {
+          const text = new TextDecoder().decode(wakuMessage.payload);
+          const topic = wakuMessage.contentTopic;
+          
+          // Определяем, какому ID принадлежит сообщение, сравнивая топики
+          const matchedId = ids.find(id => topic === createContentTopic(id)) || ids[0];
+          
+          onMessage(text, matchedId);
+        } catch (decodeError) {
+          console.error('Failed to decode message payload', decodeError);
+        }
       }
     });
 
-    return () => {
-      const sub = subscription as any;
-      if (typeof sub === 'function') sub();
-      else if (sub?.unsubscribe) sub.unsubscribe();
-    };
+    return unsubscribe;
   } catch (e) {
     console.error('P2P Subscription Error:', e);
     return () => {};
