@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { getIdentity, saveIdentity, saveLocalMessage, saveChat, getChats, type ChatSession } from '@/lib/db';
 import { Toaster } from '@/components/ui/toaster';
-import { subscribeToP2P, initWaku } from '@/lib/waku-service';
+import { subscribeToP2P } from '@/lib/waku-service';
 import { decryptMessage } from '@/lib/crypto-utils';
 import images from '@/app/lib/placeholder-images.json';
 
@@ -51,16 +51,15 @@ export default function Home() {
   useEffect(() => {
     if (!identity) return;
 
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribeFn: (() => void) | undefined;
 
     const setupP2P = async () => {
       try {
-        // Get all IDs to listen to (self + groups)
         const chats = await getChats();
         const groupIds = chats.filter(c => c.type === 'group').map(c => c.id);
         const myIds = [identity, ...groupIds];
 
-        unsubscribe = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
+        const result = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
           try {
             const isForMe = topicId === identity;
             const secret = isForMe ? identity : topicId;
@@ -74,7 +73,6 @@ export default function Home() {
             const msgId = parsed.timestamp || Date.now();
             const chatId = isForMe ? parsed.senderId : topicId;
 
-            // Auto-create chat session if new
             const existing = await getChats();
             if (!existing.some(c => c.id === chatId)) {
               await saveChat({
@@ -97,6 +95,10 @@ export default function Home() {
             });
           } catch (e) {}
         });
+
+        if (typeof result === 'function') {
+          unsubscribeFn = result;
+        }
       } catch (e) {
         console.error('P2P Setup Error:', e);
       }
@@ -104,7 +106,7 @@ export default function Home() {
 
     setupP2P();
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeFn) unsubscribeFn();
     };
   }, [identity]);
 

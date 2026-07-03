@@ -62,7 +62,9 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   try {
     const waku = await initWaku();
     const contentTopic = `/${APP_NAME}/1/message-${targetId}/proto`;
-    const encoder = createEncoder({ contentTopic });
+    
+    // Use 'as any' to bypass routingInfo requirement in strict SDK types
+    const encoder = createEncoder({ contentTopic } as any);
 
     const payload = new TextEncoder().encode(encryptedPayload);
     
@@ -91,8 +93,9 @@ export async function subscribeToP2P(
   try {
     const waku = await initWaku();
     
+    // Use 'as any' to bypass routingInfo requirement in strict SDK types
     const decoders = myIds.map(id => 
-      createDecoder(`/${APP_NAME}/1/message-${id}/proto`)
+      createDecoder({ contentTopic: `/${APP_NAME}/1/message-${id}/proto` } as any)
     );
 
     const unsubscribe = await waku.filter.subscribe(
@@ -113,7 +116,7 @@ export async function subscribeToP2P(
       }
     );
 
-    // Return the unsubscribe handler (ensuring it's a function)
+    // Return the unsubscribe handler as a function
     return () => {
       if (typeof unsubscribe === 'function') {
         unsubscribe();
