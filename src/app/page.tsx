@@ -60,7 +60,7 @@ export default function Home() {
         const groupIds = chats.filter(c => c.type === 'group').map(c => c.id);
         const myIds = [identity, ...groupIds];
 
-        const unsubscribe = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
+        const unsub = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
           try {
             const isForMe = topicId === identity;
             const secret = isForMe ? identity : topicId;
@@ -97,7 +97,7 @@ export default function Home() {
           } catch (e) {}
         });
 
-        unsubscribeFn = unsubscribe;
+        unsubscribeFn = unsub;
       } catch (e) {
         console.error('P2P Setup Error:', e);
       }
