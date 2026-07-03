@@ -1,21 +1,32 @@
 /**
- * @fileOverview Глобальная P2P Шина на базе BroadcastChannel (Стандарт 2026).
- * Обеспечивает мгновенную синхронизацию сообщений между всеми вкладками/устройствами в одном Mesh-окружении.
+ * @fileOverview Глобальная P2P Шина на базе BroadcastChannel.
+ * Обеспечивает мгновенную синхронизацию сообщений между вкладками и устройствами.
  */
 
 const P2P_NETWORK_ID = 'WEB3_CHAT_P2P_MESH_2026_GLOBAL';
 
+// Singleton канал для стабильности
+let globalChannel: BroadcastChannel | null = null;
+
+function getChannel() {
+  if (typeof window === 'undefined') return null;
+  if (!globalChannel) {
+    globalChannel = new BroadcastChannel(P2P_NETWORK_ID);
+  }
+  return globalChannel;
+}
+
 export async function initWaku(): Promise<any> {
-  console.log('P2P Mesh: Global Transport Active (2026)');
+  console.log('P2P Mesh: Global Transport Active');
+  getChannel();
   return { status: 'online' };
 }
 
-/**
- * Отправляет зашифрованное сообщение в глобальный канал.
- */
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
-    const channel = new BroadcastChannel(P2P_NETWORK_ID);
+    const channel = getChannel();
+    if (!channel) return false;
+
     const message = {
       payload: encryptedPayload,
       targetId,
@@ -25,13 +36,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     
     channel.postMessage(message);
     
-    // Резервный буфер в localStorage для синхронизации вкладок, открытых позже
+    // Резервный буфер для синхронизации новых вкладок
     const storageKey = `web3_mesh_sync_v4`;
     const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
     existing.push(message);
-    localStorage.setItem(storageKey, JSON.stringify(existing.slice(-50)));
+    localStorage.setItem(storageKey, JSON.stringify(existing.slice(-20)));
 
-    setTimeout(() => channel.close(), 100);
     return true;
   } catch (e) {
     console.error('P2P Mesh Send Error:', e);
@@ -39,12 +49,9 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   }
 }
 
-/**
- * Подписывается на глобальную шину данных.
- * Слушает все сообщения и фильтрует те, что предназначены переданным ID.
- */
 export async function subscribeToP2P(myIds: string[], onMessage: (payload: string, topicId: string) => void) {
-  const channel = new BroadcastChannel(P2P_NETWORK_ID);
+  const channel = getChannel();
+  if (!channel) return () => {};
   
   const handleMessage = (event: MessageEvent) => {
     const { payload, targetId } = event.data;
@@ -55,7 +62,7 @@ export async function subscribeToP2P(myIds: string[], onMessage: (payload: strin
 
   channel.addEventListener('message', handleMessage);
 
-  // Немедленная проверка буфера при подписке
+  // Проверка буфера при подписке для пропущенных сообщений
   const storageKey = `web3_mesh_sync_v4`;
   const buffered = JSON.parse(localStorage.getItem(storageKey) || '[]');
   buffered.forEach((m: any) => {
@@ -66,6 +73,5 @@ export async function subscribeToP2P(myIds: string[], onMessage: (payload: strin
 
   return () => {
     channel.removeEventListener('message', handleMessage);
-    channel.close();
   };
 }

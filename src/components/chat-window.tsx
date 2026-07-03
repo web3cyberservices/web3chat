@@ -32,7 +32,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     activeChatRef.current = activeChat?.id || null;
   }, [activeChat?.id]);
 
-  // Подписка на входящие сообщения с динамическим обновлением списка прослушиваемых ID
   useEffect(() => {
     if (!currentUserId) return;
     
@@ -46,12 +45,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
+        // Подписываемся на свой ID и ID всех чатов
         const chats = await getChats();
-        // Слушаем свой ID и ID всех существующих чатов (для групп и лички)
         const myListeningIds = Array.from(new Set([currentUserId, ...chats.map(c => c.id)]));
 
         unsubscribe = await subscribeToP2P(myListeningIds, async (encryptedPayload, targetId) => {
           try {
+            // Если сообщение для меня, секрет — мой ID. Если для группы — ID группы.
             const secret = targetId === currentUserId ? currentUserId : targetId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
@@ -63,7 +63,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             
             const chatId = targetId === currentUserId ? parsed.senderId : targetId;
 
-            // Сохраняем во внутреннюю БД
             await saveLocalMessage({
               id: msgId,
               chatId: chatId,
@@ -73,7 +72,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               time
             });
             
-            // Если этот чат сейчас открыт — обновляем UI
             if (chatId === activeChatRef.current) {
               setMessages(prev => {
                 if (prev.some(m => m.id === msgId)) return prev;
@@ -95,9 +93,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       isMounted = false;
       if (unsubscribe) unsubscribe();
     };
-  }, [currentUserId, activeChat?.id]); // Переподписываемся при смене активного чата для надежности
+  }, [currentUserId, activeChat?.id]);
 
-  // Загрузка истории
   useEffect(() => {
     if (!activeChat) {
       setMessages([]);
@@ -140,7 +137,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       await performPoW(rawData);
       
-      // Шифруем для получателя
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({
@@ -153,8 +149,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       });
 
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
-
-      // Отправляем в общую шину
       await sendP2PMessage(activeChat.id, encrypted);
       
     } catch (e) {
