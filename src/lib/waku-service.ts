@@ -4,7 +4,7 @@
  * Реализована система единого канала для гарантированной доставки сообщений.
  */
 
-const P2P_NETWORK_ID = 'WEB3_CHAT_P2P_V6';
+const P2P_NETWORK_ID = 'WEB3_CHAT_P2P_V7';
 
 let globalChannel: BroadcastChannel | null = null;
 
@@ -33,7 +33,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       nonce: Math.random().toString(36).substring(2)
     };
     
+    // Отправляем в канал
     channel.postMessage(message);
+    
+    // Дублируем в localStorage для надежности (Fallback эхо)
+    localStorage.setItem('web3_p2p_echo', JSON.stringify(message));
+    
     return true;
   } catch (e) {
     console.error('P2P Mesh Send Error:', e);
@@ -47,20 +52,30 @@ export async function subscribeToP2P(onMessage: (payload: string, targetId: stri
   
   const processedNonces = new Set<string>();
 
-  const channelListener = (event: MessageEvent) => {
-    const { payload, targetId, nonce } = event.data;
-    if (processedNonces.has(nonce)) return;
-    
-    processedNonces.add(nonce);
-    // Ограничиваем размер набора нонсов для экономии памяти
+  const processData = (data: any) => {
+    if (!data || processedNonces.has(data.nonce)) return;
+    processedNonces.add(data.nonce);
     if (processedNonces.size > 1000) processedNonces.clear();
-    
-    onMessage(payload, targetId);
+    onMessage(data.payload, data.targetId);
+  };
+
+  const channelListener = (event: MessageEvent) => {
+    processData(event.data);
+  };
+
+  const storageListener = (event: StorageEvent) => {
+    if (event.key === 'web3_p2p_echo' && event.newValue) {
+      try {
+        processData(JSON.parse(event.newValue));
+      } catch (e) {}
+    }
   };
 
   channel.addEventListener('message', channelListener);
+  window.addEventListener('storage', storageListener);
 
   return () => {
     channel.removeEventListener('message', channelListener);
+    window.removeEventListener('storage', storageListener);
   };
 }

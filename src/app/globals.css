@@ -24,7 +24,7 @@
   --radius-xl: 1rem;
 }
 
-/* Base resets for Tailwind 4 without using @layer to avoid compiler bugs */
+/* Нативный CSS для базовых стилей вместо @layer, чтобы избежать ошибок компилятора 4.0 */
 * {
   border-color: var(--color-border);
 }
@@ -33,11 +33,10 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "rlig" 1, "calt" 1;
+  -moz-osx-smoothing: grayscale;
 }
 
-/* Custom Scrollbar */
+/* Кастомный скроллбар */
 ::-webkit-scrollbar {
   width: 5px;
 }

@@ -42,20 +42,19 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     const setupTransport = async () => {
       try {
-        setNetworkStatus('connecting');
         await initWaku(); 
         if (!isMounted) return;
         setNetworkStatus('online');
 
         unsubscribe = await subscribeToP2P(async (encryptedPayload, targetId) => {
           try {
-            // Если сообщение не для нас и не для текущего активного чата, проверяем его дальше
+            // Сообщение либо нам лично, либо в активную группу
             const isForMe = targetId === currentUserId;
-            const isForActiveChat = activeChatRef.current && targetId === activeChatRef.current;
+            const isForActiveChat = activeChatRef.current === targetId;
             
             if (!isForMe && !isForActiveChat) return;
 
-            // Расшифровываем. Секретом выступает либо наш ID (если нам пишут в личку), либо ID чата (группа/личное)
+            // Секрет для расшифровки: наш ID или ID группы (в данном прототипе используем ID чата как общий ключ)
             const secret = isForMe ? currentUserId : targetId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
@@ -63,14 +62,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             
             const parsed = JSON.parse(decrypted);
             const msgId = parsed.timestamp || Date.now();
-            const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
-            // Если мы отправители — игнорируем (уже сохранено локально)
             if (parsed.senderId === currentUserId) return;
 
-            const chatId = isForMe ? parsed.senderId : targetId;
+            const senderId = parsed.senderId;
+            const chatId = isForMe ? senderId : targetId;
 
-            // Авто-создание чата если его нет в списке
+            // Авто-создание чата
             const existingChats = await getChats();
             if (!existingChats.some(c => c.id === chatId)) {
               await saveChat({
@@ -78,7 +76,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 name: `User ${chatId.slice(0, 8)}`,
                 type: 'private',
                 lastMsg: 'Message received',
-                time: time,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 avatar: images[Math.floor(Math.random() * 3)].url
               });
             }
@@ -88,18 +86,18 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               chatId: chatId,
               payload: encryptedPayload,
               sender: 'other',
-              senderId: parsed.senderId,
-              time
+              senderId: senderId,
+              time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
             
             if (chatId === activeChatRef.current) {
               setMessages(prev => {
                 if (prev.some(m => m.id === msgId)) return prev;
-                return [...prev, { ...parsed, id: msgId, sender: 'other', time }].sort((a, b) => a.id - b.id);
+                return [...prev, { ...parsed, id: msgId, sender: 'other', time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }].sort((a, b) => a.id - b.id);
               });
             }
           } catch (e) {
-            console.error('Incoming message processing error:', e);
+            console.error('Incoming message error:', e);
           }
         });
       } catch (e) {
@@ -127,7 +125,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       
       for (const m of stored) {
         try {
-          // Если мы отправители, секрет - ID получателя. Если они — наш ID.
           const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
           const payload = await decryptMessage(m.payload, secret);
           
@@ -157,8 +154,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
       await performPoW(rawData);
-      
-      // Шифруем для получателя (используем его ID как секрет для простоты в этом прототипе)
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({
@@ -171,11 +166,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       });
 
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
-      
       await sendP2PMessage(activeChat.id, encrypted);
       
     } catch (e) {
-      toast({ title: "Encryption Error", description: "Secure context required.", variant: "destructive" });
+      toast({ title: "Encryption Error", variant: "destructive" });
     } finally {
       setIsProcessing(false);
       setStatusMessage(null);
