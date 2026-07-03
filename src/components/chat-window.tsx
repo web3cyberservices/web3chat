@@ -57,7 +57,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           time
         });
 
-        // Use activeChatRef to check if we should update UI immediately
         if (activeChatRef.current === parsed.senderId) {
           setMessages(prev => {
             if (prev.some(m => m.id === msgId)) return prev;
@@ -81,10 +80,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Initial subscription to the P2P Mesh
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Waku Filter connections can be unstable. Resubscribe every 30s to keep the link alive.
+        // Heartbeat: Регулярное обновление подписки для стабильности соединения
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();
@@ -144,7 +142,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
-      // Computationally expensive proof-of-work to prevent spam on the decentralized mesh
       await performPoW(rawData);
       
       const encrypted = await encryptMessage(rawData, activeChat.id);

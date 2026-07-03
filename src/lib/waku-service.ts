@@ -4,11 +4,17 @@ import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
+/**
+ * Создает уникальный топик контента для пользователя.
+ */
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
   return `/web3chat/1/u-${safeId}/proto`;
 }
 
+/**
+ * Инициализирует узел Waku и подключает его к основной сети.
+ */
 export async function initWaku() {
   if (nodeInstance) return nodeInstance;
   if (initPromise) return initPromise;
@@ -16,13 +22,13 @@ export async function initWaku() {
   initPromise = (async () => {
     try {
       console.log('[Waku] Starting Light Node on Production Network...');
-      // Connecting to the main Waku network using default bootstrap nodes
+      // Подключение к основной сети Waku
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
       console.log('[Waku] Node started. Searching for peers...');
       
       try {
-        // Casting to any to avoid TypeScript errors during build in strict environments
+        // Ожидание подключения к пирам с поддержкой необходимых протоколов
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         console.log('[Waku] Connected to mesh!');
       } catch (peerError) {
@@ -41,17 +47,20 @@ export async function initWaku() {
   return initPromise;
 }
 
+/**
+ * Отправляет зашифрованное сообщение через P2P сеть.
+ */
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    // Using 'as any' to bypass the routingInfo requirement in some SDK versions during build
+    // Используем ephemeral сообщения для прямой доставки без хранения в истории
     const encoder = createEncoder({ contentTopic: topic, ephemeral: true } as any);
 
     console.log(`[Waku] Broadcasting message to topic: ${topic}`);
     
-    // Explicitly pass contentTopic in the message object as required by some Waku node configurations
+    // Явно передаем contentTopic в объект сообщения
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
       contentTopic: topic
@@ -70,11 +79,15 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   }
 }
 
+/**
+ * Подписывается на входящие сообщения для текущего пользователя.
+ */
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    const decoder = createDecoder(topic);
+    // Добавляем пустой объект настроек для совместимости с типами SDK
+    const decoder = createDecoder(topic, {} as any);
 
     const callback = (wakuMessage: any) => {
       if (wakuMessage?.payload) {
