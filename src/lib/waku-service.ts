@@ -8,30 +8,6 @@ export function createContentTopic(id: string) {
   return `/web3chat/1/u-${safeId}/proto`;
 }
 
-function getSafeEncoder(topic: string) {
-  try {
-    const encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true });
-    if (encoder && typeof encoder.contentTopic === 'object') {
-      return (createEncoder as any)(topic, true);
-    }
-    return encoder;
-  } catch (e) {
-    return (createEncoder as any)(topic, true);
-  }
-}
-
-function getSafeDecoder(topic: string) {
-  try {
-    const decoder = (createDecoder as any)({ contentTopic: topic });
-    if (decoder && typeof decoder.contentTopic === 'object') {
-      return (createDecoder as any)(topic);
-    }
-    return decoder;
-  } catch (e) {
-    return (createDecoder as any)(topic);
-  }
-}
-
 export async function initWaku() {
   if (nodeInstance) return nodeInstance;
   if (initPromise) return initPromise;
@@ -44,7 +20,7 @@ export async function initWaku() {
       console.log('[Waku] Node started. Searching for peers...');
       
       try {
-        // ФИКС ОШИБКИ СБОРКИ: Добавлено (node as any)
+        // Ожидаем пиров, игнорируем ошибку типов TypeScript с помощью (node as any)
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 10000);
         console.log('[Waku] Peers found! P2P Network is ACTIVE.');
       } catch (peerError) {
@@ -67,12 +43,18 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   try {
     const node = await initWaku();
     const topic = createContentTopic(targetId);
-    const encoder = getSafeEncoder(topic);
-
-    console.log(`[Waku] Sending to ${topic}...`);
     
+    console.log(`[Waku] Sending to ${topic}...`);
+
+    // В версии 0.0.27 createEncoder требует объект!
+    const encoder = createEncoder({ contentTopic: topic, ephemeral: true });
+
+    if (!encoder) throw new Error("Encoder creation failed.");
+    
+    // Дублируем contentTopic внутри payload для обхода еще одного бага Waku
     const result = await node.lightPush.send(encoder, {
-      payload: new TextEncoder().encode(encryptedPayload)
+      payload: new TextEncoder().encode(encryptedPayload),
+      contentTopic: topic
     });
 
     if (result?.errors && result.errors.length > 0) {
@@ -92,9 +74,13 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    const decoder = getSafeDecoder(topic);
-
+    
     console.log(`[Waku] Subscribing to ${topic}...`);
+
+    // В версии 0.0.27 createDecoder требует строку! Передача объекта крашит подписку.
+    const decoder = createDecoder(topic);
+
+    if (!decoder) throw new Error("Decoder creation failed.");
 
     const subscription = await node.filter.subscribe([decoder], (wakuMessage: any) => {
       if (wakuMessage?.payload) {
