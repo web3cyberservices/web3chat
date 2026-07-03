@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -76,10 +77,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Initial subscription
+        // Первичная подписка
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Resubscribe every 30s to prevent timeout drops
+        // Heartbeat: Переподписка каждые 30 секунд для защиты от silent drops Waku
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
             if (typeof activeSubscription === 'function') activeSubscription();

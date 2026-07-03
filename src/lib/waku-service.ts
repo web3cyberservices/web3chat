@@ -1,3 +1,4 @@
+
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 let nodeInstance: any = null;
@@ -15,13 +16,13 @@ export async function initWaku() {
   initPromise = (async () => {
     try {
       console.log('[Waku] Starting Light Node...');
+      // В новой версии это подключит нас к рабочим серверам на открытый порт 443
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
       console.log('[Waku] Node started. Waiting for network...');
       
       try {
-        // Ждем любых пиров (без жестких рамок)
-        await (node as any).waitForRemotePeer([], 5000);
+        await node.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 10000);
         console.log('[Waku] Connected to mesh!');
       } catch (peerError) {
         console.warn('[Waku] Initial peer wait timeout. Running in background.');
@@ -44,9 +45,8 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    let encoder: any;
-    try { encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true }); } 
-    catch { encoder = (createEncoder as any)(topic, true); }
+    // В новой версии этот энкодер работает идеально и без костылей
+    const encoder = createEncoder({ contentTopic: topic, ephemeral: true });
 
     console.log(`[Waku] Sending message...`);
     const result = await node.lightPush.send(encoder, {
@@ -70,9 +70,8 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   const node = await initWaku();
   const topic = createContentTopic(myId);
   
-  let decoder: any;
-  try { decoder = (createDecoder as any)(topic); } 
-  catch { decoder = (createDecoder as any)({ contentTopic: topic }); }
+  // Чистый декодер для новой версии
+  const decoder = createDecoder(topic);
 
   const callback = (wakuMessage: any) => {
     if (wakuMessage?.payload) {
@@ -80,17 +79,9 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     }
   };
 
-  // Рекурсивный цикл-броня: пробуем подписаться, пока не появятся пиры
   const trySubscribe = async (): Promise<any> => {
     try {
-      let sub;
-      try {
-        // Пробуем новый синтаксис (массив)
-        sub = await node.filter.subscribe([decoder], callback);
-      } catch (err) {
-        // Если падает, пробуем старый синтаксис (одиночный объект)
-        sub = await node.filter.subscribe(decoder, callback);
-      }
+      const sub = await node.filter.subscribe([decoder], callback);
       console.log(`[Waku] Successfully subscribed to ${topic}!`);
       return sub;
     } catch (e: any) {
