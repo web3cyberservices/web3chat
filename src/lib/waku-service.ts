@@ -29,9 +29,8 @@ export async function initWaku(): Promise<LightNode> {
 
       await newNode.start();
       
-      // Wait for peers that support LightPush and Filter protocols
-      // Cast to any to bypass strict type check on older/newer SDK versions
       try {
+        // Use any to bypass strict type check on older/newer SDK versions
         if ((newNode as any).waitForRemotePeer) {
           await (newNode as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         }
@@ -56,15 +55,15 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const waku = await initWaku();
     const contentTopic = `/${APP_NAME}/1/message-${targetId}/proto`;
     
-    // Use any to pass ephemeral flag correctly as per SDK requirements
-    const encoder = (createEncoder as any)(contentTopic, { ephemeral: true });
+    // Use the suggested format with ephemeral flag
+    const encoder = createEncoder({ contentTopic, ephemeral: true });
     const payload = new TextEncoder().encode(encryptedPayload);
     
-    // Explicitly pass contentTopic inside the message object to fix routing errors
+    // Explicitly pass contentTopic inside the message object to fix routing errors in some Waku versions
     const result = await waku.lightPush.send(encoder, { 
       payload,
       contentTopic: contentTopic 
-    });
+    } as any);
     
     const res = result as any;
     if (res && res.errors && res.errors.length > 0) {
@@ -94,7 +93,7 @@ export async function subscribeToP2P(
     const decoders = myIds.map(id => {
       const topic = `/${APP_NAME}/1/message-${id}/proto`;
       // Passing 2 arguments for SDK compatibility
-      return (createDecoder as any)(topic, {});
+      return createDecoder(topic, {} as any);
     });
 
     const unsubscribePromise = waku.filter.subscribe(
