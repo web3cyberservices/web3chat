@@ -28,10 +28,16 @@ export async function initWaku(): Promise<LightNode> {
 
       await node.start();
       
+      // FIX 1 & 2: Дожидаемся подключения пиров только для необходимых протоколов
       const typedNode = node as any;
       if (typeof typedNode.waitForRemotePeer === 'function') {
-        typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter, Protocols.Store], 15000)
-          .catch(() => console.warn('Waku: Still searching for peers...'));
+        try {
+          // Ждем только LightPush и Filter. Store часто отсутствует на публичных нодах.
+          await typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+          console.log('Waku: Connected to active peers');
+        } catch (e) {
+          console.warn('Waku: Peer discovery timeout, continuing in background...');
+        }
       }
 
       nodeInstance = node;
@@ -62,6 +68,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       payload: new TextEncoder().encode(encryptedPayload),
     });
 
+    // Безопасная проверка результата для SDK 2026
     return !result?.errors || (Array.isArray(result.errors) && result.errors.length === 0);
   } catch (e) {
     console.error('P2P Send Error:', e);
@@ -77,6 +84,7 @@ export async function subscribeToP2P(targetId: string, onMessage: (payload: stri
     const contentTopic = createContentTopic(targetId);
     const decoder = createDecoder(contentTopic);
 
+    // В SDK 2.0 subscribe возвращает объект управления подпиской
     const subscription: any = await node.filter.subscribe([decoder], (wakuMessage: any) => {
       if (wakuMessage?.payload) {
         const text = new TextDecoder().decode(wakuMessage.payload);
