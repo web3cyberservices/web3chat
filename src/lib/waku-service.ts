@@ -1,6 +1,6 @@
 /**
  * @fileOverview Децентрализованный сетевой слой Waku.
- * Исправлены ошибки 'Incorrect length' и обновлены узлы загрузки.
+ * Исправлены ошибки типов и оптимизирована работа с топиками.
  */
 
 import type { LightNode } from '@waku/sdk';
@@ -8,7 +8,7 @@ import type { LightNode } from '@waku/sdk';
 let nodeInstance: LightNode | null = null;
 let initPromise: Promise<LightNode> | null = null;
 
-// Актуальные и стабильные узлы Waku на 2026 год
+// Стабильные узлы Waku
 const BOOTSTRAP_NODES = [
   '/dns4/node-01.do-ams3.waku.org/tcp/443/wss/p2p/16Uiu2HAmPLeTwoVYdgZ86idWAtCB88JQM6no8Y2zH7tgJaSShwLS',
   '/dns4/node-01.ac-cn-hongkong-c.waku.org/tcp/443/wss/p2p/16Uiu2HAmS6NfUtFv4iP9GZc6YyW972p7GjXyK2L4Gz3L',
@@ -23,7 +23,6 @@ export async function initWaku(): Promise<LightNode> {
     try {
       const { createLightNode, Protocols } = await import('@waku/sdk');
 
-      // Инициализация с поддержкой автоматического обнаружения
       const node = await createLightNode({ 
         bootstrapPeers: BOOTSTRAP_NODES,
         defaultBootstrap: true
@@ -31,16 +30,15 @@ export async function initWaku(): Promise<LightNode> {
 
       await node.start();
       
-      // Ожидаем подключения хотя бы к одному пиру
-      try {
-        const typedNode = node as any;
-        if (typeof typedNode.waitForRemotePeer === 'function') {
-          // Ожидаем только необходимые протоколы
+      // Ожидаем подключения к пирам перед возвратом ноды
+      const typedNode = node as any;
+      if (typeof typedNode.waitForRemotePeer === 'function') {
+        try {
           await typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
           console.log('Waku: P2P Network Ready');
+        } catch (e) {
+          console.warn('Waku: Peer discovery timeout, proceeding with limited connectivity');
         }
-      } catch (e) {
-        console.warn('Waku: Initial peer discovery slow, proceeding anyway...');
       }
 
       nodeInstance = node;
@@ -67,13 +65,13 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const { createEncoder } = await import('@waku/sdk');
     
     const contentTopic = createContentTopic(targetId);
-    const encoder = createEncoder({ contentTopic });
+    // В текущей версии SDK передаем строку напрямую
+    const encoder = createEncoder(contentTopic);
 
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
     });
 
-    // Проверка результата отправки
     const res = result as any;
     return !res?.errors || (Array.isArray(res.errors) && res.errors.length === 0);
   } catch (e) {
@@ -87,8 +85,8 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
     const node = await initWaku();
     const { createDecoder } = await import('@waku/sdk');
     
-    // Подписываемся на все топики одновременно
-    const decoders = ids.map(id => createDecoder({ contentTopic: createContentTopic(id) }));
+    // Подписываемся на все топики одновременно, передавая строки напрямую в декордеры
+    const decoders = ids.map(id => createDecoder(createContentTopic(id)));
 
     const subscription = await node.filter.subscribe(decoders, (wakuMessage: any) => {
       if (wakuMessage?.payload) {
@@ -96,7 +94,7 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
           const text = new TextDecoder().decode(wakuMessage.payload);
           const topic = wakuMessage.contentTopic;
           
-          // Определяем источник сообщения по топику
+          // Сопоставляем топик с ID
           const matchedId = ids.find(id => topic === createContentTopic(id)) || ids[0];
           onMessage(text, matchedId);
         } catch (decodeError) {
@@ -105,7 +103,6 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
       }
     });
 
-    // В версиях SDK 2026+ возвращается объект с методом unsubscribe
     return typeof subscription === 'function' ? subscription : (subscription as any).unsubscribe;
   } catch (e) {
     console.error('P2P Subscription Error:', e);
