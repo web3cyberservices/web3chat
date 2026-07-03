@@ -32,7 +32,6 @@ export async function initWaku(): Promise<LightNode> {
 
       await newNode.start();
       
-      // Attempt to wait for connections using available methods in various SDK versions
       const nodeAsAny = newNode as any;
       const waitMethod = nodeAsAny.waitForRemotePeer || nodeAsAny.waitForConnectedPeer;
       
@@ -66,14 +65,14 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const waku = await initWaku();
     const contentTopic = `/${APP_NAME}/1/message-${targetId}/proto`;
     
-    // Explicitly cast options to any to bypass strict routingInfo requirements
+    // Explicitly cast to any to satisfy internal SDK requirements like routingInfo
     const encoder = createEncoder({ contentTopic } as any);
 
     const payload = new TextEncoder().encode(encryptedPayload);
     
     const result = await waku.lightPush.send(encoder, { payload });
     
-    // Cast to any to handle different result structures across SDK versions
+    // Handle different result structures across SDK versions
     const res = result as any;
     if (res.errors && res.errors.length > 0) {
       console.error('Waku send errors:', res.errors);
@@ -103,7 +102,6 @@ export async function subscribeToP2P(
       return () => {};
     }
 
-    // Create decoders with explicit cast to satisfy SDK version variations
     const decoders = myIds.map(id => 
       createDecoder({ contentTopic: `/${APP_NAME}/1/message-${id}/proto` } as any)
     );
