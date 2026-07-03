@@ -73,8 +73,10 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     
     const result = await waku.lightPush.send(encoder, { payload });
     
-    if (result.errors && result.errors.length > 0) {
-      console.error('Waku send errors:', result.errors);
+    // Cast to any to handle different result structures across SDK versions
+    const res = result as any;
+    if (res.errors && res.errors.length > 0) {
+      console.error('Waku send errors:', res.errors);
       return false;
     }
 

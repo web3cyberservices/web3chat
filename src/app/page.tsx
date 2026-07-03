@@ -105,7 +105,7 @@ export default function Home() {
 
     setupP2P();
     return () => {
-      if (unsubscribeFn) unsubscribeFn();
+      if (typeof unsubscribeFn === 'function') unsubscribeFn();
     };
   }, [identity]);
 
