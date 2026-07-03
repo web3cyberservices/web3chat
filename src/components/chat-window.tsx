@@ -83,8 +83,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         // Heartbeat: Переподписка каждые 30 секунд для защиты от silent drops Waku
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
-            if (typeof activeSubscription === 'function') activeSubscription();
-            else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
+             if (typeof activeSubscription === 'function') activeSubscription();
+             else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
           }
           activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
           console.log('[Heartbeat] Waku Filter Resubscribed to prevent timeout');

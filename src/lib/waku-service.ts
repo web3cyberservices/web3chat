@@ -48,7 +48,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     // В новой версии этот энкодер работает идеально и без костылей
     const encoder = createEncoder({ contentTopic: topic, ephemeral: true });
 
-    console.log(`[Waku] Sending message...`);
+    console.log(`[Waku] Sending message to topic: ${topic}`);
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload)
     });
@@ -75,6 +75,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 
   const callback = (wakuMessage: any) => {
     if (wakuMessage?.payload) {
+      console.log('[Waku] Received message on topic:', topic);
       onMessage(new TextDecoder().decode(wakuMessage.payload));
     }
   };
