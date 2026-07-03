@@ -62,7 +62,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const { createEncoder } = await import('@waku/sdk');
     
     const contentTopic = createContentTopic(targetId);
-    // Исправлено: в 2026 году передаем объект EncoderOptions
+    // В версии 2026 createEncoder принимает объект EncoderOptions
     const encoder = createEncoder({ contentTopic });
 
     const result = await node.lightPush.send(encoder, {
@@ -82,8 +82,8 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
     const node = await initWaku();
     const { createDecoder } = await import('@waku/sdk');
     
-    // Исправлено: в 2026 году передаем объект DecoderOptions
-    const decoders = ids.map(id => createDecoder({ contentTopic: createContentTopic(id) }));
+    // В версии 2026 createDecoder для Filter принимает строку напрямую
+    const decoders = ids.map(id => createDecoder(createContentTopic(id)));
 
     const subscription = await node.filter.subscribe(decoders, (wakuMessage: any) => {
       if (wakuMessage?.payload) {

@@ -25,7 +25,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  // Реф для отслеживания текущего чата в асинхронных коллбэках
+  // Реф для отслеживания текущего чата в асинхронных коллбэках без перезапуска подписки
   const activeChatRef = useRef<string | null>(activeChat?.id || null);
 
   const { toast } = useToast();
@@ -54,6 +54,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
         unsubscribe = await subscribeToP2P(subscribeIds, async (encryptedPayload, topicId) => {
           try {
+            // Если сообщение пришло в наш личный топик, секрет - наш ID. Если в топик группы - ID группы.
             const secret = topicId === currentUserId ? currentUserId : topicId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
@@ -63,9 +64,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const msgId = parsed.timestamp || Date.now();
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // Определяем ID чата для сохранения
             const chatId = topicId === currentUserId ? parsed.senderId : topicId;
 
-            // Всегда сохраняем в локальную БД
+            // Всегда сохраняем в локальную БД для истории
             await saveLocalMessage({
               id: msgId,
               chatId: chatId,
@@ -75,7 +77,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               time
             });
             
-            // Если этот чат сейчас открыт — обновляем UI
+            // Если этот чат сейчас открыт — обновляем UI мгновенно
             if (chatId === activeChatRef.current) {
               setMessages(prev => {
                 if (prev.some(m => m.id === msgId)) return prev;
@@ -137,10 +139,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
+      // Proof-of-Work для защиты от спама в децентрализованной сети
       await performPoW(rawData);
       
+      // Шифруем для топика получателя/группы
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
+      // Сохраняем локально
       await saveLocalMessage({
         id: msgId,
         chatId: activeChat.id,
@@ -152,6 +157,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
 
+      // Отправляем в P2P
       const success = await sendP2PMessage(activeChat.id, encrypted);
       if (!success) {
         toast({ title: "Network Latency", description: "Message queued locally. Syncing with P2P peers..." });
