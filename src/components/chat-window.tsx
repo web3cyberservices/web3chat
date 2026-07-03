@@ -46,15 +46,16 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        unsubscribe = await subscribeToP2P(async (encryptedPayload, targetId) => {
-          try {
-            const isForMe = targetId === currentUserId;
-            const isForMyGroup = targetId.startsWith('group-');
-            
-            if (!isForMe && !isForMyGroup) return;
+        // Подписываемся на свой ID и ID активного чата (если это группа)
+        const myIds = [currentUserId];
+        if (activeChatRef.current?.startsWith('group-')) {
+          myIds.push(activeChatRef.current);
+        }
 
-            // Секрет: мой ID для входящих приватных, ID чата для групп
-            const secret = isForMe ? currentUserId : targetId;
+        unsubscribe = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
+          try {
+            const isForMe = topicId === currentUserId;
+            const secret = isForMe ? currentUserId : topicId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
             if (decrypted.startsWith('[Error')) return;
@@ -63,9 +64,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             if (parsed.senderId === currentUserId) return;
 
             const msgId = parsed.timestamp || Date.now();
-            const chatId = isForMe ? parsed.senderId : targetId;
+            const chatId = isForMe ? parsed.senderId : topicId;
 
-            // Сохранение в БД
             await saveLocalMessage({
               id: msgId,
               chatId: chatId,
@@ -94,7 +94,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       isMounted = false;
       if (unsubscribe) unsubscribe();
     };
-  }, [currentUserId]);
+  }, [currentUserId, activeChat?.id]);
 
   useEffect(() => {
     if (!activeChat) {
@@ -129,7 +129,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     const textToSend = input;
     setInput('');
     setIsProcessing(true);
-    setStatusMessage("Securing Message...");
+    setStatusMessage("Broadcasting to P2P...");
     
     try {
       const msgId = Date.now();
@@ -149,7 +149,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       });
 
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
-      await sendP2PMessage(activeChat.id, encrypted);
+      
+      const success = await sendP2PMessage(activeChat.id, encrypted);
+      if (!success) {
+        toast({ title: "Network Error", description: "Could not reach P2P peers.", variant: "destructive" });
+      }
       
       await saveChat({
         ...activeChat,
@@ -202,7 +206,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'online' ? 'bg-primary animate-pulse' : 'bg-destructive'
               }`} />
               <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                {networkStatus === 'online' ? 'Mesh Online' : 'Connecting...'}
+                {networkStatus === 'online' ? 'Mesh Online' : 'P2P Offline'}
               </span>
             </div>
           </div>
@@ -246,7 +250,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !isProcessing && handleSend()}
               disabled={isProcessing}
-              placeholder={isProcessing ? "Encrypting..." : "Type a secure message..."}
+              placeholder={isProcessing ? "Transmitting..." : "Type a secure message..."}
               className="flex-1 bg-secondary/50 rounded-2xl py-3.5 px-5 outline-none border border-border/50 focus:border-primary/50 text-sm transition-all"
             />
             <button 

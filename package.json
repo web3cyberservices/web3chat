@@ -33,6 +33,7 @@
     "tailwindcss": "latest",
     "postcss": "latest",
     "autoprefixer": "latest",
+    "@waku/sdk": "latest",
     "wav": "latest",
     "node-fetch": "latest"
   },
