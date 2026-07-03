@@ -17,13 +17,14 @@ export async function initWaku() {
       console.log('[Waku] Starting Light Node...');
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
-      console.log('[Waku] Node started. Searching for peers...');
+      console.log('[Waku] Node started. Waiting for network...');
       
       try {
-        await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 10000);
-        console.log('[Waku] Peers found! P2P Network is ACTIVE.');
+        // Ждем любых пиров (без жестких рамок)
+        await (node as any).waitForRemotePeer([], 5000);
+        console.log('[Waku] Connected to mesh!');
       } catch (peerError) {
-        console.warn('[Waku] Peer discovery timeout. Waku will continue in background.');
+        console.warn('[Waku] Initial peer wait timeout. Running in background.');
       }
       
       nodeInstance = node;
@@ -43,58 +44,60 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    console.log(`[Waku] Sending to ${topic}...`);
+    let encoder: any;
+    try { encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true }); } 
+    catch { encoder = (createEncoder as any)(topic, true); }
 
-    // Пытаемся создать энкодер (сначала как объект, если не выйдет - как строку)
-    let encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true });
-    if (!encoder || !encoder.contentTopic) {
-        encoder = (createEncoder as any)(topic, true);
-    }
-    
+    console.log(`[Waku] Sending message...`);
     const result = await node.lightPush.send(encoder, {
-      payload: new TextEncoder().encode(encryptedPayload),
-      contentTopic: topic
+      payload: new TextEncoder().encode(encryptedPayload)
     });
 
-    if (result?.errors && result.errors.length > 0) {
-      console.error('[Waku] Send rejected by peer:', result.errors);
+    if (result?.errors?.length) {
+      console.error('[Waku] Send rejected:', result.errors);
       return false;
     }
-
-    console.log('[Waku] Message sent successfully!');
+    
+    console.log('[Waku] Message delivered to network!');
     return true;
   } catch (e) {
-    console.error('[Waku] P2P Send Error:', e);
+    console.error('[Waku] Send Error:', e);
     return false;
   }
 }
 
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
-  try {
-    const node = await initWaku();
-    const topic = createContentTopic(myId);
-    
-    console.log(`[Waku] Subscribing to ${topic}...`);
+  const node = await initWaku();
+  const topic = createContentTopic(myId);
+  
+  let decoder: any;
+  try { decoder = (createDecoder as any)(topic); } 
+  catch { decoder = (createDecoder as any)({ contentTopic: topic }); }
 
-    // ИСПРАВЛЕНИЕ: Передаем СТРОКУ, так как версия 0.0.27 падает от объектов
-    let decoder = (createDecoder as any)(topic);
-    if (!decoder) {
-        decoder = (createDecoder as any)({ contentTopic: topic });
+  const callback = (wakuMessage: any) => {
+    if (wakuMessage?.payload) {
+      onMessage(new TextDecoder().decode(wakuMessage.payload));
     }
+  };
 
-    if (!decoder) throw new Error("Decoder is undefined!");
-
-    const subscription = await node.filter.subscribe([decoder], (wakuMessage: any) => {
-      if (wakuMessage?.payload) {
-        console.log('[Waku] Message received!');
-        const text = new TextDecoder().decode(wakuMessage.payload);
-        onMessage(text);
+  // Рекурсивный цикл-броня: пробуем подписаться, пока не появятся пиры
+  const trySubscribe = async (): Promise<any> => {
+    try {
+      let sub;
+      try {
+        // Пробуем новый синтаксис (массив)
+        sub = await node.filter.subscribe([decoder], callback);
+      } catch (err) {
+        // Если падает, пробуем старый синтаксис (одиночный объект)
+        sub = await node.filter.subscribe(decoder, callback);
       }
-    });
+      console.log(`[Waku] Successfully subscribed to ${topic}!`);
+      return sub;
+    } catch (e: any) {
+      console.warn('[Waku] Network not ready yet. Retrying subscription in 5s...');
+      return new Promise(resolve => setTimeout(() => resolve(trySubscribe()), 5000));
+    }
+  };
 
-    return subscription;
-  } catch (e) {
-    console.error('[Waku] P2P Subscription Failed:', e);
-    return null;
-  }
+  return await trySubscribe();
 }
