@@ -15,7 +15,6 @@ interface Message {
   sender: string;
   senderId?: string;
   time: string;
-  isEncrypted?: boolean;
 }
 
 export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { currentUserId: string, activeChat: ChatSession | null, onBack?: () => void, isMobile?: boolean }) {
@@ -25,9 +24,17 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const [networkStatus, setNetworkStatus] = useState<'connecting' | 'online' | 'error'>('connecting');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Реф для отслеживания текущего чата без перезапуска подписки
+  const activeChatRef = useRef(activeChat?.id);
   const { toast } = useToast();
 
-  // FIX 3: Персистентная фоновая подписка. Не зависит от activeChat.
+  // Синхронизация рефа с актуальным состоянием
+  useEffect(() => {
+    activeChatRef.current = activeChat?.id;
+  }, [activeChat?.id]);
+
+  // ПЕРСИСТЕНТНАЯ ПОДПИСКА (Вызывается 1 раз при входе)
   useEffect(() => {
     if (!currentUserId) return;
     let isMounted = true;
@@ -36,7 +43,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     const setupP2P = async () => {
       try {
         setNetworkStatus('connecting');
-        await initWaku(); // Теперь это дождется пиров
+        await initWaku(); 
         if (!isMounted) return;
         setNetworkStatus('online');
 
@@ -49,7 +56,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const msgId = parsed.timestamp || Date.now();
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Всегда сохраняем в локальную БД
+            // Сохраняем в БД всегда
             await saveLocalMessage({
               id: msgId,
               chatId: parsed.senderId,
@@ -59,7 +66,14 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               time
             });
             
-            // UI обновится автоматически через поллинг загрузчика сообщений
+            // Если сообщение для текущего открытого чата — обновляем UI мгновенно
+            if (parsed.senderId === activeChatRef.current) {
+              setMessages(prev => {
+                // Избегаем дубликатов
+                if (prev.some(m => m.id === msgId)) return prev;
+                return [...prev, { ...parsed, id: msgId, sender: 'other', time }].sort((a, b) => a.id - b.id);
+              });
+            }
           } catch (e) {
             console.error('P2P Message Processing Error', e);
           }
@@ -76,18 +90,16 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     };
   }, [currentUserId]);
 
-  // Загрузчик сообщений для текущего активного чата из локальной БД
+  // Загрузка истории сообщений при смене чата
   useEffect(() => {
     if (!activeChat) return;
-    let isMounted = true;
     
-    async function refreshMessages() {
+    async function loadHistory() {
       const stored = await getLocalMessages(activeChat!.id);
       const decrypted: Message[] = [];
       
       for (const m of stored) {
         try {
-          // Выбираем секрет: если отправил я - шифровал на ID получателя, если мне - шифровали на мой ID
           const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
           const payload = await decryptMessage(m.payload, secret);
           
@@ -97,20 +109,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           }
         } catch (e) {}
       }
-      
-      if (isMounted) {
-        setMessages(decrypted.sort((a, b) => a.id - b.id));
-      }
+      setMessages(decrypted.sort((a, b) => a.id - b.id));
     }
 
-    refreshMessages();
-    // Поллинг базы данных каждые 2 секунды для обновления новых сообщений
-    const interval = setInterval(refreshMessages, 2000);
-    
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+    loadHistory();
   }, [activeChat?.id, currentUserId]);
 
   const handleSend = async () => {
@@ -126,13 +128,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
-      // Выполнение Proof-of-Work перед отправкой
       await performPoW(rawData);
-      
-      // Шифрование на ID получателя
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
-      // Локальное сохранение
       await saveLocalMessage({
         id: msgId,
         chatId: activeChat.id,
@@ -142,21 +140,19 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         time
       });
 
-      // Мгновенное обновление UI для отправленного сообщения
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
 
-      // Отправка в P2P
       const success = await sendP2PMessage(activeChat.id, encrypted);
       if (!success) {
         toast({
           title: "P2P Delay",
-          description: "Message saved locally, but broadcast failed. Retrying in background...",
+          description: "Message saved locally, broadcast retry in background...",
         });
       }
     } catch (e) {
       toast({
         title: "Security Error",
-        description: "Encryption module failed. Check HTTPS connection.",
+        description: "Encryption module failed.",
         variant: "destructive"
       });
     } finally {
