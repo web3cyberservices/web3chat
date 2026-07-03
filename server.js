@@ -13,6 +13,6 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   }).listen(3000, (err) => {
     if (err) throw err;
-    console.log('> HTTP Server ready on port 3000');
+    console.log('> HTTP Server ready on port 3000 (Proxy mode)');
   });
 });

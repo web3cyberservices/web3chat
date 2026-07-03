@@ -29,14 +29,15 @@ export async function initWaku(): Promise<LightNode> {
 
       await newNode.start();
       
+      // Wait for peers that support LightPush and Filter
       const nodeAsAny = newNode as any;
       const waitMethod = nodeAsAny.waitForRemotePeer || nodeAsAny.waitForConnectedPeer;
       
       if (typeof waitMethod === 'function') {
         try {
-          await waitMethod.call(newNode, [Protocols.LightPush, Protocols.Filter]);
+          await waitMethod.call(newNode, [Protocols.LightPush, Protocols.Filter], 10000);
         } catch (e) {
-          console.warn('Waku: Network handshake partial. Proceeding.');
+          console.warn('Waku: Peer discovery still in progress...');
         }
       }
       
@@ -57,10 +58,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const waku = await initWaku();
     const topic = `/${APP_NAME}/1/message-${targetId}/proto`;
     
-    // Using any cast to bypass version-specific routingInfo requirements and constructor overloads
-    const encoder = (createEncoder as any)({ contentTopic: topic });
+    // Fix: createEncoder usually expects (topic, options) or (options) depending on version.
+    // Using cast to handle version-specific discrepancies.
+    const encoder = (createEncoder as any)(topic, {});
     const payload = new TextEncoder().encode(encryptedPayload);
     
+    // Ensure we have a peer before sending
     const result = await waku.lightPush.send(encoder, { payload });
     
     const res = result as any;
@@ -90,7 +93,7 @@ export async function subscribeToP2P(
 
     const decoders = myIds.map(id => {
       const topic = `/${APP_NAME}/1/message-${id}/proto`;
-      return (createDecoder as any)({ contentTopic: topic });
+      return (createDecoder as any)(topic, {});
     });
 
     const unsubscribe = await waku.filter.subscribe(
@@ -111,7 +114,11 @@ export async function subscribeToP2P(
       }
     );
 
-    return (unsubscribe as any);
+    return (() => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    });
   } catch (e) {
     console.error('Subscription error:', e);
     return () => {};

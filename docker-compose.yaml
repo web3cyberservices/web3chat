@@ -10,7 +10,6 @@ services:
       - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_WAKU_NODES=true
     networks:
       - chat-network
 
