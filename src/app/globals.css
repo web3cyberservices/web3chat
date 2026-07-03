@@ -1,3 +1,4 @@
+
 @import "tailwindcss";
 
 @theme {
@@ -23,7 +24,7 @@
   --radius-xl: 1rem;
 }
 
-/* Base styles using native CSS for Tailwind 4.0 compatibility */
+/* Standard CSS rules for Tailwind 4.0 compatibility without @layer base */
 * {
   border-color: var(--color-border);
 }

@@ -3,10 +3,12 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { getIdentity, saveIdentity, type ChatSession } from '@/lib/db';
+import { getIdentity, saveIdentity, saveLocalMessage, saveChat, getChats, type ChatSession } from '@/lib/db';
 import { Toaster } from '@/components/ui/toaster';
+import { subscribeToP2P, initWaku } from '@/lib/waku-service';
+import { decryptMessage } from '@/lib/crypto-utils';
+import images from '@/app/lib/placeholder-images.json';
 
-// Динамический импорт без SSR для мгновенного рендеринга
 const ChatSidebar = dynamic(() => import('@/components/chat-sidebar').then(m => m.ChatSidebar), { 
   ssr: false,
   loading: () => <div className="w-80 border-r bg-card animate-pulse" />
@@ -37,20 +39,66 @@ export default function Home() {
       } catch (e) {
         console.error('Identity load failed', e);
       } finally {
-        // Убираем экран загрузки сразу после получения данных из локальной БД
         setIsInitializing(false);
       }
     }
-
-    // Используем requestIdleCallback для запуска тяжелых процессов после отрисовки UI
-    if (window.requestIdleCallback) {
-      window.requestIdleCallback(() => loadIdentity());
-    } else {
-      setTimeout(loadIdentity, 100);
-    }
+    loadIdentity();
 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Global P2P Background Listener
+  useEffect(() => {
+    if (!identity) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    const setupP2P = async () => {
+      await initWaku();
+      unsubscribe = await subscribeToP2P(async (encryptedPayload, targetId) => {
+        try {
+          const isForMe = targetId === identity;
+          const isForMyGroup = targetId.startsWith('group-');
+          if (!isForMe && !isForMyGroup) return;
+
+          const secret = isForMe ? identity : targetId;
+          const decrypted = await decryptMessage(encryptedPayload, secret);
+          if (decrypted.startsWith('[Error')) return;
+
+          const parsed = JSON.parse(decrypted);
+          if (parsed.senderId === identity) return;
+
+          const msgId = parsed.timestamp || Date.now();
+          const chatId = isForMe ? parsed.senderId : targetId;
+
+          // Auto-create chat session if new
+          const existing = await getChats();
+          if (!existing.some(c => c.id === chatId)) {
+            await saveChat({
+              id: chatId,
+              name: `User ${chatId.slice(0, 8)}`,
+              type: isForMe ? 'private' : 'group',
+              lastMsg: 'Encrypted message received',
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              avatar: images[Math.floor(Math.random() * 3)].url
+            });
+          }
+
+          await saveLocalMessage({
+            id: msgId,
+            chatId: chatId,
+            payload: encryptedPayload,
+            sender: 'other',
+            senderId: parsed.senderId,
+            time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+        } catch (e) {}
+      });
+    };
+
+    setupP2P();
+    return () => unsubscribe?.();
+  }, [identity]);
 
   const handleIdentityCreated = async (id: string) => {
     await saveIdentity(id);

@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Global P2P Mesh Bus based on BroadcastChannel and localStorage.
  * Ensures guaranteed message delivery between tabs and components.
@@ -32,15 +33,16 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       nonce: Math.random().toString(36).substring(2) + Date.now().toString()
     };
     
-    // Broadcast to all active tabs
+    // Broadcast to other tabs
     channel.postMessage(message);
     
-    // Fallback sync using localStorage for cross-origin or background consistency
-    localStorage.setItem('web3_chat_p2p_last_msg', JSON.stringify(message));
+    // Fallback sync using localStorage for cross-tab background consistency
+    try {
+      localStorage.setItem('web3_chat_p2p_last_msg', JSON.stringify(message));
+    } catch (e) {}
     
     return true;
   } catch (e) {
-    console.error('P2P Mesh Send Error:', e);
     return false;
   }
 }
@@ -55,11 +57,10 @@ export async function subscribeToP2P(onMessage: (payload: string, targetId: stri
     if (!data || !data.nonce || processedNonces.has(data.nonce)) return;
     processedNonces.add(data.nonce);
     
-    // Keep set size manageable
-    if (processedNonces.size > 1000) {
+    if (processedNonces.size > 2000) {
       const array = Array.from(processedNonces);
       processedNonces.clear();
-      array.slice(500).forEach(n => processedNonces.add(n));
+      array.slice(1000).forEach(n => processedNonces.add(n));
     }
     
     onMessage(data.payload, data.targetId);
@@ -73,9 +74,7 @@ export async function subscribeToP2P(onMessage: (payload: string, targetId: stri
     if (event.key === 'web3_chat_p2p_last_msg' && event.newValue) {
       try {
         processData(JSON.parse(event.newValue));
-      } catch (e) {
-        console.error('P2P Storage Sync Error:', e);
-      }
+      } catch (e) {}
     }
   };
 
