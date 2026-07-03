@@ -28,6 +28,7 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     setIsMobile(window.innerWidth < 768);
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -59,7 +60,7 @@ export default function Home() {
         const groupIds = chats.filter(c => c.type === 'group').map(c => c.id);
         const myIds = [identity, ...groupIds];
 
-        const result = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
+        const unsubscribe = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
           try {
             const isForMe = topicId === identity;
             const secret = isForMe ? identity : topicId;
@@ -96,9 +97,7 @@ export default function Home() {
           } catch (e) {}
         });
 
-        if (typeof result === 'function') {
-          unsubscribeFn = result;
-        }
+        unsubscribeFn = unsubscribe;
       } catch (e) {
         console.error('P2P Setup Error:', e);
       }
