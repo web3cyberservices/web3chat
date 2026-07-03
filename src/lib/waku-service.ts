@@ -1,7 +1,7 @@
 
 /**
  * @fileOverview Decentralized P2P transport powered by Waku SDK.
- * Enables real internet-wide communication using a global mesh of nodes.
+ * Enables internet-wide communication using a global mesh of nodes.
  */
 
 import { 
