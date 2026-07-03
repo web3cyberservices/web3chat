@@ -1,6 +1,6 @@
 /**
- * @fileOverview Децентрализованный сетевой слой Waku (v2.0 2026 Edition).
- * Оптимизирован для работы через WSS в защищенных средах.
+ * @fileOverview Децентрализованный сетевой слой Waku (июнь 2026).
+ * Исправлены ошибки типизации и стабильности соединения.
  */
 
 import type { LightNode } from '@waku/sdk';
@@ -8,9 +8,10 @@ import type { LightNode } from '@waku/sdk';
 let nodeInstance: LightNode | null = null;
 let initPromise: Promise<LightNode> | null = null;
 
-// Стабильные DNS-адреса узлов Waku для 2026 года
-const PRODUCTION_NODES = [
-  '/dns4/node-01.do-ams3.waku.org/tcp/443/wss/p2p/16Uiu2HAmPLeTwoVYdgZ86idWAtCB88JQM6no8Y2zH7tgJaSShwLS'
+// Стабильные узлы Waku (июнь 2026)
+const BOOTSTRAP_NODES = [
+  '/dns4/node-01.do-ams3.waku.org/tcp/443/wss/p2p/16Uiu2HAmPLeTwoVYdgZ86idWAtCB88JQM6no8Y2zH7tgJaSShwLS',
+  '/dns4/node-01.ac-cn-hongkong-c.waku.org/tcp/443/wss/p2p/16Uiu2HAmS6NfUtFv4iP9GZc6YyW972p7GjXyK2L4Gz3L'
 ];
 
 export async function initWaku(): Promise<LightNode> {
@@ -22,21 +23,20 @@ export async function initWaku(): Promise<LightNode> {
       const { createLightNode, Protocols } = await import('@waku/sdk');
 
       const node = await createLightNode({ 
-        bootstrapPeers: PRODUCTION_NODES,
+        bootstrapPeers: BOOTSTRAP_NODES,
         defaultBootstrap: true
       });
 
       await node.start();
       
-      // Блокирующее ожидание пиров для стабильной работы подписок
+      // Блокирующее ожидание пиров
       const typedNode = node as any;
       if (typeof typedNode.waitForRemotePeer === 'function') {
         try {
-          // Ждем только LightPush и Filter. Store намеренно исключен для стабильности.
           await typedNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
-          console.log('Waku: Connected to active peers');
+          console.log('Waku: Connected and Ready');
         } catch (e) {
-          console.warn('Waku: Peer discovery timeout, continuing in background...');
+          console.warn('Waku: Initial peer search timed out, continuing...');
         }
       }
 
@@ -44,7 +44,7 @@ export async function initWaku(): Promise<LightNode> {
       return node;
     } catch (error) {
       initPromise = null;
-      console.error('Waku Engine Failure:', error);
+      console.error('Waku initialization error:', error);
       throw error;
     }
   })();
@@ -53,7 +53,8 @@ export async function initWaku(): Promise<LightNode> {
 }
 
 export function createContentTopic(id: string) {
-  return `/web3chat/1/u-${id.slice(0, 10)}/proto`;
+  // Унифицированный топик для 1-to-1 и Групп
+  return `/web3chat/2/u-${id.slice(0, 12)}/proto`;
 }
 
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
@@ -64,43 +65,43 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const contentTopic = createContentTopic(targetId);
     const encoder = createEncoder({ contentTopic });
 
-    const result: any = await node.lightPush.send(encoder, {
+    const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
     });
 
-    // Безопасная проверка результата для SDK 2.0
-    return !result?.errors || (Array.isArray(result.errors) && result.errors.length === 0);
+    const res = result as any;
+    return !res?.errors || (Array.isArray(res.errors) && res.errors.length === 0);
   } catch (e) {
     console.error('P2P Send Error:', e);
     return false;
   }
 }
 
-export async function subscribeToP2P(targetId: string, onMessage: (payload: string) => void) {
+export async function subscribeToP2P(ids: string[], onMessage: (payload: string, topicId: string) => void) {
   try {
     const node = await initWaku();
     const { createDecoder } = await import('@waku/sdk');
     
-    const contentTopic = createContentTopic(targetId);
-    const decoder = createDecoder(contentTopic);
+    const decoders = ids.map(id => createDecoder(createContentTopic(id)));
 
-    // Подписка на фильтр входящих сообщений
-    const subscription: any = await node.filter.subscribe([decoder], (wakuMessage: any) => {
+    // Подписка на несколько топиков одновременно
+    const subscription = await node.filter.subscribe(decoders, (wakuMessage: any) => {
       if (wakuMessage?.payload) {
         const text = new TextDecoder().decode(wakuMessage.payload);
-        onMessage(text);
+        // Извлекаем ID из топика для понимания, куда пришло сообщение
+        const topic = wakuMessage.contentTopic;
+        const topicId = ids.find(id => topic.includes(id.slice(0, 12))) || ids[0];
+        onMessage(text, topicId);
       }
     });
 
     return () => {
-      if (typeof subscription === 'function') {
-        subscription();
-      } else if (subscription?.unsubscribe) {
-        subscription.unsubscribe();
-      }
+      const sub = subscription as any;
+      if (typeof sub === 'function') sub();
+      else if (sub?.unsubscribe) sub.unsubscribe();
     };
   } catch (e) {
-    console.error('P2P Subscription Failed:', e);
+    console.error('P2P Subscription Error:', e);
     return () => {};
   }
 }

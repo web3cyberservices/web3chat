@@ -1,5 +1,6 @@
 /**
  * Утилиты для аппаратного шифрования, работы с Seed-фразами и оптимизированного Proof-of-Work.
+ * Оптимизировано для работы с бинарными данными.
  */
 
 const ALGORITHM = 'AES-GCM';
@@ -61,10 +62,6 @@ export async function performPoW(payload: string): Promise<{ nonce: number; hash
 }
 
 async function getEncryptionKey(password: string): Promise<CryptoKey> {
-  if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
-    throw new Error('Crypto API missing');
-  }
-
   const enc = new TextEncoder();
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
@@ -77,7 +74,7 @@ async function getEncryptionKey(password: string): Promise<CryptoKey> {
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: enc.encode('web3-chat-salt-v1'),
+      salt: enc.encode('web3-chat-salt-v2'),
       iterations: 100000,
       hash: 'SHA-256'
     },
@@ -86,6 +83,25 @@ async function getEncryptionKey(password: string): Promise<CryptoKey> {
     false,
     ['encrypt', 'decrypt']
   );
+}
+
+function bufferToBase64(buffer: Uint8Array): string {
+  let binary = '';
+  const len = buffer.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(buffer[i]);
+  }
+  return window.btoa(binary);
+}
+
+function base64ToBuffer(base64: string): Uint8Array {
+  const binary = window.atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 export async function encryptMessage(text: string, secret: string): Promise<string> {
@@ -103,7 +119,7 @@ export async function encryptMessage(text: string, secret: string): Promise<stri
     result.set(iv);
     result.set(new Uint8Array(encrypted), iv.length);
     
-    return btoa(String.fromCharCode(...result));
+    return bufferToBase64(result);
   } catch (e) {
     console.error('Encryption failed', e);
     return text;
@@ -113,9 +129,7 @@ export async function encryptMessage(text: string, secret: string): Promise<stri
 export async function decryptMessage(encryptedBase64: string, secret: string): Promise<string> {
   try {
     const key = await getEncryptionKey(secret);
-    const binary = atob(encryptedBase64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const bytes = base64ToBuffer(encryptedBase64);
     
     const iv = bytes.slice(0, 12);
     const data = bytes.slice(12);
@@ -128,7 +142,6 @@ export async function decryptMessage(encryptedBase64: string, secret: string): P
     
     return new TextDecoder().decode(decrypted);
   } catch (e) {
-    console.error('Decryption failed', e);
     return '[Error: Could not decrypt message]';
   }
 }
