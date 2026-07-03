@@ -1,5 +1,5 @@
 /**
- * @fileOverview Децентрализованный сетевой слой Waku (Версия Июнь 2026).
+ * @fileOverview Децентрализованный сетевой слой Waku (Версия Июль 2026).
  * Исправлены ошибки типизации SDK и оптимизирована работа с топиками.
  */
 
@@ -52,7 +52,6 @@ export async function initWaku(): Promise<LightNode> {
 }
 
 export function createContentTopic(id: string) {
-  // Стабильная валидация топика: 32 символа
   const safeId = id.startsWith('0x') ? id.slice(2, 34) : id.slice(0, 32);
   return `/web3chat/2/user-${safeId}/proto`;
 }
@@ -63,8 +62,8 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const { createEncoder } = await import('@waku/sdk');
     
     const contentTopic = createContentTopic(targetId);
-    // Передаем топик напрямую как строку для соответствия API 2026 года
-    const encoder = createEncoder(contentTopic);
+    // Исправлено: в 2026 году передаем объект EncoderOptions
+    const encoder = createEncoder({ contentTopic });
 
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
@@ -83,8 +82,8 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
     const node = await initWaku();
     const { createDecoder } = await import('@waku/sdk');
     
-    // Создаем массив декодеров, передавая топики как строки
-    const decoders = ids.map(id => createDecoder(createContentTopic(id)));
+    // Исправлено: в 2026 году передаем объект DecoderOptions
+    const decoders = ids.map(id => createDecoder({ contentTopic: createContentTopic(id) }));
 
     const subscription = await node.filter.subscribe(decoders, (wakuMessage: any) => {
       if (wakuMessage?.payload) {
@@ -92,7 +91,6 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
           const text = new TextDecoder().decode(wakuMessage.payload);
           const topic = wakuMessage.contentTopic;
           
-          // Сопоставляем топик с ID чата
           const matchedId = ids.find(id => topic === createContentTopic(id)) || ids[0];
           onMessage(text, matchedId);
         } catch (decodeError) {
@@ -101,7 +99,8 @@ export async function subscribeToP2P(ids: string[], onMessage: (payload: string,
       }
     });
 
-    return typeof subscription === 'function' ? subscription : (subscription as any).unsubscribe;
+    const subObj = subscription as any;
+    return typeof subObj === 'function' ? subObj : subObj.unsubscribe;
   } catch (e) {
     console.error('P2P Subscription Error:', e);
     return () => {};

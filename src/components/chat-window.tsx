@@ -25,6 +25,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   
+  // Реф для отслеживания текущего чата в асинхронных коллбэках
   const activeChatRef = useRef<string | null>(activeChat?.id || null);
 
   const { toast } = useToast();
@@ -33,6 +34,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     activeChatRef.current = activeChat?.id || null;
   }, [activeChat?.id]);
 
+  // Глобальная подписка: создается 1 раз и не прерывается при смене чата
   useEffect(() => {
     if (!currentUserId) return;
     
@@ -47,6 +49,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         setNetworkStatus('online');
 
         const chats = await getChats();
+        // Подписываемся на себя и на все существующие чаты/группы
         const subscribeIds = Array.from(new Set([currentUserId, ...chats.map(c => c.id)]));
 
         unsubscribe = await subscribeToP2P(subscribeIds, async (encryptedPayload, topicId) => {
@@ -62,6 +65,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
             const chatId = topicId === currentUserId ? parsed.senderId : topicId;
 
+            // Всегда сохраняем в локальную БД
             await saveLocalMessage({
               id: msgId,
               chatId: chatId,
@@ -71,6 +75,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               time
             });
             
+            // Если этот чат сейчас открыт — обновляем UI
             if (chatId === activeChatRef.current) {
               setMessages(prev => {
                 if (prev.some(m => m.id === msgId)) return prev;
@@ -94,6 +99,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     };
   }, [currentUserId]);
 
+  // Подгрузка истории при смене чата
   useEffect(() => {
     if (!activeChat) return;
     
