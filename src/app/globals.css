@@ -35,10 +35,6 @@ body {
   @apply border-border;
 }
 
-.animate-glow {
-  box-shadow: 0 0 20px -5px hsla(150, 70%, 70%, 0.5);
-}
-
 ::-webkit-scrollbar {
   width: 5px;
 }

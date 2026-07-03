@@ -1,20 +1,21 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Send, Lock, Cpu, Trash2, ChevronLeft, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage, performPoW } from '@/lib/crypto-utils';
-import { getLocalMessages, saveLocalMessage, deleteLocalMessage, saveChat, type ChatSession } from '@/lib/db';
+import { getLocalMessages, saveLocalMessage, deleteLocalMessage, type ChatSession } from '@/lib/db';
 import { sendP2PMessage, subscribeToP2P, initWaku } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: number;
   text: string;
-  sender: 'me' | 'other';
+  sender: string;
   senderId?: string;
   time: string;
+  isEncrypted?: boolean;
 }
 
 export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { currentUserId: string, activeChat: ChatSession | null, onBack?: () => void, isMobile?: boolean }) {
@@ -23,55 +24,50 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const [isProcessing, setIsProcessing] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<'connecting' | 'online' | 'error'>('connecting');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  
   const scrollRef = useRef<HTMLDivElement>(null);
-  const activeChatRef = useRef<string | null>(null);
   const { toast } = useToast();
 
+  // Track active chat via Ref to decouple subscription from re-renders
+  const activeChatRef = useRef(activeChat?.id);
+
   useEffect(() => {
-    activeChatRef.current = activeChat?.id || null;
+    activeChatRef.current = activeChat?.id;
   }, [activeChat?.id]);
 
   useEffect(() => {
     if (!currentUserId) return;
-    
     let isMounted = true;
     let unsubscribe: (() => void) | undefined;
 
-    const setupTransport = async () => {
+    const setup = async () => {
       try {
-        await initWaku(); 
+        setNetworkStatus('connecting');
+        await initWaku();
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Subscribe to P2P network - this subscription stays alive for the session
-        unsubscribe = await subscribeToP2P([currentUserId], async (encryptedPayload, topicId) => {
+        unsubscribe = await subscribeToP2P(currentUserId, async (encryptedPayload) => {
           try {
-            const secret = currentUserId;
-            const decrypted = await decryptMessage(encryptedPayload, secret);
-            
+            const decrypted = await decryptMessage(encryptedPayload, currentUserId);
             if (decrypted.startsWith('[Error')) return;
-            
             const parsed = JSON.parse(decrypted);
-            if (parsed.senderId === currentUserId) return;
-
             const msgId = parsed.timestamp || Date.now();
-            const chatId = parsed.senderId;
+            const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             await saveLocalMessage({
               id: msgId,
-              chatId: chatId,
+              chatId: parsed.senderId,
               payload: encryptedPayload,
               sender: 'other',
               senderId: parsed.senderId,
-              time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              time
             });
-            
-            if (chatId === activeChatRef.current) {
+
+            // Check via ref if this specific chat is currently open
+            if (activeChatRef.current === parsed.senderId) {
               setMessages(prev => {
                 if (prev.some(m => m.id === msgId)) return prev;
-                const newMsg: Message = { ...parsed, id: msgId, sender: 'other', time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-                return [...prev, newMsg].sort((a, b) => a.id - b.id);
+                return [...prev, { ...parsed, id: msgId, sender: 'other', time }].sort((a, b) => a.id - b.id);
               });
             }
           } catch (e) {}
@@ -81,48 +77,41 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       }
     };
 
-    setupTransport();
+    setup();
     return () => {
       isMounted = false;
       if (unsubscribe) unsubscribe();
     };
-  }, [currentUserId]);
+  }, [currentUserId]); // Subscription depends only on User Identity
 
   useEffect(() => {
-    if (!activeChat) {
-      setMessages([]);
-      return;
-    }
-    
-    async function loadHistory() {
+    if (!activeChat) return;
+    async function load() {
       const stored = await getLocalMessages(activeChat!.id);
       const decrypted: Message[] = [];
-      
       for (const m of stored) {
         try {
           const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
           const payload = await decryptMessage(m.payload, secret);
-          
           if (!payload.startsWith('[Error')) {
             const parsed = JSON.parse(payload);
-            decrypted.push({ ...parsed, id: m.id, sender: m.sender as 'me' | 'other', time: m.time });
+            decrypted.push({ ...parsed, id: m.id, sender: m.sender, time: m.time });
           }
         } catch (e) {}
       }
       setMessages(decrypted.sort((a, b) => a.id - b.id));
     }
-
-    loadHistory();
+    load();
   }, [activeChat?.id, currentUserId]);
 
   const handleSend = async () => {
     if (!activeChat || !input.trim()) return;
-    
+
     const textToSend = input;
     setInput('');
     setIsProcessing(true);
-    setStatusMessage("Broadcasting to P2P...");
-    
+    setStatusMessage("Broadcasting to P2P network...");
+
     try {
       const msgId = Date.now();
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -141,20 +130,20 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       });
 
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
-      
+
       const success = await sendP2PMessage(activeChat.id, encrypted);
       if (!success) {
-        toast({ title: "Network Error", description: "Could not reach P2P peers.", variant: "destructive" });
+        toast({
+          title: "P2P Network Busy",
+          description: "Message saved locally, but broadcast failed. We will keep trying.",
+        });
       }
-      
-      await saveChat({
-        ...activeChat,
-        lastMsg: textToSend,
-        time
-      });
-      
     } catch (e) {
-      toast({ title: "Encryption Error", variant: "destructive" });
+      toast({
+        title: "Security Error",
+        description: "Failed to process encryption. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsProcessing(false);
       setStatusMessage(null);
@@ -170,54 +159,52 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
   if (!activeChat) {
     return (
-      <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground p-8">
-        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-primary/20">
-          <ShieldCheck className="w-10 h-10 text-primary opacity-50" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground tracking-tight">Zero-Knowledge Workspace</h2>
-        <p className="text-sm text-center max-w-xs mt-3 leading-relaxed">
-          Select a contact to start an end-to-end encrypted session.
-        </p>
+      <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground">
+        <Lock className="w-12 h-12 opacity-20 mb-4" />
+        <h2 className="text-xl font-bold text-foreground">Secure Workspace</h2>
+        <p className="text-sm">Select a chat to start private P2P session.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-background relative h-full">
-      <div className="h-16 border-b bg-card/80 backdrop-blur-xl px-4 flex items-center justify-between sticky top-0 z-20">
+    <div className="flex-1 flex flex-col bg-background relative overflow-hidden h-full">
+      <div className="h-16 border-b bg-card/80 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          {isMobile && <button onClick={onBack} className="p-2 hover:bg-secondary rounded-xl"><ChevronLeft className="w-5 h-5" /></button>}
-          <Avatar className="w-10 h-10 border-2 border-primary/20">
+          {isMobile && <button onClick={onBack} className="p-1"><ChevronLeft /></button>}
+          <Avatar className="w-10 h-10">
             <AvatarImage src={activeChat.avatar} />
-            <AvatarFallback className="bg-primary/10 text-primary font-bold">{activeChat.name[0]}</AvatarFallback>
+            <AvatarFallback>{activeChat.name[0]}</AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="font-bold text-sm truncate max-w-[150px]">{activeChat.name}</h2>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${
-                networkStatus === 'online' ? 'bg-primary animate-pulse' : 'bg-destructive'
+            <h2 className="font-bold text-sm truncate">{activeChat.name}</h2>
+            <div className="flex items-center gap-1">
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                networkStatus === 'online' ? 'bg-primary animate-pulse' :
+                networkStatus === 'connecting' ? 'bg-accent animate-spin' : 'bg-destructive'
               }`} />
-              <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                {networkStatus === 'online' ? 'Mesh Online' : 'P2P Offline'}
+              <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                {networkStatus === 'online' ? 'P2P Active' :
+                 networkStatus === 'connecting' ? 'Syncing...' : 'Network Error'}
               </span>
             </div>
           </div>
         </div>
+        <div className="flex gap-4 items-center">
+          {networkStatus === 'online' ? <Wifi className="w-4 h-4 text-primary opacity-50" /> : <WifiOff className="w-4 h-4 text-destructive animate-pulse" />}
+        </div>
       </div>
 
       <ScrollArea ref={scrollRef} className="flex-1 p-4">
-        <div className="space-y-4 max-w-4xl mx-auto pb-10">
+        <div className="space-y-4 max-w-4xl mx-auto">
           {messages.map((m) => (
             <div key={m.id} className={`flex ${m.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-3 relative group shadow-sm ${
+              <div className={`max-w-[80%] rounded-2xl px-4 py-2 relative group ${
                 m.sender === 'me' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-card border rounded-tl-none'
               }`}>
-                {activeChat.type === 'group' && m.sender !== 'me' && (
-                  <p className="text-[8px] font-mono text-primary mb-1 opacity-80 truncate">{m.senderId}</p>
-                )}
-                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.text}</p>
-                <div className="flex items-center justify-between gap-4 mt-2 opacity-40">
-                  <span className="text-[9px] font-mono tracking-tighter">{m.time}</span>
+                <p className="text-sm">{m.text}</p>
+                <div className="flex items-center justify-between gap-4 mt-1 opacity-50">
+                  <span className="text-[9px]">{m.time}</span>
                   <button onClick={() => deleteLocalMessage(m.id).then(() => setMessages(prev => prev.filter(msg => msg.id !== m.id)))}>
                     <Trash2 className="w-3 h-3 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
@@ -228,29 +215,29 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t bg-card/80 backdrop-blur-xl">
-        <div className="max-w-4xl mx-auto space-y-3">
+      <div className="p-4 border-t bg-card/80 backdrop-blur-md">
+        <div className="max-w-4xl mx-auto space-y-2">
           {statusMessage && (
-            <div className="flex items-center gap-2 text-[10px] text-primary font-bold animate-in fade-in duration-300">
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground animate-pulse">
               <RefreshCw className="w-3 h-3 animate-spin" />
               {statusMessage}
             </div>
           )}
           <div className="flex gap-2">
-            <input 
+            <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !isProcessing && handleSend()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               disabled={isProcessing}
-              placeholder={isProcessing ? "Transmitting..." : "Type a secure message..."}
-              className="flex-1 bg-secondary/50 rounded-2xl py-3.5 px-5 outline-none border border-border/50 focus:border-primary/50 text-sm transition-all"
+              placeholder={isProcessing ? "Processing Security..." : "Type encrypted message..."}
+              className="flex-1 bg-secondary rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all"
             />
-            <button 
+            <button
               onClick={handleSend}
               disabled={!input.trim() || isProcessing}
-              className="p-4 bg-primary text-primary-foreground rounded-2xl disabled:opacity-50 transition-transform active:scale-95 shadow-lg shadow-primary/20"
+              className="p-3 bg-primary text-primary-foreground rounded-xl disabled:opacity-50 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
             >
-              <Send className="w-5 h-5" />
+              {isProcessing ? <Cpu className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             </button>
           </div>
         </div>

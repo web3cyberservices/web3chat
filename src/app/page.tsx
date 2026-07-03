@@ -54,17 +54,12 @@ export default function Home() {
 
     const setupP2P = async () => {
       try {
-        const myIds = [identity];
-        const unsub = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
+        const unsub = await subscribeToP2P(identity, async (encryptedPayload) => {
           try {
-            const secret = identity;
-            const decrypted = await decryptMessage(encryptedPayload, secret);
-            
+            const decrypted = await decryptMessage(encryptedPayload, identity);
             if (decrypted.startsWith('[Error')) return;
 
             const parsed = JSON.parse(decrypted);
-            if (parsed.senderId === identity) return;
-
             const msgId = parsed.timestamp || Date.now();
             const chatId = parsed.senderId;
 

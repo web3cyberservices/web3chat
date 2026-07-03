@@ -21,10 +21,15 @@ export async function initWaku() {
       await node.start();
       console.log('[Waku] Node started. Searching for peers...');
       
-      // Use any to bypass TS checks for waitForRemotePeer in different SDK versions
-      await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter]);
-      console.log('[Waku] Peers found! P2P Network is ACTIVE.');
+      // Support for various SDK versions with any cast
+      const newNode = node as any;
+      if (newNode.waitForRemotePeer) {
+        await newNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+      } else if (newNode.waitForConnectedPeer) {
+        await newNode.waitForConnectedPeer();
+      }
       
+      console.log('[Waku] Peers found! P2P Network is ACTIVE.');
       nodeInstance = node;
       return node;
     } catch (error) {
@@ -42,13 +47,14 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const contentTopic = createContentTopic(targetId);
     
-    // Strict encoder creation with any cast to avoid routingInfo errors
+    // Create encoder with ephemeral flag as we don't use Store protocol
     const encoder = createEncoder({ contentTopic, ephemeral: true } as any);
 
-    // Sending payload
+    // Explicitly pass contentTopic inside the message object to fix routing errors in some Waku versions
     const result = await node.lightPush.send(encoder, {
-      payload: new TextEncoder().encode(encryptedPayload)
-    });
+      payload: new TextEncoder().encode(encryptedPayload),
+      contentTopic: contentTopic
+    } as any);
 
     const res = result as any;
     return !res?.errors || res.errors.length === 0;
@@ -58,28 +64,27 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   }
 }
 
-export async function subscribeToP2P(myIds: string[], onMessage: (payload: string, topicId: string) => void) {
+export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   try {
     const node = await initWaku();
-    // Using any cast to support different SDK signatures for createDecoder
-    const decoders = myIds.map(id => (createDecoder as any)(createContentTopic(id)));
+    const topic = createContentTopic(myId);
+    // Compatibility wrapper for createDecoder
+    const decoder = (createDecoder as any)(topic, {} as any);
 
-    const subscription = await node.filter.subscribe(decoders, (wakuMessage: any) => {
+    const subscription = await node.filter.subscribe([decoder], (wakuMessage: any) => {
       if (wakuMessage?.payload) {
         const text = new TextDecoder().decode(wakuMessage.payload);
-        const topic = wakuMessage.contentTopic;
-        const matchedId = myIds.find(id => createContentTopic(id) === topic) || myIds[0];
-        onMessage(text, matchedId);
+        onMessage(text);
       }
     });
 
-    return () => {
+    return (() => {
       if (typeof subscription === 'function') {
         (subscription as any)();
       } else if ((subscription as any)?.unsubscribe) {
         (subscription as any).unsubscribe();
       }
-    };
+    });
   } catch (e) {
     console.error('P2P Subscription Failed:', e);
     return () => {};

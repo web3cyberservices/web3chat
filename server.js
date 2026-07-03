@@ -12,6 +12,6 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   }).listen(3000, (err) => {
     if (err) throw err;
-    console.log('> Web3 Chat: HTTP Server ready on port 3000 (Local Proxy Mode)');
+    console.log('> Web3 Chat: HTTP Server ready on port 3000 (Proxy Mode)');
   });
 });
