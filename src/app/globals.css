@@ -31,7 +31,6 @@ body {
   color: hsl(var(--foreground));
   font-family: inherit;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 * {

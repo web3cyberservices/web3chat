@@ -48,7 +48,6 @@ export default function Home() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Global P2P Background Listener
   useEffect(() => {
     if (!identity) return;
 
