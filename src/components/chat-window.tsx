@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -56,13 +57,17 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           time
         });
 
+        // Use activeChatRef to check if we should update UI immediately
         if (activeChatRef.current === parsed.senderId) {
           setMessages(prev => {
             if (prev.some(m => m.id === msgId)) return prev;
             return [...prev, { ...parsed, id: msgId, sender: 'other', time }].sort((a, b) => a.id - b.id);
           });
         } else {
-          toast({ title: "New Message", description: "You received a new secure message." });
+          toast({ 
+            title: "Encrypted Message", 
+            description: `Secure packet received from User ${parsed.senderId?.slice(0, 8)}` 
+          });
         }
       } catch (e) {
         console.error("Message handling error:", e);
@@ -76,17 +81,17 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Initial subscription
+        // Initial subscription to the P2P Mesh
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Resubscribe every 30 seconds to prevent silent drops
+        // Heartbeat: Waku Filter connections can be unstable. Resubscribe every 30s to keep the link alive.
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();
              else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
           }
           activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
-          console.log('[Heartbeat] Waku Filter Resubscribed to prevent timeout');
+          console.log('[Heartbeat] P2P Subscription renewed to prevent timeout.');
         }, 30000);
 
       } catch (e) {
@@ -139,7 +144,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
+      // Computationally expensive proof-of-work to prevent spam on the decentralized mesh
       await performPoW(rawData);
+      
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({
@@ -156,15 +163,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const success = await sendP2PMessage(activeChat.id, encrypted);
       if (!success) {
         toast({
-          title: "P2P Network Busy",
-          description: "Message saved locally, but broadcast failed.",
+          title: "Broadcast Pending",
+          description: "Message saved locally. Will broadcast when peer connection stabilizes.",
           variant: "destructive"
         });
       }
     } catch (e) {
       toast({
-        title: "Security Error",
-        description: "Failed to process encryption.",
+        title: "Security Violation",
+        description: "Cryptographic failure. Please restart your session.",
         variant: "destructive"
       });
     } finally {
@@ -184,8 +191,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     return (
       <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground">
         <Lock className="w-12 h-12 opacity-20 mb-4" />
-        <h2 className="text-xl font-bold text-foreground">Secure Workspace</h2>
-        <p className="text-sm">Select a chat to start private P2P session.</p>
+        <h2 className="text-xl font-bold text-foreground">Decentralized Mesh</h2>
+        <p className="text-sm">Connect with a peer to start a private encrypted session.</p>
       </div>
     );
   }
@@ -252,7 +259,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               disabled={isProcessing}
-              placeholder={isProcessing ? "Processing Security..." : "Type encrypted message..."}
+              placeholder={isProcessing ? "Processing Security Layer..." : "Type encrypted message..."}
               className="flex-1 bg-secondary rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all"
             />
             <button

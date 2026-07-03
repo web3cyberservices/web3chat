@@ -1,3 +1,4 @@
+
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 let nodeInstance: any = null;
@@ -14,18 +15,18 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Starting Light Node...');
-      // In July 2026, we connect to the main Waku network via port 443 (defaultBootstrap)
+      console.log('[Waku] Starting Light Node on Production Network...');
+      // Connecting to the main Waku network using default bootstrap nodes
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
-      console.log('[Waku] Node started. Waiting for network...');
+      console.log('[Waku] Node started. Searching for peers...');
       
       try {
-        // Casting to any to bypass TS check for waitForRemotePeer which is often internal
+        // Casting to any to avoid TypeScript errors during build in strict environments
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         console.log('[Waku] Connected to mesh!');
       } catch (peerError) {
-        console.warn('[Waku] Initial peer wait timeout. Running in background.');
+        console.warn('[Waku] Initial peer wait timeout. Running in background discovery mode.');
       }
       
       nodeInstance = node;
@@ -45,25 +46,26 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    // Ephemeral messages are better for direct chats (no history needed)
+    // Using ephemeral messages for direct P2P (no history storage required)
     const encoder = createEncoder({ contentTopic: topic, ephemeral: true });
 
-    console.log(`[Waku] Sending message to: ${topic}`);
-    // Explicitly pass contentTopic inside the message object as well to satisfy protocol requirements
+    console.log(`[Waku] Broadcasting message to topic: ${topic}`);
+    
+    // Explicitly pass contentTopic in the message object as required by some Waku node configurations
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
       contentTopic: topic
     } as any);
 
     if ((result as any)?.errors?.length) {
-      console.error('[Waku] Send rejected:', (result as any).errors);
+      console.error('[Waku] Message rejected by network peers:', (result as any).errors);
       return false;
     }
     
-    console.log('[Waku] Message delivered to network!');
+    console.log('[Waku] Message successfully delivered to network!');
     return true;
   } catch (e) {
-    console.error('[Waku] Send Error:', e);
+    console.error('[Waku] P2P Send Error:', e);
     return false;
   }
 }
@@ -76,24 +78,26 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 
     const callback = (wakuMessage: any) => {
       if (wakuMessage?.payload) {
-        onMessage(new TextDecoder().decode(wakuMessage.payload));
+        const decoded = new TextDecoder().decode(wakuMessage.payload);
+        console.log('[Waku] Incoming packet decoded.');
+        onMessage(decoded);
       }
     };
 
     const trySubscribe = async (): Promise<any> => {
       try {
         const sub = await node.filter.subscribe([decoder], callback);
-        console.log(`[Waku] Successfully subscribed to ${topic}!`);
+        console.log(`[Waku] Successfully subscribed to incoming topic: ${topic}`);
         return sub;
       } catch (e: any) {
-        console.warn('[Waku] Network not ready yet. Retrying subscription in 5s...');
+        console.warn('[Waku] Filter service not ready. Retrying subscription in 5s...');
         return new Promise(resolve => setTimeout(() => resolve(trySubscribe()), 5000));
       }
     };
 
     return await trySubscribe();
   } catch (e) {
-    console.error('[Waku] Subscription Failed:', e);
+    console.error('[Waku] Subscription initialization failed:', e);
     return null;
   }
 }
