@@ -8,13 +8,11 @@ export function createContentTopic(id: string) {
   return `/web3chat/1/u-${safeId}/proto`;
 }
 
-// Универсальные обертки для поддержки любых версий Waku SDK (до и после 0.0.28)
 function getSafeEncoder(topic: string) {
   try {
     const encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true });
-    // Если SDK старый, он примет объект за строку и криво положит его в contentTopic
     if (encoder && typeof encoder.contentTopic === 'object') {
-      return (createEncoder as any)(topic, true); // Вызов для версии 0.0.27
+      return (createEncoder as any)(topic, true);
     }
     return encoder;
   } catch (e) {
@@ -26,7 +24,7 @@ function getSafeDecoder(topic: string) {
   try {
     const decoder = (createDecoder as any)({ contentTopic: topic });
     if (decoder && typeof decoder.contentTopic === 'object') {
-      return (createDecoder as any)(topic); // Вызов для версии 0.0.27
+      return (createDecoder as any)(topic);
     }
     return decoder;
   } catch (e) {
@@ -46,8 +44,8 @@ export async function initWaku() {
       console.log('[Waku] Node started. Searching for peers...');
       
       try {
-        // Ограничиваем ожидание пиров 10 секундами
-        await node.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 10000);
+        // ФИКС ОШИБКИ СБОРКИ: Добавлено (node as any)
+        await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 10000);
         console.log('[Waku] Peers found! P2P Network is ACTIVE.');
       } catch (peerError) {
         console.warn('[Waku] Peer discovery timeout. Waku will continue in background.');
@@ -69,8 +67,6 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   try {
     const node = await initWaku();
     const topic = createContentTopic(targetId);
-    
-    // Используем нашу безопасную обертку
     const encoder = getSafeEncoder(topic);
 
     console.log(`[Waku] Sending to ${topic}...`);
@@ -96,8 +92,6 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    
-    // Используем нашу безопасную обертку
     const decoder = getSafeDecoder(topic);
 
     console.log(`[Waku] Subscribing to ${topic}...`);
