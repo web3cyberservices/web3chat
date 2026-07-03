@@ -57,13 +57,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const waku = await initWaku();
     const topic = `/${APP_NAME}/1/message-${targetId}/proto`;
     
-    // Cast to any to bypass version-specific routingInfo requirements
-    const encoder = createEncoder({ contentTopic: topic } as any);
+    // Using any cast to bypass version-specific routingInfo requirements and constructor overloads
+    const encoder = (createEncoder as any)({ contentTopic: topic });
     const payload = new TextEncoder().encode(encryptedPayload);
     
     const result = await waku.lightPush.send(encoder, { payload });
     
-    // Some SDK versions return errors array, others don't. Cast to any for build safety.
     const res = result as any;
     if (res && res.errors && res.errors.length > 0) {
       console.error('Waku push errors:', res.errors);
@@ -89,10 +88,9 @@ export async function subscribeToP2P(
       return () => {};
     }
 
-    // Fixed: Passing multiple arguments to createDecoder if required by current SDK types
     const decoders = myIds.map(id => {
       const topic = `/${APP_NAME}/1/message-${id}/proto`;
-      return createDecoder({ contentTopic: topic } as any);
+      return (createDecoder as any)({ contentTopic: topic });
     });
 
     const unsubscribe = await waku.filter.subscribe(
@@ -113,9 +111,7 @@ export async function subscribeToP2P(
       }
     );
 
-    return () => {
-      if (typeof unsubscribe === 'function') unsubscribe();
-    };
+    return (unsubscribe as any);
   } catch (e) {
     console.error('Subscription error:', e);
     return () => {};
