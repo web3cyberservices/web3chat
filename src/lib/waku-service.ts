@@ -46,8 +46,8 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    // Using ephemeral messages for direct P2P (no history storage required)
-    const encoder = createEncoder({ contentTopic: topic, ephemeral: true });
+    // Using 'as any' to bypass the routingInfo requirement in some SDK versions during build
+    const encoder = createEncoder({ contentTopic: topic, ephemeral: true } as any);
 
     console.log(`[Waku] Broadcasting message to topic: ${topic}`);
     
