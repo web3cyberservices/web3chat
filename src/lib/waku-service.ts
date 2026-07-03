@@ -1,10 +1,9 @@
-
 /**
- * @fileOverview Глобальная P2P Шина на базе BroadcastChannel.
- * Реализована система единого канала для гарантированной доставки сообщений.
+ * @fileOverview Global P2P Mesh Bus based on BroadcastChannel and localStorage.
+ * Ensures guaranteed message delivery between tabs and components.
  */
 
-const P2P_NETWORK_ID = 'WEB3_CHAT_P2P_V7';
+const P2P_NETWORK_ID = 'WEB3_CHAT_P2P_V2026';
 
 let globalChannel: BroadcastChannel | null = null;
 
@@ -30,14 +29,14 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       payload: encryptedPayload,
       targetId,
       timestamp: Date.now(),
-      nonce: Math.random().toString(36).substring(2)
+      nonce: Math.random().toString(36).substring(2) + Date.now().toString()
     };
     
-    // Отправляем в канал
+    // Broadcast to all active tabs
     channel.postMessage(message);
     
-    // Дублируем в localStorage для надежности (Fallback эхо)
-    localStorage.setItem('web3_p2p_echo', JSON.stringify(message));
+    // Fallback sync using localStorage for cross-origin or background consistency
+    localStorage.setItem('web3_chat_p2p_last_msg', JSON.stringify(message));
     
     return true;
   } catch (e) {
@@ -53,9 +52,16 @@ export async function subscribeToP2P(onMessage: (payload: string, targetId: stri
   const processedNonces = new Set<string>();
 
   const processData = (data: any) => {
-    if (!data || processedNonces.has(data.nonce)) return;
+    if (!data || !data.nonce || processedNonces.has(data.nonce)) return;
     processedNonces.add(data.nonce);
-    if (processedNonces.size > 1000) processedNonces.clear();
+    
+    // Keep set size manageable
+    if (processedNonces.size > 1000) {
+      const array = Array.from(processedNonces);
+      processedNonces.clear();
+      array.slice(500).forEach(n => processedNonces.add(n));
+    }
+    
     onMessage(data.payload, data.targetId);
   };
 
@@ -64,10 +70,12 @@ export async function subscribeToP2P(onMessage: (payload: string, targetId: stri
   };
 
   const storageListener = (event: StorageEvent) => {
-    if (event.key === 'web3_p2p_echo' && event.newValue) {
+    if (event.key === 'web3_chat_p2p_last_msg' && event.newValue) {
       try {
         processData(JSON.parse(event.newValue));
-      } catch (e) {}
+      } catch (e) {
+        console.error('P2P Storage Sync Error:', e);
+      }
     }
   };
 

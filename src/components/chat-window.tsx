@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -48,34 +47,31 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
         unsubscribe = await subscribeToP2P(async (encryptedPayload, targetId) => {
           try {
-            // Сообщение либо нам лично, либо в активную группу
+            // Check if message is for us or our group
             const isForMe = targetId === currentUserId;
-            const isForActiveChat = activeChatRef.current === targetId;
+            const isForMyGroup = targetId.startsWith('group-'); // Simplification for demo
             
-            if (!isForMe && !isForActiveChat) return;
+            if (!isForMe && !isForMyGroup) return;
 
-            // Секрет для расшифровки: наш ID или ID группы (в данном прототипе используем ID чата как общий ключ)
             const secret = isForMe ? currentUserId : targetId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
             if (decrypted.startsWith('[Error')) return;
             
             const parsed = JSON.parse(decrypted);
-            const msgId = parsed.timestamp || Date.now();
-            
             if (parsed.senderId === currentUserId) return;
 
-            const senderId = parsed.senderId;
-            const chatId = isForMe ? senderId : targetId;
+            const msgId = parsed.timestamp || Date.now();
+            const chatId = isForMe ? parsed.senderId : targetId;
 
-            // Авто-создание чата
+            // Auto-create chat if it doesn't exist
             const existingChats = await getChats();
             if (!existingChats.some(c => c.id === chatId)) {
               await saveChat({
                 id: chatId,
                 name: `User ${chatId.slice(0, 8)}`,
-                type: 'private',
-                lastMsg: 'Message received',
+                type: isForMe ? 'private' : 'group',
+                lastMsg: 'Encrypted message received',
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 avatar: images[Math.floor(Math.random() * 3)].url
               });
@@ -86,14 +82,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               chatId: chatId,
               payload: encryptedPayload,
               sender: 'other',
-              senderId: senderId,
+              senderId: parsed.senderId,
               time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
             
             if (chatId === activeChatRef.current) {
               setMessages(prev => {
                 if (prev.some(m => m.id === msgId)) return prev;
-                return [...prev, { ...parsed, id: msgId, sender: 'other', time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }].sort((a, b) => a.id - b.id);
+                const newMsg: Message = { ...parsed, id: msgId, sender: 'other', time: new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+                return [...prev, newMsg].sort((a, b) => a.id - b.id);
               });
             }
           } catch (e) {
@@ -125,6 +122,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       
       for (const m of stored) {
         try {
+          // Use chat ID as secret for outgoing, current user ID for incoming
           const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
           const payload = await decryptMessage(m.payload, secret);
           
@@ -167,6 +165,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
       await sendP2PMessage(activeChat.id, encrypted);
+      
+      // Update chat last message
+      await saveChat({
+        ...activeChat,
+        lastMsg: textToSend,
+        time
+      });
       
     } catch (e) {
       toast({ title: "Encryption Error", variant: "destructive" });
