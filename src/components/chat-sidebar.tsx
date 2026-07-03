@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -8,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import images from '@/app/lib/placeholder-images.json';
 import { clearAllData, getChats, saveChat, type ChatSession } from '@/lib/db';
 import { QRCodeSVG } from 'qrcode.react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatSidebarProps {
   currentUserId: string;
@@ -24,6 +24,7 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
   const [newChatId, setNewChatId] = useState('');
   const [groupName, setGroupName] = useState('');
   const [groupMembers, setGroupMembers] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     async function loadChats() {
@@ -31,14 +32,27 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
       setActiveChats(storedChats);
     }
     loadChats();
-    const interval = setInterval(loadChats, 5000);
+    const interval = setInterval(loadChats, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  const copyId = () => {
-    navigator.clipboard.writeText(currentUserId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyId = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(currentUserId);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast({ title: "ID Copied" });
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+    } catch (err) {
+      toast({ 
+        title: "Copy Blocked", 
+        description: "Clipboard access denied by browser policy. Please copy manually from the ID field.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleLogout = async () => {
@@ -52,10 +66,10 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
     if (!newChatId.trim()) return;
     const newSession: ChatSession = {
       id: newChatId.trim(),
-      name: `User ${newChatId.trim().slice(0, 6)}`,
+      name: `User ${newChatId.trim().slice(0, 8)}`,
       type: 'private',
       lastMsg: 'Chat created',
-      time: 'Now',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       avatar: images[Math.floor(Math.random() * 3)].url
     };
     await saveChat(newSession);
@@ -76,7 +90,7 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
       type: 'group',
       members: [currentUserId, ...members],
       lastMsg: 'Group created',
-      time: 'Now',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       avatar: images[Math.floor(Math.random() * 3) + 4].url
     };
     await saveChat(newGroup);
@@ -124,8 +138,8 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
 
         <div className="bg-secondary/50 rounded-2xl p-3 border border-border/50">
           <div className="flex items-center justify-between gap-2 bg-background/50 p-2 rounded-xl border border-border/50">
-            <code className="text-[10px] text-muted-foreground truncate font-mono">{currentUserId}</code>
-            <button onClick={copyId} className="shrink-0">
+            <code className="text-[10px] text-muted-foreground truncate font-mono select-all">{currentUserId}</code>
+            <button onClick={copyId} className="shrink-0 p-1">
               {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3 text-muted-foreground hover:text-primary transition-colors" />}
             </button>
           </div>

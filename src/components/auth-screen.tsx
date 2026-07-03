@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ArrowRight, Key, History, AlertTriangle, QrCode, ShieldAlert, Check, Copy } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Key, History, QrCode, ShieldAlert, Check, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { generateMnemonic, mnemonicToId } from '@/lib/crypto-utils';
 import { QRScanner } from '@/components/qr-scanner';
@@ -21,7 +21,6 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Проверка защищенного контекста (обязательно для crypto.subtle)
     const secure = typeof window !== 'undefined' && 
                    (window.location.protocol === 'https:' || 
                     window.location.hostname === 'localhost' || 
@@ -33,7 +32,7 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
     if (!isSecure) {
       toast({
         title: "Insecure Connection",
-        description: "Browser blocks encryption on HTTP. Please use HTTPS (port 8443) to create an Identity.",
+        description: "Browser blocks encryption on HTTP. Please use HTTPS.",
         variant: "destructive"
       });
       return;
@@ -48,7 +47,7 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
     } catch (e: any) {
       toast({
         title: "Generation Failed",
-        description: "Could not create Web3 Identity. Ensure you are using HTTPS.",
+        description: "Secure context required for Web3 Identity.",
         variant: "destructive"
       });
     }
@@ -91,10 +90,24 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
     }
   };
 
-  const copyMnemonic = () => {
-    navigator.clipboard.writeText(mnemonic.join(' '));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyMnemonic = async () => {
+    try {
+      const text = mnemonic.join(' ');
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast({ title: "Copied!", description: "Mnemonic saved to clipboard." });
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+    } catch (err) {
+      toast({ 
+        title: "Copy Blocked", 
+        description: "Your browser restricted clipboard access. Please select and copy manually.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   return (
@@ -121,7 +134,7 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
               <p className="text-sm font-bold text-destructive">HTTPS Required</p>
               <p className="text-xs text-destructive/80 leading-relaxed">
                 Crypto APIs are disabled on <strong>HTTP</strong>. 
-                Please access via <strong>https://</strong> (port 8443).
+                Please use <strong>HTTPS</strong> for 2026 security compliance.
               </p>
             </div>
           </div>
