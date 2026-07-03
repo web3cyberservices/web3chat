@@ -47,16 +47,16 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Подписываемся на ВСЕ сообщения, фильтрация будет внутри обработчика
         unsubscribe = await subscribeToP2P(async (encryptedPayload, targetId) => {
           try {
-            // Проверяем, касается ли это сообщение нас или наших чатов
-            const currentChats = await getChats();
-            const relevantIds = [currentUserId, ...currentChats.map(c => c.id)];
+            // Если сообщение не для нас и не для текущего активного чата, проверяем его дальше
+            const isForMe = targetId === currentUserId;
+            const isForActiveChat = activeChatRef.current && targetId === activeChatRef.current;
             
-            if (!relevantIds.includes(targetId)) return;
+            if (!isForMe && !isForActiveChat) return;
 
-            const secret = targetId === currentUserId ? currentUserId : targetId;
+            // Расшифровываем. Секретом выступает либо наш ID (если нам пишут в личку), либо ID чата (группа/личное)
+            const secret = isForMe ? currentUserId : targetId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
             if (decrypted.startsWith('[Error')) return;
@@ -65,14 +65,19 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const msgId = parsed.timestamp || Date.now();
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
-            const chatId = targetId === currentUserId ? parsed.senderId : targetId;
+            // Если мы отправители — игнорируем (уже сохранено локально)
+            if (parsed.senderId === currentUserId) return;
 
-            if (!currentChats.some(c => c.id === chatId)) {
+            const chatId = isForMe ? parsed.senderId : targetId;
+
+            // Авто-создание чата если его нет в списке
+            const existingChats = await getChats();
+            if (!existingChats.some(c => c.id === chatId)) {
               await saveChat({
                 id: chatId,
                 name: `User ${chatId.slice(0, 8)}`,
                 type: 'private',
-                lastMsg: 'New message received',
+                lastMsg: 'Message received',
                 time: time,
                 avatar: images[Math.floor(Math.random() * 3)].url
               });
@@ -122,6 +127,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       
       for (const m of stored) {
         try {
+          // Если мы отправители, секрет - ID получателя. Если они — наш ID.
           const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
           const payload = await decryptMessage(m.payload, secret);
           
@@ -152,6 +158,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       await performPoW(rawData);
       
+      // Шифруем для получателя (используем его ID как секрет для простоты в этом прототипе)
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({

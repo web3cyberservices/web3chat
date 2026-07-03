@@ -24,15 +24,17 @@
   --radius-xl: 1rem;
 }
 
-/* Base resets and utility integration for Tailwind 4 */
-@layer base {
-  * {
-    @apply border-border/50;
-  }
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
+/* Base resets for Tailwind 4 without using @layer to avoid compiler bugs */
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "rlig" 1, "calt" 1;
 }
 
 /* Custom Scrollbar */
@@ -40,8 +42,9 @@
   width: 5px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted rounded-full;
+  background: var(--color-muted);
+  border-radius: 9999px;
 }
