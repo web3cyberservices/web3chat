@@ -1,10 +1,11 @@
+
 /**
- * @fileOverview Глобальная P2P Шина на базе BroadcastChannel с гарантированной доставкой.
- * Обеспечивает синхронизацию сообщений между вкладками и локальное хранение для пропущенных пакетов.
+ * @fileOverview Глобальная P2P Шина на базе BroadcastChannel.
+ * Обеспечивает синхронизацию сообщений между вкладками в реальном времени.
  */
 
-const P2P_NETWORK_ID = 'WEB3_CHAT_P2P_MESH_V4';
-const SYNC_STORAGE_KEY = 'web3_chat_mesh_sync_v4';
+const P2P_NETWORK_ID = 'WEB3_CHAT_P2P_MESH_V5';
+const SYNC_STORAGE_KEY = 'web3_chat_mesh_sync_v5';
 
 let globalChannel: BroadcastChannel | null = null;
 
@@ -33,13 +34,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
       nonce: Math.random().toString(36).substring(7)
     };
     
-    // 1. Отправка в реальном времени через BroadcastChannel
+    // 1. Отправка через BroadcastChannel для мгновенной реакции в других вкладках
     channel.postMessage(message);
     
-    // 2. Резервное копирование в localStorage для новых вкладок или пропустивших сообщение
+    // 2. Дублирование в localStorage для надежности
     const existing = JSON.parse(localStorage.getItem(SYNC_STORAGE_KEY) || '[]');
     existing.push(message);
-    // Храним только последние 50 сообщений для экономии места
     localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(existing.slice(-50)));
 
     return true;
@@ -49,38 +49,40 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   }
 }
 
-export async function subscribeToP2P(myIds: string[], onMessage: (payload: string, topicId: string) => void) {
+export async function subscribeToP2P(onMessage: (payload: string, topicId: string) => void) {
   const channel = getChannel();
   if (!channel) return () => {};
   
   const processedNonces = new Set<string>();
 
-  const handleMessage = (data: any) => {
+  const handleIncoming = (data: any) => {
     const { payload, targetId, nonce } = data;
     if (processedNonces.has(nonce)) return;
     
-    if (myIds.includes(targetId)) {
-      processedNonces.add(nonce);
-      onMessage(payload, targetId);
-    }
+    processedNonces.add(nonce);
+    onMessage(payload, targetId);
   };
 
-  const channelListener = (event: MessageEvent) => handleMessage(event.data);
+  const channelListener = (event: MessageEvent) => handleIncoming(event.data);
   channel.addEventListener('message', channelListener);
 
-  // Проверка пропущенных сообщений из хранилища
+  // Проверка пропущенных сообщений при инициализации
   const checkSync = () => {
-    const buffered = JSON.parse(localStorage.getItem(SYNC_STORAGE_KEY) || '[]');
-    buffered.forEach(handleMessage);
+    try {
+      const buffered = JSON.parse(localStorage.getItem(SYNC_STORAGE_KEY) || '[]');
+      buffered.forEach(handleIncoming);
+    } catch (e) {}
   };
 
   checkSync();
-  // Слушаем изменения localStorage для синхронизации между процессами, если BroadcastChannel спит
-  window.addEventListener('storage', (e) => {
+
+  const storageListener = (e: StorageEvent) => {
     if (e.key === SYNC_STORAGE_KEY) checkSync();
-  });
+  };
+  window.addEventListener('storage', storageListener);
 
   return () => {
     channel.removeEventListener('message', channelListener);
+    window.removeEventListener('storage', storageListener);
   };
 }

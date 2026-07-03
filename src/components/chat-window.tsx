@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Trash2, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Send, Trash2, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage, performPoW } from '@/lib/crypto-utils';
@@ -47,13 +47,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        const chats = await getChats();
-        // Слушаем свой ID и ID всех активных чатов (групп)
-        const myListeningIds = Array.from(new Set([currentUserId, ...chats.map(c => c.id)]));
-
-        unsubscribe = await subscribeToP2P(myListeningIds, async (encryptedPayload, targetId) => {
+        // Подписываемся на ВСЕ сообщения, фильтрация будет внутри обработчика
+        unsubscribe = await subscribeToP2P(async (encryptedPayload, targetId) => {
           try {
-            // Если сообщение пришло на наш ID, значит секрет для расшифровки - наш ID
+            // Проверяем, касается ли это сообщение нас или наших чатов
+            const currentChats = await getChats();
+            const relevantIds = [currentUserId, ...currentChats.map(c => c.id)];
+            
+            if (!relevantIds.includes(targetId)) return;
+
             const secret = targetId === currentUserId ? currentUserId : targetId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
@@ -63,12 +65,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const msgId = parsed.timestamp || Date.now();
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
-            // Если сообщение адресовано нам (private), чат идентифицируется по отправителю
             const chatId = targetId === currentUserId ? parsed.senderId : targetId;
 
-            // Проверяем наличие чата в базе, если нет - создаем
-            const existingChats = await getChats();
-            if (!existingChats.some(c => c.id === chatId)) {
+            if (!currentChats.some(c => c.id === chatId)) {
               await saveChat({
                 id: chatId,
                 name: `User ${chatId.slice(0, 8)}`,
@@ -95,7 +94,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               });
             }
           } catch (e) {
-            console.error('Incoming message error:', e);
+            console.error('Incoming message processing error:', e);
           }
         });
       } catch (e) {
@@ -153,7 +152,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       await performPoW(rawData);
       
-      // Шифруем для получателя (ID чата является секретом, который знает только получатель или участники группы)
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({

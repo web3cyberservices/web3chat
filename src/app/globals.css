@@ -24,14 +24,15 @@
   --radius-xl: 1rem;
 }
 
-/* Base styles without @layer to avoid compiler conflicts in some environments */
-* {
-  @apply border-border/50;
-}
-
-body {
-  @apply bg-background text-foreground antialiased;
-  font-feature-settings: "rlig" 1, "calt" 1;
+/* Base resets and utility integration for Tailwind 4 */
+@layer base {
+  * {
+    @apply border-border/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
 }
 
 /* Custom Scrollbar */

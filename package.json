@@ -29,15 +29,17 @@
     "html5-qrcode": "latest",
     "zod": "latest",
     "genkit": "latest",
-    "@genkit-ai/google-genai": "latest"
+    "@genkit-ai/google-genai": "latest",
+    "tailwindcss": "latest",
+    "postcss": "latest",
+    "autoprefixer": "latest",
+    "wav": "^1.0.2",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "typescript": "latest",
     "@types/node": "latest",
     "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "tailwindcss": "latest",
-    "postcss": "latest",
-    "autoprefixer": "latest"
+    "@types/react-dom": "latest"
   }
 }
