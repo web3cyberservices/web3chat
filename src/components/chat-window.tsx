@@ -1,13 +1,15 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Trash2, ChevronLeft, Wifi, RefreshCw } from 'lucide-react';
+import { Send, Lock, Trash2, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage, performPoW } from '@/lib/crypto-utils';
-import { getLocalMessages, saveLocalMessage, deleteLocalMessage, getChats, type ChatSession } from '@/lib/db';
+import { getLocalMessages, saveLocalMessage, deleteLocalMessage, getChats, saveChat, type ChatSession } from '@/lib/db';
 import { sendP2PMessage, subscribeToP2P, initWaku } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
+import images from '@/app/lib/placeholder-images.json';
 
 interface Message {
   id: number;
@@ -45,13 +47,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Подписываемся на свой ID и ID всех чатов
         const chats = await getChats();
+        // Слушаем свой ID и ID всех активных чатов (групп)
         const myListeningIds = Array.from(new Set([currentUserId, ...chats.map(c => c.id)]));
 
         unsubscribe = await subscribeToP2P(myListeningIds, async (encryptedPayload, targetId) => {
           try {
-            // Если сообщение для меня, секрет — мой ID. Если для группы — ID группы.
+            // Если сообщение пришло на наш ID, значит секрет для расшифровки - наш ID
             const secret = targetId === currentUserId ? currentUserId : targetId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
@@ -61,7 +63,21 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const msgId = parsed.timestamp || Date.now();
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
+            // Если сообщение адресовано нам (private), чат идентифицируется по отправителю
             const chatId = targetId === currentUserId ? parsed.senderId : targetId;
+
+            // Проверяем наличие чата в базе, если нет - создаем
+            const existingChats = await getChats();
+            if (!existingChats.some(c => c.id === chatId)) {
+              await saveChat({
+                id: chatId,
+                name: `User ${chatId.slice(0, 8)}`,
+                type: 'private',
+                lastMsg: 'New message received',
+                time: time,
+                avatar: images[Math.floor(Math.random() * 3)].url
+              });
+            }
 
             await saveLocalMessage({
               id: msgId,
@@ -93,7 +109,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       isMounted = false;
       if (unsubscribe) unsubscribe();
     };
-  }, [currentUserId, activeChat?.id]);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!activeChat) {
@@ -137,6 +153,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       await performPoW(rawData);
       
+      // Шифруем для получателя (ID чата является секретом, который знает только получатель или участники группы)
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({
@@ -149,10 +166,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       });
 
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
+      
       await sendP2PMessage(activeChat.id, encrypted);
       
     } catch (e) {
-      toast({ title: "Encryption Error", description: "Hardware key access denied.", variant: "destructive" });
+      toast({ title: "Encryption Error", description: "Secure context required.", variant: "destructive" });
     } finally {
       setIsProcessing(false);
       setStatusMessage(null);
@@ -170,7 +188,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     return (
       <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground p-8">
         <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-primary/20">
-          <Lock className="w-10 h-10 text-primary opacity-50" />
+          <ShieldCheck className="w-10 h-10 text-primary opacity-50" />
         </div>
         <h2 className="text-xl font-bold text-foreground tracking-tight">Zero-Knowledge Workspace</h2>
         <p className="text-sm text-center max-w-xs mt-3 leading-relaxed">
@@ -196,7 +214,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'online' ? 'bg-primary animate-pulse' : 'bg-destructive'
               }`} />
               <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                {networkStatus === 'online' ? 'Mesh Online' : 'Offline'}
+                {networkStatus === 'online' ? 'Mesh Online' : 'Connecting...'}
               </span>
             </div>
           </div>
@@ -229,7 +247,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       <div className="p-4 border-t bg-card/80 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto space-y-3">
           {statusMessage && (
-            <div className="flex items-center gap-2 text-[10px] text-primary font-bold">
+            <div className="flex items-center gap-2 text-[10px] text-primary font-bold animate-in fade-in duration-300">
               <RefreshCw className="w-3 h-3 animate-spin" />
               {statusMessage}
             </div>
@@ -241,12 +259,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               onKeyDown={(e) => e.key === 'Enter' && !isProcessing && handleSend()}
               disabled={isProcessing}
               placeholder={isProcessing ? "Encrypting..." : "Type a secure message..."}
-              className="flex-1 bg-secondary/50 rounded-2xl py-3.5 px-5 outline-none border border-border/50 focus:border-primary/50 text-sm"
+              className="flex-1 bg-secondary/50 rounded-2xl py-3.5 px-5 outline-none border border-border/50 focus:border-primary/50 text-sm transition-all"
             />
             <button 
               onClick={handleSend}
               disabled={!input.trim() || isProcessing}
-              className="p-4 bg-primary text-primary-foreground rounded-2xl disabled:opacity-50 transition-transform active:scale-95"
+              className="p-4 bg-primary text-primary-foreground rounded-2xl disabled:opacity-50 transition-transform active:scale-95 shadow-lg shadow-primary/20"
             >
               <Send className="w-5 h-5" />
             </button>

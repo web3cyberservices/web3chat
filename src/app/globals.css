@@ -1,41 +1,46 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-:root {
-  --background: 250 20% 12%;
-  --foreground: 250 10% 95%;
-  --muted: 250 20% 18%;
-  --muted-foreground: 250 10% 70%;
-  --popover: 250 20% 12%;
-  --popover-foreground: 250 10% 95%;
-  --border: 250 20% 25%;
-  --input: 250 20% 25%;
-  --card: 250 20% 12%;
-  --card-foreground: 250 10% 95%;
-  --primary: 150 70% 70%;
-  --primary-foreground: 150 20% 20%;
-  --secondary: 250 20% 20%;
-  --secondary-foreground: 250 10% 98%;
-  --accent: 85 85% 85%;
-  --accent-foreground: 85 20% 20%;
-  --destructive: 25 50% 50%;
-  --destructive-foreground: 250 10% 98%;
-  --ring: 150 70% 70%;
-  --radius: 1rem;
+@import "tailwindcss";
+
+@theme {
+  --color-background: hsl(250 20% 12%);
+  --color-foreground: hsl(250 10% 95%);
+  --color-muted: hsl(250 20% 18%);
+  --color-muted-foreground: hsl(250 10% 70%);
+  --color-popover: hsl(250 20% 12%);
+  --color-popover-foreground: hsl(250 10% 95%);
+  --color-border: hsl(250 20% 25%);
+  --color-input: hsl(250 20% 25%);
+  --color-card: hsl(250 20% 12%);
+  --color-card-foreground: hsl(250 10% 95%);
+  --color-primary: hsl(150 70% 70%);
+  --color-primary-foreground: hsl(150 20% 20%);
+  --color-secondary: hsl(250 20% 20%);
+  --color-secondary-foreground: hsl(250 10% 98%);
+  --color-accent: hsl(85 85% 85%);
+  --color-accent-foreground: hsl(85 20% 20%);
+  --color-destructive: hsl(25 50% 50%);
+  --color-destructive-foreground: hsl(250 10% 98%);
+  --color-ring: hsl(150 70% 70%);
+  --radius-xl: 1rem;
 }
 
+/* Base styles without @layer to avoid compiler conflicts in some environments */
 * {
-  border-color: hsl(var(--border) / 0.5);
+  @apply border-border/50;
 }
 
 body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  @apply bg-background text-foreground antialiased;
+  font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-.dark {
-  color-scheme: dark;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-muted rounded-full;
 }

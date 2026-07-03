@@ -1,6 +1,6 @@
 /**
- * Утилиты для аппаратного шифрования, работы с Seed-фразами и оптимизированного Proof-of-Work.
- * Оптимизировано для работы с бинарными данными в браузере.
+ * Утилиты для аппаратного шифрования и работы с бинарными данными.
+ * Оптимизировано для AES-GCM 256-bit.
  */
 
 const ALGORITHM = 'AES-GCM';
@@ -26,10 +26,6 @@ export function generateMnemonic(): string[] {
 }
 
 export async function mnemonicToId(mnemonic: string[]): Promise<string> {
-  if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
-    throw new Error('Web Crypto API is unavailable. Use HTTPS.');
-  }
-
   const text = mnemonic.join(' ');
   const msgUint8 = new TextEncoder().encode(text);
   const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);
@@ -39,7 +35,7 @@ export async function mnemonicToId(mnemonic: string[]): Promise<string> {
 }
 
 export async function performPoW(payload: string): Promise<{ nonce: number; hash: string }> {
-  const target = '000'; // Умеренная сложность
+  const target = '000'; 
   const encoder = new TextEncoder();
   let nonce = 0;
 
@@ -53,15 +49,15 @@ export async function performPoW(payload: string): Promise<{ nonce: number; hash
       return { nonce, hash: hashHex };
     }
     nonce++;
-    if (nonce % 500 === 0) await new Promise(r => setTimeout(r, 0));
+    if (nonce % 1000 === 0) await new Promise(r => setTimeout(r, 0));
   }
 }
 
-async function getEncryptionKey(password: string): Promise<CryptoKey> {
+async function getEncryptionKey(secret: string): Promise<CryptoKey> {
   const enc = new TextEncoder();
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
-    enc.encode(password.padEnd(32, '0').slice(0, 32)),
+    enc.encode(secret.padEnd(32, '0').slice(0, 32)),
     'PBKDF2',
     false,
     ['deriveKey']
@@ -70,7 +66,7 @@ async function getEncryptionKey(password: string): Promise<CryptoKey> {
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: enc.encode('web3-chat-salt-v3'),
+      salt: enc.encode('web3-chat-salt-v4'),
       iterations: 100000,
       hash: 'SHA-256'
     },
@@ -81,9 +77,13 @@ async function getEncryptionKey(password: string): Promise<CryptoKey> {
   );
 }
 
-// Надежная конвертация бинарных данных в Base64
 function bufferToBase64(buffer: Uint8Array): string {
-  return btoa(String.fromCharCode.apply(null, Array.from(buffer)));
+  let binary = '';
+  const len = buffer.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(buffer[i]);
+  }
+  return btoa(binary);
 }
 
 function base64ToBuffer(base64: string): Uint8Array {
