@@ -54,14 +54,10 @@ export default function Home() {
 
     const setupP2P = async () => {
       try {
-        const chats = await getChats();
-        const groupIds = chats.filter(c => c.type === 'group').map(c => c.id);
-        const myIds = [identity, ...groupIds];
-
+        const myIds = [identity];
         const unsub = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
           try {
-            const isForMe = topicId === identity;
-            const secret = isForMe ? identity : topicId;
+            const secret = identity;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
             if (decrypted.startsWith('[Error')) return;
@@ -70,14 +66,14 @@ export default function Home() {
             if (parsed.senderId === identity) return;
 
             const msgId = parsed.timestamp || Date.now();
-            const chatId = isForMe ? parsed.senderId : topicId;
+            const chatId = parsed.senderId;
 
             const existing = await getChats();
             if (!existing.some(c => c.id === chatId)) {
               await saveChat({
                 id: chatId,
                 name: `User ${chatId.slice(0, 8)}`,
-                type: isForMe ? 'private' : 'group',
+                type: 'private',
                 lastMsg: 'Encrypted message received',
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 avatar: images[Math.floor(Math.random() * 3)].url

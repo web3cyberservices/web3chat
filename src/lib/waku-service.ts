@@ -1,132 +1,87 @@
-'use server';
-/**
- * @fileOverview Decentralized P2P transport powered by Waku SDK.
- * Optimized for Waku v1.x LightNode protocols.
- */
+import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
-import { 
-  createLightNode, 
-  Protocols, 
-  createEncoder, 
-  createDecoder,
-  type LightNode
-} from '@waku/sdk';
+let nodeInstance: any = null;
+let initPromise: Promise<any> | null = null;
 
-const APP_NAME = 'web3-chat-v2';
+const APP_NAME = 'web3chat';
 
-let node: LightNode | null = null;
-let nodePromise: Promise<LightNode> | null = null;
+export function createContentTopic(id: string) {
+  if (!id) id = 'default';
+  return `/${APP_NAME}/1/u-${id.slice(0, 10)}/proto`;
+}
 
-export async function initWaku(): Promise<LightNode> {
-  if (node) return node;
-  if (nodePromise) return nodePromise;
+export async function initWaku() {
+  if (nodeInstance) return nodeInstance;
+  if (initPromise) return initPromise;
 
-  nodePromise = (async () => {
+  initPromise = (async () => {
     try {
-      const newNode = await createLightNode({ 
-        defaultBootstrap: true 
-      });
-
-      await newNode.start();
+      console.log('[Waku] Starting Light Node...');
+      const node = await createLightNode({ defaultBootstrap: true });
+      await node.start();
+      console.log('[Waku] Node started. Searching for peers...');
       
-      try {
-        // Use any to bypass strict type check on various SDK versions
-        const n = newNode as any;
-        const waitFn = n.waitForRemotePeer || n.waitForConnectedPeer;
-        if (typeof waitFn === 'function') {
-          await waitFn.call(n, [Protocols.LightPush, Protocols.Filter], 15000);
-        }
-      } catch (e) {
-        console.warn('Waku: Peer discovery still in progress...');
-      }
+      // Use any to bypass TS checks for waitForRemotePeer in different SDK versions
+      await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter]);
+      console.log('[Waku] Peers found! P2P Network is ACTIVE.');
       
-      node = newNode;
-      return newNode;
+      nodeInstance = node;
+      return node;
     } catch (error) {
-      console.error('Waku init failed:', error);
-      nodePromise = null;
+      initPromise = null;
+      console.error('[Waku] Init failed:', error);
       throw error;
     }
   })();
 
-  return nodePromise;
+  return initPromise;
 }
 
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
-    const waku = await initWaku();
-    const contentTopic = `/${APP_NAME}/1/message-${targetId}/proto`;
+    const node = await initWaku();
+    const contentTopic = createContentTopic(targetId);
     
-    // Using as any to bypass routingInfo requirements in some SDK versions
+    // Strict encoder creation with any cast to avoid routingInfo errors
     const encoder = createEncoder({ contentTopic, ephemeral: true } as any);
-    const payload = new TextEncoder().encode(encryptedPayload);
-    
-    // Explicitly pass contentTopic inside the message object for reliability
-    const result = await waku.lightPush.send(encoder, { 
-      payload,
-      contentTopic: contentTopic 
-    } as any);
-    
-    const res = result as any;
-    if (res && res.errors && res.errors.length > 0) {
-      console.error('Waku send errors:', res.errors);
-      return false;
-    }
 
-    return true;
+    // Sending payload
+    const result = await node.lightPush.send(encoder, {
+      payload: new TextEncoder().encode(encryptedPayload)
+    });
+
+    const res = result as any;
+    return !res?.errors || res.errors.length === 0;
   } catch (e) {
     console.error('P2P Send Error:', e);
     return false;
   }
 }
 
-export async function subscribeToP2P(
-  myIds: string[], 
-  onMessage: (payload: string, topicId: string) => void
-): Promise<() => void> {
+export async function subscribeToP2P(myIds: string[], onMessage: (payload: string, topicId: string) => void) {
   try {
-    const waku = await initWaku();
-    
-    if (!waku.filter) {
-      console.error('Waku Filter protocol not available');
-      return () => {};
-    }
+    const node = await initWaku();
+    // Using any cast to support different SDK signatures for createDecoder
+    const decoders = myIds.map(id => (createDecoder as any)(createContentTopic(id)));
 
-    const decoders = myIds.map(id => {
-      const topic = `/${APP_NAME}/1/message-${id}/proto`;
-      // Passing options as any for SDK compatibility
-      return createDecoder(topic, {} as any);
-    });
-
-    const unsubscribePromise = waku.filter.subscribe(
-      decoders,
-      (wakuMessage) => {
-        if (!wakuMessage.payload || !wakuMessage.contentTopic) return;
-        
-        try {
-          const payload = new TextDecoder().decode(wakuMessage.payload);
-          const parts = wakuMessage.contentTopic.split('message-');
-          if (parts.length > 1) {
-            const topicId = parts[1].split('/')[0];
-            onMessage(payload, topicId);
-          }
-        } catch (e) {
-          console.error('P2P Decode Error:', e);
-        }
-      }
-    );
-
-    const unsubscribe = await unsubscribePromise;
-
-    return (() => {
-      if (typeof unsubscribe === 'function') {
-        (unsubscribe as Function)();
-      } else if (unsubscribe && typeof (unsubscribe as any).unsubscribe === 'function') {
-        (unsubscribe as any).unsubscribe();
+    const subscription = await node.filter.subscribe(decoders, (wakuMessage: any) => {
+      if (wakuMessage?.payload) {
+        const text = new TextDecoder().decode(wakuMessage.payload);
+        const topic = wakuMessage.contentTopic;
+        const matchedId = myIds.find(id => createContentTopic(id) === topic) || myIds[0];
+        onMessage(text, matchedId);
       }
     });
+
+    return () => {
+      if (typeof subscription === 'function') {
+        (subscription as any)();
+      } else if ((subscription as any)?.unsubscribe) {
+        (subscription as any).unsubscribe();
+      }
+    };
   } catch (e) {
-    console.error('Subscription error:', e);
+    console.error('P2P Subscription Failed:', e);
     return () => {};
   }
 }

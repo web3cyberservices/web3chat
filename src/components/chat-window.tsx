@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -6,10 +5,9 @@ import { Send, Trash2, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage, performPoW } from '@/lib/crypto-utils';
-import { getLocalMessages, saveLocalMessage, deleteLocalMessage, getChats, saveChat, type ChatSession } from '@/lib/db';
+import { getLocalMessages, saveLocalMessage, deleteLocalMessage, saveChat, type ChatSession } from '@/lib/db';
 import { sendP2PMessage, subscribeToP2P, initWaku } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
-import images from '@/app/lib/placeholder-images.json';
 
 interface Message {
   id: number;
@@ -46,16 +44,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Подписываемся на свой ID и ID активного чата (если это группа)
-        const myIds = [currentUserId];
-        if (activeChatRef.current?.startsWith('group-')) {
-          myIds.push(activeChatRef.current);
-        }
-
-        unsubscribe = await subscribeToP2P(myIds, async (encryptedPayload, topicId) => {
+        // Subscribe to P2P network - this subscription stays alive for the session
+        unsubscribe = await subscribeToP2P([currentUserId], async (encryptedPayload, topicId) => {
           try {
-            const isForMe = topicId === currentUserId;
-            const secret = isForMe ? currentUserId : topicId;
+            const secret = currentUserId;
             const decrypted = await decryptMessage(encryptedPayload, secret);
             
             if (decrypted.startsWith('[Error')) return;
@@ -64,7 +56,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             if (parsed.senderId === currentUserId) return;
 
             const msgId = parsed.timestamp || Date.now();
-            const chatId = isForMe ? parsed.senderId : topicId;
+            const chatId = parsed.senderId;
 
             await saveLocalMessage({
               id: msgId,
@@ -94,7 +86,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       isMounted = false;
       if (unsubscribe) unsubscribe();
     };
-  }, [currentUserId, activeChat?.id]);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!activeChat) {
