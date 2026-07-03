@@ -3,10 +3,35 @@ import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
-const APP_NAME = 'web3chat';
-
 export function createContentTopic(id: string) {
-  return `/${APP_NAME}/1/u-${(id || 'default').slice(0, 10)}/proto`;
+  const safeId = (id || 'default').slice(0, 10);
+  return `/web3chat/1/u-${safeId}/proto`;
+}
+
+// Универсальные обертки для поддержки любых версий Waku SDK (до и после 0.0.28)
+function getSafeEncoder(topic: string) {
+  try {
+    const encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true });
+    // Если SDK старый, он примет объект за строку и криво положит его в contentTopic
+    if (encoder && typeof encoder.contentTopic === 'object') {
+      return (createEncoder as any)(topic, true); // Вызов для версии 0.0.27
+    }
+    return encoder;
+  } catch (e) {
+    return (createEncoder as any)(topic, true);
+  }
+}
+
+function getSafeDecoder(topic: string) {
+  try {
+    const decoder = (createDecoder as any)({ contentTopic: topic });
+    if (decoder && typeof decoder.contentTopic === 'object') {
+      return (createDecoder as any)(topic); // Вызов для версии 0.0.27
+    }
+    return decoder;
+  } catch (e) {
+    return (createDecoder as any)(topic);
+  }
 }
 
 export async function initWaku() {
@@ -18,17 +43,16 @@ export async function initWaku() {
       console.log('[Waku] Starting Light Node...');
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
-      console.log('[Waku] Waiting for remote peers...');
+      console.log('[Waku] Node started. Searching for peers...');
       
-      // Support for various SDK versions with any cast
-      const newNode = node as any;
-      if (newNode.waitForRemotePeer) {
-        await newNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
-      } else if (newNode.waitForConnectedPeer) {
-        await newNode.waitForConnectedPeer();
+      try {
+        // Ограничиваем ожидание пиров 10 секундами
+        await node.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 10000);
+        console.log('[Waku] Peers found! P2P Network is ACTIVE.');
+      } catch (peerError) {
+        console.warn('[Waku] Peer discovery timeout. Waku will continue in background.');
       }
       
-      console.log('[Waku] P2P Network is ACTIVE.');
       nodeInstance = node;
       return node;
     } catch (error) {
@@ -45,25 +69,25 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   try {
     const node = await initWaku();
     const topic = createContentTopic(targetId);
-    console.log(`[Waku] Attempting to send to topic: ${topic}`);
     
-    // Explicitly cast to avoid routingInfo errors in strict builds
-    const encoder = (createEncoder as any)({ contentTopic: topic, ephemeral: true });
+    // Используем нашу безопасную обертку
+    const encoder = getSafeEncoder(topic);
 
+    console.log(`[Waku] Sending to ${topic}...`);
+    
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload)
     });
 
-    const res = result as any;
-    if (res?.errors && res.errors.length > 0) {
-      console.error('[Waku] Send rejected by peer:', res.errors);
+    if (result?.errors && result.errors.length > 0) {
+      console.error('[Waku] Send rejected by peer:', result.errors);
       return false;
     }
-    
-    console.log('[Waku] Message broadcasted successfully!');
+
+    console.log('[Waku] Message sent successfully!');
     return true;
   } catch (e) {
-    console.error('[Waku] Send Exception:', e);
+    console.error('[Waku] P2P Send Error:', e);
     return false;
   }
 }
@@ -72,13 +96,15 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    // Explicitly cast to avoid argument count errors
-    const decoder = (createDecoder as any)(topic);
-    console.log(`[Waku] Subscribing to topic: ${topic}`);
+    
+    // Используем нашу безопасную обертку
+    const decoder = getSafeDecoder(topic);
+
+    console.log(`[Waku] Subscribing to ${topic}...`);
 
     const subscription = await node.filter.subscribe([decoder], (wakuMessage: any) => {
       if (wakuMessage?.payload) {
-        console.log('[Waku] New payload received from network!');
+        console.log('[Waku] Message received!');
         const text = new TextDecoder().decode(wakuMessage.payload);
         onMessage(text);
       }
@@ -86,7 +112,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 
     return subscription;
   } catch (e) {
-    console.error('[Waku] Subscription Failed:', e);
+    console.error('[Waku] P2P Subscription Failed:', e);
     return null;
   }
 }
