@@ -30,8 +30,11 @@ export async function initWaku(): Promise<LightNode> {
       await newNode.start();
       
       // Wait for peers that support LightPush and Filter protocols
+      // Cast to any to bypass strict type check on older/newer SDK versions
       try {
-        await newNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+        if ((newNode as any).waitForRemotePeer) {
+          await (newNode as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+        }
       } catch (e) {
         console.warn('Waku: Peer discovery still in progress...');
       }
@@ -53,11 +56,11 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const waku = await initWaku();
     const contentTopic = `/${APP_NAME}/1/message-${targetId}/proto`;
     
-    // Fix: Explicitly pass ephemeral flag and contentTopic to the encoder
+    // Use any to pass ephemeral flag correctly as per SDK requirements
     const encoder = (createEncoder as any)(contentTopic, { ephemeral: true });
     const payload = new TextEncoder().encode(encryptedPayload);
     
-    // Fix: Explicitly pass contentTopic inside the message object to fix routing errors
+    // Explicitly pass contentTopic inside the message object to fix routing errors
     const result = await waku.lightPush.send(encoder, { 
       payload,
       contentTopic: contentTopic 
