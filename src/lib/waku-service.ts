@@ -35,7 +35,7 @@ export async function initWaku(): Promise<LightNode> {
       
       if (typeof waitMethod === 'function') {
         try {
-          await waitMethod.call(newNode, [Protocols.LightPush, Protocols.Filter], 10000);
+          await waitMethod.call(newNode, [Protocols.LightPush, Protocols.Filter], 15000);
         } catch (e) {
           console.warn('Waku: Peer discovery still in progress...');
         }
@@ -58,12 +58,10 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const waku = await initWaku();
     const topic = `/${APP_NAME}/1/message-${targetId}/proto`;
     
-    // Fix: createEncoder usually expects (topic, options) or (options) depending on version.
-    // Using cast to handle version-specific discrepancies.
+    // Fix: createEncoder usually expects (topic, options) or (options)
     const encoder = (createEncoder as any)(topic, {});
     const payload = new TextEncoder().encode(encryptedPayload);
     
-    // Ensure we have a peer before sending
     const result = await waku.lightPush.send(encoder, { payload });
     
     const res = result as any;
@@ -96,7 +94,7 @@ export async function subscribeToP2P(
       return (createDecoder as any)(topic, {});
     });
 
-    const unsubscribe = await waku.filter.subscribe(
+    const unsubscribePromise = waku.filter.subscribe(
       decoders,
       (wakuMessage) => {
         if (!wakuMessage.payload || !wakuMessage.contentTopic) return;
@@ -114,9 +112,13 @@ export async function subscribeToP2P(
       }
     );
 
+    const unsubscribe = await unsubscribePromise;
+
     return (() => {
       if (typeof unsubscribe === 'function') {
-        unsubscribe();
+        (unsubscribe as Function)();
+      } else if (unsubscribe && typeof (unsubscribe as any).unsubscribe === 'function') {
+        (unsubscribe as any).unsubscribe();
       }
     });
   } catch (e) {
