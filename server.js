@@ -11,10 +11,6 @@ app.prepare().then(() => {
   // Listen on 0.0.0.0 to allow Docker bridge communication from Nginx
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
-    const { pathname } = parsedUrl;
-
-    // Handle static Next.js assets explicitly if needed, 
-    // though handle() usually covers this.
     handle(req, res, parsedUrl);
   }).listen(3000, '0.0.0.0', (err) => {
     if (err) throw err;

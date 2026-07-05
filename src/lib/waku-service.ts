@@ -86,7 +86,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    // Приведение к any для обхода строгого интерфейса DecoderOptions
+    // Приведение к any для обхода строгого интерфейса DecoderOptions (ошибка Expected 2 arguments)
     const decoder = createDecoder(topic, {} as any);
 
     const callback = (wakuMessage: any) => {
