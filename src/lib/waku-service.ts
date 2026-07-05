@@ -60,7 +60,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
 
     console.log(`[Waku] Broadcasting message to topic: ${topic}`);
     
-    // Явно передаем contentTopic в объект сообщения
+    // Явно передаем contentTopic в объект сообщения для совместимости
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
       contentTopic: topic
