@@ -1,4 +1,3 @@
-
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
@@ -8,12 +7,12 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  // Simple HTTP server for Reverse Proxy (Nginx) compatibility in 2026
+  // Listen on 0.0.0.0 to allow Docker bridge communication
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
-  }).listen(3000, '127.0.0.1', (err) => {
+  }).listen(3000, '0.0.0.0', (err) => {
     if (err) throw err;
-    console.log('> Web3 Chat: HTTP Production Server ready on 127.0.0.1:3000');
+    console.log('> Web3 Chat: HTTP Production Server ready on 0.0.0.0:3000');
   });
 });

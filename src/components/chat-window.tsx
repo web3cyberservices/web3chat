@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -82,7 +81,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Регулярное обновление подписки для стабильности соединения
+        // Heartbeat: Переподписка каждые 30 секунд для стабильности
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();

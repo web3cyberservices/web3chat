@@ -1,4 +1,3 @@
-
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 let nodeInstance: any = null;
@@ -22,13 +21,13 @@ export async function initWaku() {
   initPromise = (async () => {
     try {
       console.log('[Waku] Starting Light Node on Production Network...');
-      // Подключение к основной сети Waku
+      // Подключение к основной сети Waku (The Waku Network)
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
       console.log('[Waku] Node started. Searching for peers...');
       
       try {
-        // Ожидание подключения к пирам с поддержкой необходимых протоколов
+        // Ожидание подключения к пирам. Приведение к any для обхода ошибок типизации SDK
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         console.log('[Waku] Connected to mesh!');
       } catch (peerError) {
@@ -55,12 +54,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    // Используем ephemeral сообщения для прямой доставки без хранения в истории
+    // Используем ephemeral сообщения для прямой доставки (as any для обхода routingInfo)
     const encoder = createEncoder({ contentTopic: topic, ephemeral: true } as any);
 
     console.log(`[Waku] Broadcasting message to topic: ${topic}`);
     
-    // Явно передаем contentTopic в объект сообщения для совместимости
+    // Передаем contentTopic явно для корректной маршрутизации
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
       contentTopic: topic
@@ -86,7 +85,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    // Добавляем пустой объект настроек для совместимости с типами SDK
+    // Приведение к any для обхода ошибок типизации SDK
     const decoder = createDecoder(topic, {} as any);
 
     const callback = (wakuMessage: any) => {
