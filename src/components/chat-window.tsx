@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Cpu, Trash2, ChevronLeft, RefreshCw, Wifi, WifiOff, Check, CheckCheck } from 'lucide-react';
+import { Send, Lock, Trash2, ChevronLeft, RefreshCw, Wifi, WifiOff, Check } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
@@ -39,15 +38,14 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       try {
         setNetworkStatus('connecting');
         const node = await initWaku();
-        if (!isMounted) return;
+        if (!isMounted || !node) return;
         nodeRef.current = node;
 
         const { encoder, decoder } = await setupStandardChannel(node, activeChat!.id);
         if (!isMounted) return;
         encoderRef.current = encoder;
 
-        // Подписка на входящие сообщения через Filter
-        unsubscribe = await node.filter.subscribe([decoder], async (wakuMessage: any) => {
+        const callback = async (wakuMessage: any) => {
           if (!wakuMessage?.payload) return;
           
           try {
@@ -80,15 +78,16 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                   sender: 'other', 
                   senderId: activeChat!.id, 
                   time,
-                  status: 'sent'
+                  status: 'sent' as const
                 }].sort((a, b) => a.id - b.id);
               });
             }
           } catch (e) {
             console.error("Processing error:", e);
           }
-        });
+        };
 
+        unsubscribe = await node.filter.subscribe([decoder], callback);
         if (isMounted) setNetworkStatus('online');
 
       } catch (e) {
@@ -113,7 +112,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               sender: m.sender, 
               senderId: m.senderId, 
               time: m.time,
-              status: 'sent'
+              status: 'sent' as const
             });
           }
         } catch (e) {}
@@ -169,13 +168,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         sender: 'me', 
         senderId: currentUserId, 
         time,
-        status: 'sending'
+        status: 'sending' as const
       }]);
 
       const payloadBytes = new TextEncoder().encode(encrypted);
       await nodeRef.current.lightPush.send(encoderRef.current, { payload: payloadBytes });
       
-      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' } : m));
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' as const } : m));
 
     } catch (e) {
       toast({ title: "Send Failed", description: "P2P network error", variant: "destructive" });

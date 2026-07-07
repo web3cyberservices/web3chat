@@ -1,13 +1,9 @@
 /**
- * @fileOverview Сетевой слой Waku (стандартные протоколы).
+ * @fileOverview Сетевой слой Waku (стабильные протоколы).
  * Использует Filter для получения и Light Push для отправки.
- * 
- * - initWaku - Инициализация ноды Waku в браузере.
- * - getChannelName - Генерация детерминированного имени канала.
- * - setupStandardChannel - Настройка энкодеров и декодеров для чата.
  */
 
-import { createLightNode, Protocols, waitForRemotePeer } from '@waku/sdk';
+import { createLightNode, Protocols, waitForRemotePeer, createEncoder, createDecoder } from '@waku/sdk';
 import protobuf from 'protobufjs';
 
 // Protobuf структура для сообщений
@@ -35,6 +31,12 @@ export async function initWaku() {
         }
       });
       await node.start();
+      
+      console.log('[Waku] Waiting for Peers (Filter/LightPush)...');
+      await waitForRemotePeer(node, [Protocols.Filter, Protocols.LightPush], 20000).catch(e => {
+        console.warn('[Waku] Peer discovery timeout, proceeding anyway.');
+      });
+
       console.log('[Waku] Node started.');
       nodeInstance = node;
       return node;
@@ -55,13 +57,8 @@ export function getChannelName(id1: string, id2: string) {
 export async function setupStandardChannel(node: any, channelName: string) {
   const ct = `/web3chat/1/${channelName}/proto`;
   
-  const encoder = node.createEncoder({ contentTopic: ct });
-  const decoder = node.createDecoder({ contentTopic: ct });
-
-  console.log('[Waku] Waiting for Peers (Filter/LightPush)...');
-  await waitForRemotePeer(node, [Protocols.Filter, Protocols.LightPush], 20000).catch(e => {
-    console.warn('[Waku] Peer discovery timeout, proceeding with current peers.');
-  });
+  const encoder = createEncoder({ contentTopic: ct, ephemeral: true });
+  const decoder = createDecoder({ contentTopic: ct });
 
   return { encoder, decoder, contentTopic: ct };
 }
