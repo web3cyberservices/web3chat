@@ -8,7 +8,8 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  // Listen on 0.0.0.0 to allow Docker bridge communication from Nginx
+  // Стандарт июля 2026: Слушаем 0.0.0.0 для доступности внутри Docker/K8s
+  // Порт 3000 проксируется внешним Nginx
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);

@@ -1,45 +1,44 @@
 
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
+/**
+ * @fileOverview Сервис P2P коммуникации через сеть Waku.
+ * Стандарт июля 2026. Использует основную децентрализованную сеть.
+ */
+
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
-/**
- * Создает уникальный топик контента для пользователя.
- */
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
-  return `/web3chat/1/u-${safeId}/proto`;
+  return `/web3chat/2/u-${safeId}/proto`;
 }
 
-/**
- * Инициализирует узел Waku и подключает его к основной сети.
- */
 export async function initWaku() {
   if (nodeInstance) return nodeInstance;
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Starting Light Node on Production Network (Port 443)...');
-      // Подключение к основной сети Waku (The Waku Network)
+      console.log('[Waku] Initializing Light Node on Production Mesh (Port 443)...');
+      // Подключение к боевой сети Waku через защищенные WebSocket-соединения
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
-      console.log('[Waku] Node started. Searching for peers...');
       
+      console.log('[Waku] Searching for peers...');
       try {
-        // Приведение к any для обхода ошибок типизации SDK в некоторых версиях
+        // Приведение к any для обхода строгой типизации методов ожидания в SDK 2026 года
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
-        console.log('[Waku] Connected to mesh!');
+        console.log('[Waku] Connected to global P2P mesh!');
       } catch (peerError) {
-        console.warn('[Waku] Initial peer wait timeout. Running in background discovery mode.');
+        console.warn('[Waku] Mesh discovery timeout. Node will continue background synchronization.');
       }
       
       nodeInstance = node;
       return node;
     } catch (error) {
       initPromise = null;
-      console.error('[Waku] Init failed:', error);
+      console.error('[Waku] Critical initialization failure:', error);
       throw error;
     }
   })();
@@ -47,46 +46,41 @@ export async function initWaku() {
   return initPromise;
 }
 
-/**
- * Отправляет зашифрованное сообщение через P2P сеть.
- */
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    // Используем ephemeral сообщения. Приведение к any для обхода обязательного routingInfo
+    // Приведение к any для обхода обязательного routingInfo в некоторых версиях SDK
     const encoder = createEncoder({ contentTopic: topic, ephemeral: true } as any);
 
-    console.log(`[Waku] Broadcasting message to topic: ${topic}`);
+    console.log(`[Waku] Broadcasting secure packet to topic: ${topic}`);
     
-    // Передаем contentTopic явно для корректной маршрутизации в объекте сообщения
+    // Явная передача contentTopic в объекте сообщения для гарантированной маршрутизации
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload),
       contentTopic: topic
     } as any);
 
     if ((result as any)?.errors?.length) {
-      console.error('[Waku] Message rejected by network peers:', (result as any).errors);
+      console.error('[Waku] Delivery rejected by network:', (result as any).errors);
       return false;
     }
     
-    console.log('[Waku] Message successfully delivered to network!');
+    console.log('[Waku] Message accepted by P2P network.');
     return true;
   } catch (e) {
-    console.error('[Waku] P2P Send Error:', e);
+    console.error('[Waku] Transmission error:', e);
     return false;
   }
 }
 
-/**
- * Подписывается на входящие сообщения для текущего пользователя.
- */
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    // Приведение к any для обхода строгого интерфейса DecoderOptions (ошибка Expected 2 arguments)
+    
+    // Передаем пустой объект конфигурации вторым аргументом для соответствия сигнатуре SDK
     const decoder = createDecoder(topic, {} as any);
 
     const callback = (wakuMessage: any) => {
@@ -100,17 +94,17 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const trySubscribe = async (): Promise<any> => {
       try {
         const sub = await node.filter.subscribe([decoder], callback);
-        console.log(`[Waku] Successfully subscribed to incoming topic: ${topic}`);
+        console.log(`[Waku] Filter established for topic: ${topic}`);
         return sub;
       } catch (e: any) {
-        console.warn('[Waku] Filter service not ready. Retrying subscription in 5s...');
+        console.warn('[Waku] Mesh filtering not ready. Retrying in 5s...');
         return new Promise(resolve => setTimeout(() => resolve(trySubscribe()), 5000));
       }
     };
 
     return await trySubscribe();
   } catch (e) {
-    console.error('[Waku] Subscription initialization failed:', e);
+    console.error('[Waku] Subscription fatal error:', e);
     return null;
   }
 }
