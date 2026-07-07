@@ -93,6 +93,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (isMounted) {
           setNetworkStatus('error');
           setStatusMessage("P2P Mesh Discovery slow. Retrying...");
+          // Авто-перезапуск через 5 секунд
           setTimeout(() => {
             if (isMounted) setup();
           }, 5000);

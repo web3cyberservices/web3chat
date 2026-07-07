@@ -5,7 +5,7 @@ import { wakuDnsDiscovery } from '@waku/dns-discovery';
 
 /**
  * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
- * Использует DNS Discovery, networkConfig (вместо shardInfo) и standalone waitForRemotePeer.
+ * Использует DNS Discovery, networkConfig и автономную функцию waitForRemotePeer.
  */
 
 let nodeInstance: any = null;
@@ -27,6 +27,7 @@ export function getMessageEncoder(contentTopic: string) {
 }
 
 export function getMessageDecoder(contentTopic: string) {
+  // В SDK 2026 строго используем объект конфигурации
   return createDecoder({ contentTopic });
 }
 
@@ -45,6 +46,7 @@ export async function initWaku() {
             "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
           ])
         ],
+        // Используем networkConfig вместо устаревшего shardInfo
         networkConfig: {
           clusterId: CLUSTER_ID,
           shards: [SHARD_ID]
@@ -54,6 +56,7 @@ export async function initWaku() {
       await node.start();
       
       console.log('[Waku] Waiting for remote peers (LightPush & Filter)...');
+      // Используем standalone функцию waitForRemotePeer
       await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 45000);
       
       console.log('[Waku] Node online and peered with Mainnet.');
@@ -99,6 +102,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
+    // Ожидаем пира с поддержкой Filter перед подпиской
     await waitForRemotePeer(node, [Protocols.Filter], 30000).catch(() => {
       console.warn('[Waku] Filter peer discovery slow, attempting anyway...');
     });
