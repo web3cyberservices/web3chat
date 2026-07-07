@@ -84,7 +84,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         
         if (!isMounted) return;
         
-        // Оформляем подписку и сохраняем её для очистки
+        // Оформляем подписку и ждем пиров
         subscription = await subscribeToP2P(currentUserId, handleIncoming);
         
         if (isMounted && subscription) {
@@ -96,7 +96,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (isMounted) {
           setNetworkStatus('error');
           setStatusMessage("P2P Mesh Discovery slow. Retrying...");
-          // Повторная попытка через 5 секунд при ошибке (например, таймауте поиска пиров)
           setTimeout(() => {
             if (isMounted) setup();
           }, 5000);
@@ -108,9 +107,17 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      // Очистка подписки при размонтировании (Предотвращение утечек ОЗУ и зомби-процессов)
-      if (subscription && typeof subscription.unsubscribe === 'function') {
-        subscription.unsubscribe();
+      // ГАРАНТИРОВАННАЯ ОЧИСТКА: Удаляем подписку при закрытии чата
+      if (subscription) {
+        try {
+          if (typeof subscription.unsubscribe === 'function') {
+            subscription.unsubscribe();
+          } else if (typeof subscription === 'function') {
+            subscription();
+          }
+        } catch (e) {
+          console.warn('[Waku] Subscription cleanup warning:', e);
+        }
       }
     };
   }, [currentUserId, toast]);

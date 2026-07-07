@@ -2,6 +2,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // АКТИВАЦИЯ STANDALONE БИЛДА (Июль 2026)
   output: 'standalone',
   images: {
     remotePatterns: [

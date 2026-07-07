@@ -6,7 +6,7 @@ import { wakuDnsDiscovery } from '@waku/dns-discovery';
 
 /**
  * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
- * Использует DNS Discovery и Sharded Mesh.
+ * Использует DNS Discovery и Sharded Mesh с защитой от race conditions.
  */
 
 let nodeInstance: any = null;
@@ -14,24 +14,36 @@ let initPromise: Promise<any> | null = null;
 
 const CLUSTER_ID = 1;
 
+/**
+ * Создает топик контента.
+ */
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
   return `/web3chat/1/u-${safeId}/proto`;
 }
 
+/**
+ * Возвращает энкодер для отправки сообщений.
+ * В SDK 2026 createEncoder ожидает объект конфигурации.
+ */
 export function getMessageEncoder(contentTopic: string) {
-  // В SDK 2026 (v0.0.25+) createEncoder ожидает объект.
   return createEncoder({ 
     contentTopic, 
     ephemeral: true 
   });
 }
 
+/**
+ * Возвращает декодер для получения сообщений.
+ * В SDK 2026 createDecoder ожидает строку (contentTopic).
+ */
 export function getMessageDecoder(contentTopic: string) {
-  // Согласно логам TSC: createDecoder ожидает строку (contentTopic)
   return createDecoder(contentTopic);
 }
 
+/**
+ * Инициализирует ноду Waku с использованием DNS Discovery (Mainnet).
+ */
 export async function initWaku() {
   if (nodeInstance) return nodeInstance;
   if (initPromise) return initPromise;
@@ -47,7 +59,7 @@ export async function initWaku() {
             "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
           ])
         ],
-        // Слушаем все шарды кластера 1, чтобы избежать "Pubsub topic not configured"
+        // Слушаем все шарды кластера 1, чтобы избежать ошибок конфигурации топиков
         shardInfo: {
           clusterId: CLUSTER_ID,
           shards: [0, 1, 2, 3, 4, 5, 6, 7]
@@ -57,18 +69,14 @@ export async function initWaku() {
       await node.start();
       
       const anyNode = node as any;
-      const protocols = [Protocols.LightPush, Protocols.Filter];
       
-      console.log('[Waku] Waiting for Production Peers (Mainnet Discovery)...');
-      
+      // Ждем базовых пиров для работы сети
       if (anyNode.waitForRemotePeer) {
-        // Увеличиваем таймаут для медленных сетей
-        await anyNode.waitForRemotePeer(protocols, 60000).catch(() => {
-          console.warn('[Waku] Initial peer discovery is taking longer than expected...');
-        });
+        console.log('[Waku] Discovery in progress (Mainnet)...');
+        await anyNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 60000);
       }
       
-      console.log('[Waku] Node online.');
+      console.log('[Waku] Node online and peered.');
       nodeInstance = node;
       return node;
     } catch (error) {
@@ -81,6 +89,9 @@ export async function initWaku() {
   return initPromise;
 }
 
+/**
+ * Отправляет зашифрованное сообщение через P2P сеть.
+ */
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
     const node = await initWaku();
@@ -98,6 +109,10 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   }
 }
 
+/**
+ * Подписывается на входящие сообщения.
+ * Внедрен барьер ожидания пиров Filter для предотвращения ошибок подписки.
+ */
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   try {
     const node = await initWaku();
@@ -114,16 +129,16 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const anyNode = node as any;
     
     // КРИТИЧЕСКИЙ БАРЬЕР: Ждем именно Filter пира перед подпиской.
-    // Это устраняет ошибку "No peer found to initiate subscription".
     if (anyNode.waitForRemotePeer) {
-      console.log('[Waku] Waiting for Filter-capable peer...');
+      console.log('[Waku] Waiting for Filter-capable peer to establish subscription...');
       await anyNode.waitForRemotePeer([Protocols.Filter], 30000);
     }
 
     console.log('[Waku] Initiating subscription for:', topic);
-    return await node.filter.subscribe([decoder], callback);
+    const subscription = await node.filter.subscribe([decoder], callback);
+    return subscription;
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
-    throw e; // Пробрасываем ошибку для обработки в UI компоненте
+    throw e;
   }
 }
