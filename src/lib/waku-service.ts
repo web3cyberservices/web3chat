@@ -1,4 +1,3 @@
-
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 /**
@@ -12,6 +11,21 @@ let initPromise: Promise<any> | null = null;
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
   return `/web3chat/1/u-${safeId}/proto`;
+}
+
+export function getMessageEncoder(contentTopic: string) {
+  return createEncoder({ 
+    contentTopic, 
+    ephemeral: true,
+    routingInfo: { shard: 0 } as any
+  });
+}
+
+export function getMessageDecoder(contentTopic: string) {
+  return createDecoder({
+    contentTopic,
+    routingInfo: { shard: 0 } as any
+  });
 }
 
 export async function initWaku() {
@@ -51,13 +65,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   try {
     const node = await initWaku();
     const topic = createContentTopic(targetId);
-    
-    // В 2026 обязательно указываем routingInfo (shard)
-    const encoder = createEncoder({ 
-      contentTopic: topic, 
-      ephemeral: true,
-      routingInfo: { shard: 0 } as any
-    });
+    const encoder = getMessageEncoder(topic);
 
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload)
@@ -74,11 +82,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   try {
     const node = await initWaku();
     const topic = createContentTopic(myId);
-    
-    const decoder = createDecoder({
-      contentTopic: topic,
-      routingInfo: { shard: 0 } as any
-    });
+    const decoder = getMessageDecoder(topic);
 
     const callback = (wakuMessage: any) => {
       if (wakuMessage?.payload) {
@@ -87,6 +91,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
+    // В SDK 2026 фильтр принимает массив декодеров
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
