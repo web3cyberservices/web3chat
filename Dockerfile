@@ -1,40 +1,38 @@
-# Stage 1: Dependencies
+# Stage 1: Зависимости
 FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 
-# Stage 2: Builder
+# Stage 2: Сборка
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Stage 3: Runner
+# Stage 3: Запуск (Runner)
 FROM node:22-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
 
-# Создаем пользователя для безопасности
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Копируем только необходимое из standalone билда
+# Копируем публичные ассеты и статику в правильные места для standalone режима
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# УДАЛЕНО: COPY --from=builder /app/server.js ./server.js
-# Теперь используется оптимизированный сервер, созданный самим Next.js
-
 USER nextjs
 
 EXPOSE 3000
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
+# Запускаем оптимизированный сервер Next.js
 CMD ["node", "server.js"]
