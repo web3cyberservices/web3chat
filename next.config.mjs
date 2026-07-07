@@ -1,11 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  experimental: {
-    // allowedDevOrigins удален, так как он не распознается в этой версии canary
+  reactStrictMode: true,
+  serverExternalPackages: ['pg'], // <-- КРИТИЧЕСКИ ВАЖНО: Защита от ошибок pg-native
+  images: {
+    unoptimized: true,
   },
-  // Пустой конфиг turbopack для устранения ошибки несовместимости с webpack-настройками
-  turbopack: {}
 };
 
 export default nextConfig;

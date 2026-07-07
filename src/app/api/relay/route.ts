@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
+// <-- ЗАПРЕЩАЕМ NEXT.JS ВЫПОЛНЯТЬ ЭТОТ КОД ПРИ СБОРКЕ DOCKER -->
+export const dynamic = 'force-dynamic'; 
+
 /**
  * @fileOverview HTTP Stealth Relay с персистентным хранилищем PostgreSQL.
  * Реализует Immutable Audit Log для зашифрованных сообщений.
