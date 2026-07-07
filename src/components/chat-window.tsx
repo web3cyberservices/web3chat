@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -27,7 +26,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Отслеживаем активный чат через Ref для корректной работы фоновой подписки
   const activeChatRef = useRef(activeChat?.id);
 
   useEffect(() => {
@@ -65,8 +63,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           });
         } else {
           toast({ 
-            title: "Secure Packet Received", 
-            description: `Incoming message from User ${parsed.senderId?.slice(0, 8)}` 
+            title: "Secure Message", 
+            description: `From User ${parsed.senderId?.slice(0, 8)}` 
           });
         }
       } catch (e) {
@@ -81,17 +79,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Первичная подписка на входящий канал
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Переподписка каждые 30 секунд для предотвращения "тихого" разрыва в P2P сети
+        // Heartbeat: Переподписка каждые 30 секунд для предотвращения таймаутов
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();
              else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
           }
           activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
-          console.log('[Heartbeat] P2P Subscription renewed.');
         }, 30000);
 
       } catch (e) {
@@ -145,7 +141,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
       await performPoW(rawData);
-      
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({
@@ -163,14 +158,14 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       if (!success) {
         toast({
           title: "Broadcast Delayed",
-          description: "Message saved locally. Network retry in background.",
+          description: "Saved locally. Retrying...",
           variant: "destructive"
         });
       }
     } catch (e) {
       toast({
         title: "Cryptographic Error",
-        description: "Failed to seal packet. Check identity integrity.",
+        description: "Failed to seal packet.",
         variant: "destructive"
       });
     } finally {
@@ -191,7 +186,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground">
         <Lock className="w-12 h-12 opacity-20 mb-4" />
         <h2 className="text-xl font-bold text-foreground">Secure Vault</h2>
-        <p className="text-sm">Connect to a peer node for end-to-end encrypted session.</p>
+        <p className="text-sm">Connect to a peer node for E2EE session.</p>
       </div>
     );
   }
@@ -213,8 +208,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'connecting' ? 'bg-accent animate-spin' : 'bg-destructive'
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
-                {networkStatus === 'online' ? 'P2P Mainnet Active' :
-                 networkStatus === 'connecting' ? 'Syncing Mesh...' : 'Network Failure'}
+                {networkStatus === 'online' ? 'P2P Active' :
+                 networkStatus === 'connecting' ? 'Syncing...' : 'Network failure'}
               </span>
             </div>
           </div>
@@ -258,7 +253,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               disabled={isProcessing}
-              placeholder={isProcessing ? "Cryptographic Processing..." : "Type encrypted message..."}
+              placeholder={isProcessing ? "Processing Security..." : "Type encrypted message..."}
               className="flex-1 bg-secondary rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all"
             />
             <button

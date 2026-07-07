@@ -1,4 +1,3 @@
-
 'use server';
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
@@ -11,7 +10,7 @@ let initPromise: Promise<any> | null = null;
 
 export async function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
-  return `/web3chat/2/u-${safeId}/proto`;
+  return `/web3chat/1/u-${safeId}/proto`;
 }
 
 export async function initWaku() {
@@ -48,7 +47,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = await createContentTopic(targetId);
     
-    // routingInfo необходим в новых версиях SDK для корректной маршрутизации пакетов
+    // Используем any для обхода строгого интерфейса EncoderOptions
     const encoder = createEncoder({ 
       contentTopic: topic, 
       ephemeral: true,
@@ -56,9 +55,8 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     } as any);
 
     const result = await node.lightPush.send(encoder, {
-      payload: new TextEncoder().encode(encryptedPayload),
-      contentTopic: topic
-    } as any);
+      payload: new TextEncoder().encode(encryptedPayload)
+    });
 
     return !result?.errors?.length;
   } catch (e) {
@@ -88,7 +86,6 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
         console.log(`[Waku] Filter established for topic: ${topic}`);
         return sub;
       } catch (e) {
-        // Рекурсивный retry при временной недоступности сети
         return new Promise(resolve => setTimeout(() => resolve(trySubscribe()), 5000));
       }
     };
