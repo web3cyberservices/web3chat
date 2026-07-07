@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -7,9 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
 import { getLocalMessages, saveLocalMessage, deleteLocalMessage, type ChatSession } from '@/lib/db';
-import { initWaku, setupStandardChannel, ChatDataPacket } from '@/lib/waku-service';
+import { sendP2PMessage, subscribeToP2P, ChatDataPacket } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
-import { waitForRemotePeer, Protocols } from '@waku/sdk';
 
 interface Message {
   id: number;
@@ -26,37 +24,21 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const [isProcessing, setIsProcessing] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<'connecting' | 'online' | 'error'>('connecting');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const nodeRef = useRef<any>(null);
-  const encoderRef = useRef<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (!activeChat || !currentUserId) return;
 
     let isMounted = true;
-    let unsubscribe: (() => Promise<void>) | null = null;
+    let unsubscribe: any = null;
     
     async function setup() {
       try {
         setNetworkStatus('connecting');
-        const node = await initWaku();
-        if (!isMounted || !node) return;
-        nodeRef.current = node;
-
-        const { encoder, decoder } = await setupStandardChannel(node, activeChat!.id);
-        if (!isMounted) return;
-        encoderRef.current = encoder;
-
-        // Ждем пиров именно для фильтрации в этом канале
-        await waitForRemotePeer(node, [Protocols.Filter], 10000).catch(() => console.warn('Filter peer wait timeout'));
-
-        const callback = async (wakuMessage: any) => {
-          if (!wakuMessage?.payload) return;
-          
+        
+        const sub = await subscribeToP2P(currentUserId, async (payload) => {
           try {
-            const encryptedPayload = new TextDecoder().decode(wakuMessage.payload);
-            const decrypted = await decryptMessage(encryptedPayload, currentUserId);
-            
+            const decrypted = await decryptMessage(payload, currentUserId);
             if (decrypted.startsWith('[Error')) return;
             
             const decodedProto = ChatDataPacket.decode(Buffer.from(decrypted, 'base64'));
@@ -68,7 +50,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             await saveLocalMessage({
               id: msgId,
               chatId: activeChat!.id,
-              payload: encryptedPayload,
+              payload: payload,
               sender: 'other',
               senderId: activeChat!.id,
               time
@@ -88,19 +70,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               });
             }
           } catch (e) {
-            console.error("Processing error:", e);
+            console.error("Msg processing error:", e);
           }
-        };
+        });
 
-        const subscription = await node.filter.subscribe([decoder], callback);
-        unsubscribe = async () => {
-          await subscription.unsubscribe([decoder]);
-        };
-        
-        if (isMounted) setNetworkStatus('online');
-
+        if (sub && isMounted) {
+          unsubscribe = sub;
+          setNetworkStatus('online');
+        }
       } catch (e) {
-        console.error("Setup failure:", e);
         if (isMounted) setNetworkStatus('error');
       }
     }
@@ -135,13 +113,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     return () => {
       isMounted = false;
       if (unsubscribe) {
-        unsubscribe().catch(console.error);
+        unsubscribe.unsubscribe?.().catch(console.error);
       }
     };
   }, [activeChat?.id, currentUserId]);
 
   const handleSend = async () => {
-    if (!nodeRef.current || !encoderRef.current || !input.trim()) return;
+    if (!input.trim() || isProcessing) return;
 
     const textToSend = input;
     setInput('');
@@ -157,9 +135,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         message: textToSend
       });
       const encodedProto = ChatDataPacket.encode(protoMsg).finish();
-      
-      const binaryString = Array.from(encodedProto).map(b => String.fromCharCode(b)).join('');
-      const base64Proto = btoa(binaryString);
+      const base64Proto = Buffer.from(encodedProto).toString('base64');
       const encrypted = await encryptMessage(base64Proto, activeChat!.id);
 
       await saveLocalMessage({
@@ -180,10 +156,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         status: 'sending' as const
       }]);
 
-      const payloadBytes = new TextEncoder().encode(encrypted);
-      await nodeRef.current.lightPush.send(encoderRef.current, { payload: payloadBytes });
+      const success = await sendP2PMessage(activeChat!.id, encrypted);
       
-      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' as const } : m));
+      if (success) {
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' as const } : m));
+      } else {
+        throw new Error('P2P failure');
+      }
 
     } catch (e) {
       toast({ title: "Send Failed", description: "P2P network error", variant: "destructive" });

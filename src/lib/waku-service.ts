@@ -1,12 +1,11 @@
-
-/**
- * @fileOverview Сетевой слой Waku (Стандарт Июля 2026).
- * Реализовано: DNS Discovery, networkConfig, standalone waitForRemotePeer.
- */
-
 import { createLightNode, Protocols, createEncoder, createDecoder, waitForRemotePeer } from '@waku/sdk';
 import { wakuDnsDiscovery } from '@waku/dns-discovery';
 import protobuf from 'protobufjs';
+
+/**
+ * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
+ * Использует DNS Discovery для подключения к Mainnet.
+ */
 
 const CLUSTER_ID = 1;
 const SHARD_ID = 0;
@@ -19,6 +18,21 @@ export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
+export function createContentTopic(id: string) {
+  const safeId = (id || 'default').slice(0, 10);
+  return `/web3chat/1/u-${safeId}/proto`;
+}
+
+export function getMessageEncoder(contentTopic: string) {
+  const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
+  return createEncoder({ contentTopic, pubsubTopic, ephemeral: true });
+}
+
+export function getMessageDecoder(contentTopic: string) {
+  const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
+  return createDecoder({ contentTopic, pubsubTopic });
+}
+
 export async function initWaku() {
   if (typeof window === 'undefined') return null;
   if (nodeInstance) return nodeInstance;
@@ -26,15 +40,15 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Booting P2P Node (Mainnet 2026)...');
+      console.log('[Waku] Initializing July 2026 Production Mesh...');
+      
       const node = await createLightNode({ 
-        libp2p: {
-          peerDiscovery: [
-            wakuDnsDiscovery([
-              "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
-            ])
-          ]
-        },
+        defaultBootstrap: false, 
+        peerDiscovery: [
+          wakuDnsDiscovery([
+            "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
+          ])
+        ],
         networkConfig: {
           clusterId: CLUSTER_ID,
           shards: [SHARD_ID]
@@ -43,14 +57,14 @@ export async function initWaku() {
       
       await node.start();
       
-      console.log('[Waku] Waiting for Filter & LightPush peers...');
-      await waitForRemotePeer(node, [Protocols.Filter, Protocols.LightPush], 25000);
+      console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
+      await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 30000);
       
-      console.log('[Waku] Mesh Active.');
+      console.log('[Waku] Connected to Global Mainnet Shard 0.');
       nodeInstance = node;
       return node;
     } catch (error) {
-      console.error('[Waku] Connection Failed:', error);
+      console.error('[Waku] Mainnet Connection Failed:', error);
       initPromise = null;
       throw error;
     }
@@ -59,15 +73,45 @@ export async function initWaku() {
   return initPromise;
 }
 
-export function getChannelName(id1: string, id2: string) {
-  return [id1, id2].sort().join('-').slice(0, 32);
+export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
+  try {
+    const node = await initWaku();
+    if (!node) return false;
+    const topic = createContentTopic(targetId);
+    const encoder = getMessageEncoder(topic);
+
+    const result = await node.lightPush.send(encoder, {
+      payload: new TextEncoder().encode(encryptedPayload)
+    });
+
+    return !result?.errors?.length;
+  } catch (e) {
+    console.error('[Waku] Send Error:', e);
+    return false;
+  }
 }
 
-export async function setupStandardChannel(node: any, channelName: string) {
-  const ct = `/web3chat/1/${channelName}/proto`;
-  
-  const encoder = createEncoder({ contentTopic: ct, ephemeral: true });
-  const decoder = createDecoder({ contentTopic: ct });
+export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
+  try {
+    const node = await initWaku();
+    if (!node) return null;
+    const topic = createContentTopic(myId);
+    const decoder = getMessageDecoder(topic);
 
-  return { encoder, decoder, contentTopic: ct };
+    const callback = (wakuMessage: any) => {
+      if (wakuMessage?.payload) {
+        const decoded = new TextDecoder().decode(wakuMessage.payload);
+        onMessage(decoded);
+      }
+    };
+
+    await waitForRemotePeer(node, [Protocols.Filter], 15000).catch(() => {
+        console.warn("[Waku] Timeout waiting for Filter peers, proceeding.");
+    });
+
+    return await node.filter.subscribe([decoder], callback);
+  } catch (e) {
+    console.error('[Waku] Subscription Failure:', e);
+    return null;
+  }
 }
