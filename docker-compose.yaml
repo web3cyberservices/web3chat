@@ -1,3 +1,4 @@
+
 services:
   web3-chat:
     build:
@@ -9,6 +10,7 @@ services:
       - "127.0.0.1:3000:3000"
     networks:
       - chat-network
+    # Удалены все volumes для предотвращения затирания статики хостом
 
 networks:
   chat-network:

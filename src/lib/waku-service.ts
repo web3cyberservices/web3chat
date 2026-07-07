@@ -1,8 +1,8 @@
+
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 /**
- * @fileOverview P2P сервис Waku. Стандарт Июля 2026.
- * Исправлены ошибки типизации и маршрутизация шардов.
+ * @fileOverview P2P сервис Waku. Стандарт Июля 2026 (Sharded Mesh).
  */
 
 let nodeInstance: any = null;
@@ -28,7 +28,7 @@ export function getMessageEncoder(contentTopic: string) {
 
 export function getMessageDecoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  // Передаем топик строкой первым аргументом, чтобы избежать ошибки .split() в SDK
+  // В v0.0.25+ топик передается строкой первым аргументом
   return createDecoder(contentTopic, pubsubTopic);
 }
 
@@ -51,13 +51,16 @@ export async function initWaku() {
       await node.start();
       
       try {
-        // Ожидаем подключения к пирам. Используем any для обхода строгих типов SDK 2026
+        // Гибкое ожидание пиров (совместимость API 2026)
         const anyNode = node as any;
+        const protocols = [Protocols.LightPush, Protocols.Filter];
+        
         if (anyNode.waitForRemotePeer) {
-          await anyNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+          await anyNode.waitForRemotePeer(protocols, 15000);
         } else if (anyNode.waitForPeers) {
-          await anyNode.waitForPeers([Protocols.LightPush, Protocols.Filter], 15000);
+          await anyNode.waitForPeers(protocols, 15000);
         }
+        
         console.log('[Waku] Connected to Global Mesh Shard 0.');
       } catch (e) {
         console.warn('[Waku] Peer discovery is slow, continuing in background...');
@@ -98,6 +101,10 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const topic = createContentTopic(myId);
     const decoder = getMessageDecoder(topic);
 
+    if (!decoder || !node.filter) {
+      throw new Error('Filter or Decoder not initialized');
+    }
+
     const callback = (wakuMessage: any) => {
       if (wakuMessage?.payload) {
         const decoded = new TextDecoder().decode(wakuMessage.payload);
@@ -105,7 +112,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
-    // В SDK 2026 подписка принимает массив декодеров
+    // Подписка через массив декодеров (Стандарт 2026)
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
