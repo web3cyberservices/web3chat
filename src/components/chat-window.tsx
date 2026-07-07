@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
 import { getLocalMessages, saveLocalMessage, deleteLocalMessage, type ChatSession } from '@/lib/db';
-import { sendP2PMessage, subscribeToP2P, getWakuHistory, ChatDataPacket } from '@/lib/waku-service';
+import { sendP2PMessage, subscribeToP2P, ChatDataPacket } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -66,7 +66,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     if (!activeChat || !currentUserId) return;
 
     let isMounted = true;
-    let unsubscribe: any = null;
+    let subscription: any = null;
     
     async function setup() {
       try {
@@ -93,7 +93,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             }
           } catch (e) {}
         }
-        if (isMounted) setMessages(decrypted.sort((a, b) => a.id - b.id));
+        if (isMounted) {
+          setMessages(decrypted.sort((a, b) => a.id - b.id));
+        }
 
         // 2. Подписка на новые сообщения
         const sub = await subscribeToP2P(currentUserId, (payload) => {
@@ -101,13 +103,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         });
 
         if (sub && isMounted) {
-          unsubscribe = sub;
+          subscription = sub;
           setNetworkStatus('online');
-          
-          // 3. Подгрузка истории из Waku Store
-          getWakuHistory(currentUserId, (payload) => {
-            if (isMounted) processIncomingPayload(payload);
-          });
         }
       } catch (e) {
         if (isMounted) setNetworkStatus('error');
@@ -118,8 +115,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      if (unsubscribe && unsubscribe.unsubscribe) {
-        unsubscribe.unsubscribe().catch(console.error);
+      if (subscription && typeof subscription === 'function') {
+        subscription();
       }
     };
   }, [activeChat?.id, currentUserId]);

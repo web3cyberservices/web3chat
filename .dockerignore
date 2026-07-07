@@ -5,5 +5,4 @@ build
 .git
 .vscode
 .env
-docker-compose.yaml
-Dockerfile
+.env.local

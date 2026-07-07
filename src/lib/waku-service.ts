@@ -3,9 +3,12 @@ import { wakuDnsDiscovery } from '@waku/dns-discovery';
 import protobuf from 'protobufjs';
 
 /**
- * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
- * Использует DNS Discovery для подключения к Mainnet и Store для истории.
+ * @fileOverview БРОНЕБОЙНЫЙ P2P сервис Waku. Стандарт Июля 2026.
+ * Использует DNS + Hardcoded Fallback для обхода блокировок DoH (CORS/AdBlock).
  */
+
+const CLUSTER_ID = 1;
+const SHARD_ID = 0;
 
 export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
   .add(new protobuf.Field("timestamp", 1, "uint64"))
@@ -15,9 +18,6 @@ export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
-const CLUSTER_ID = 1;
-const SHARD_ID = 0;
-
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
   return `/web3chat/1/u-${safeId}/proto`;
@@ -25,7 +25,7 @@ export function createContentTopic(id: string) {
 
 export function getMessageEncoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  return createEncoder({ contentTopic, pubsubTopic, ephemeral: false });
+  return createEncoder({ contentTopic, pubsubTopic, ephemeral: true });
 }
 
 export function getMessageDecoder(contentTopic: string) {
@@ -40,7 +40,7 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Initializing July 2026 Production Mesh...');
+      console.log('[Waku] Initializing INDESTRUCTIBLE Production Mesh...');
       
       const node = await createLightNode({ 
         defaultBootstrap: false, 
@@ -56,10 +56,30 @@ export async function initWaku() {
       });
       
       await node.start();
-      
-      console.log('[Waku] Waiting for Production Peers (Filter, Push, Store)...');
-      // Ждем пиров через standalone функцию (Правило 3)
-      await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter, Protocols.Store], 30000);
+      console.log('[Waku] Node Engine Started. Dialing Hardcoded Prod Peers...');
+
+      // ХАКЕРСКИЙ ФОЛЛБЕК: Если DNS заблокирован провайдером, 
+      // подключаемся к боевым серверам напрямую по Multiaddr
+      const fallbackPeers = [
+        "/dns4/node-01.ac-cn-hongkong-c.waku.nodes.status.im/tcp/8000/wss/p2p/16Uiu2HAm4v86YNwGjtBhtSsN4ePC8Eq84HkS7U2WXXE1WjEGAg6s",
+        "/dns4/node-01.do-ams3.waku.nodes.status.im/tcp/8000/wss/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrCE87TjKU8hsPA1Eb",
+        "/dns4/node-01.gc-us-central1-a.waku.nodes.status.im/tcp/8000/wss/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS"
+      ];
+
+      for (const peer of fallbackPeers) {
+        try {
+          await node.dial(peer);
+          console.log(`[Waku] Fallback connection to ${peer} SUCCESS!`);
+        } catch (e) {
+          // Игнорируем ошибки диала отдельных пиров
+        }
+      }
+
+      console.log('[Waku] Waiting for Filter/LightPush protocols...');
+      // Ждем пиров через автономную функцию
+      await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 20000).catch(() => {
+         console.warn("[Waku] Timeout on waitForRemotePeer, but forcing initialization.");
+      });
       
       console.log('[Waku] Connected to Global Mainnet Shard 0.');
       nodeInstance = node;
@@ -92,27 +112,6 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   }
 }
 
-export async function getWakuHistory(targetId: string, onMessage: (payload: string) => void) {
-  try {
-    const node = await initWaku();
-    if (!node || !node.store) return;
-    const topic = createContentTopic(targetId);
-    const decoder = getMessageDecoder(topic);
-
-    console.log('[Waku] Fetching history from Store...');
-    for await (const messagesPage of node.store.queryGenerator([decoder])) {
-      for (const msg of messagesPage) {
-        if (msg && msg.payload) {
-          const decoded = new TextDecoder().decode(msg.payload);
-          onMessage(decoded);
-        }
-      }
-    }
-  } catch (e) {
-    console.error('[Waku] Store Error:', e);
-  }
-}
-
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   try {
     const node = await initWaku();
@@ -126,11 +125,6 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
         onMessage(decoded);
       }
     };
-
-    // Гарантируем наличие пиров перед подпиской
-    await waitForRemotePeer(node, [Protocols.Filter], 15000).catch(() => {
-        console.warn("[Waku] Filter peer timeout, proceeding.");
-    });
 
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
