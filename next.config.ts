@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
   experimental: {
     allowedDevOrigins: [
       "6000-firebase-studio-1777733792819.cluster-4cmpbiopffe5oqk7tloeb2ltrk.cloudworkstations.dev",
+      "*.cluster-4cmpbiopffe5oqk7tloeb2ltrk.cloudworkstations.dev",
       "*.cloudworkstations.dev"
     ]
   }

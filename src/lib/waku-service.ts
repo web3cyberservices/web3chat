@@ -20,6 +20,7 @@ export function createContentTopic(id: string) {
 }
 
 export function getMessageEncoder(contentTopic: string) {
+  // В SDK 2026 используем объект конфигурации
   return createEncoder({ 
     contentTopic, 
     ephemeral: true 
@@ -27,8 +28,8 @@ export function getMessageEncoder(contentTopic: string) {
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  // В SDK 2026 строго используем объект конфигурации
-  return createDecoder({ contentTopic });
+  // На основе логов TSC: в этой версии SDK createDecoder принимает строку напрямую
+  return createDecoder(contentTopic);
 }
 
 export async function initWaku() {
@@ -109,24 +110,8 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 
     console.log('[Waku] Initiating subscription for:', topic);
     
-    let subscription;
-    let attempts = 3;
-    while (attempts > 0) {
-      try {
-        subscription = await node.filter.subscribe([decoder], callback);
-        if (subscription) break;
-      } catch (e: any) {
-        if (e.message?.includes('No peer found') && attempts > 1) {
-          console.warn('[Waku] Subscription attempt failed (no peer), retrying in 5s...');
-          attempts--;
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          continue;
-        }
-        throw e;
-      }
-    }
-    
-    return subscription;
+    // В SDK 2026 подписка возвращает объект, который можно использовать для отписки
+    return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
     throw e;
