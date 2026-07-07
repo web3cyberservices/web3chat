@@ -10,9 +10,11 @@ const nextConfig = {
       },
     ],
   },
-  typescript: {
-    // Разрешаем билд даже при мелких неточностях типов в SDK сторонних библиотек
-    ignoreBuildErrors: true,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+      timeout: 120,
+    },
   },
 };
 

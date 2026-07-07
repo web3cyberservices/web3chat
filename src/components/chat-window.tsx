@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -40,7 +41,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     const handleIncoming = async (encryptedPayload: string) => {
       try {
-        // Дешифруем входящее сообщение своим ключом
         const decrypted = await decryptMessage(encryptedPayload, currentUserId);
         if (decrypted.startsWith('[Error')) return;
         
@@ -48,7 +48,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         const msgId = parsed.timestamp || Date.now();
         const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // Сохраняем в локальную базу (IndexedDB)
         await saveLocalMessage({
           id: msgId,
           chatId: parsed.senderId,
@@ -58,7 +57,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           time
         });
 
-        // Если это сообщение из текущего активного чата — обновляем экран
         if (activeChatRef.current === parsed.senderId) {
           setMessages(prev => {
             if (prev.some(m => m.id === msgId)) return prev;
@@ -77,14 +75,22 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     const setup = async () => {
       try {
-        if (isMounted) setNetworkStatus('connecting');
+        if (isMounted) {
+          setNetworkStatus('connecting');
+          setStatusMessage("Connecting to P2P Mesh...");
+        }
+        
         await initWaku();
+        
         if (!isMounted) return;
         
         unsubscribe = await subscribeToP2P(currentUserId, handleIncoming);
-        if (isMounted) setNetworkStatus('online');
+        
+        if (isMounted) {
+          setNetworkStatus('online');
+          setStatusMessage(null);
+        }
 
-        // Heartbeat для поддержания P2P соединения в активном состоянии
         heartbeatInterval = setInterval(async () => {
           if (unsubscribe) {
             try {
@@ -93,11 +99,14 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             } catch (e) {}
           }
           unsubscribe = await subscribeToP2P(currentUserId, handleIncoming);
-        }, 30000);
+        }, 60000);
 
       } catch (e) {
         console.error('[Waku] Network setup failure:', e);
-        if (isMounted) setNetworkStatus('error');
+        if (isMounted) {
+          setNetworkStatus('error');
+          setStatusMessage("Connection failed. Retrying...");
+        }
       }
     };
 
@@ -113,7 +122,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     };
   }, [currentUserId, toast]);
 
-  // Загрузка истории сообщений при смене чата
   useEffect(() => {
     if (!activeChat) return;
     async function load() {
@@ -147,13 +155,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
-      // Proof-of-Work против спама
       await performPoW(rawData);
       
-      // Шифруем для получателя (используем его ID как публичный ключ в нашей упрощенной схеме)
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
-      // Сохраняем локально как "отправленное"
       await saveLocalMessage({
         id: msgId,
         chatId: activeChat.id,
@@ -165,12 +170,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       setMessages(prev => [...prev, { id: msgId, text: textToSend, sender: 'me', senderId: currentUserId, time }]);
 
-      // Отправляем в P2P сеть
       const success = await sendP2PMessage(activeChat.id, encrypted);
       if (!success) {
         toast({
           title: "Network Latency",
-          description: "Message queued locally. Syncing with peers...",
+          description: "Message queued locally. Peer discovery in progress...",
           variant: "destructive"
         });
       }
@@ -205,7 +209,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
   return (
     <div className="flex-1 flex flex-col bg-background relative overflow-hidden h-full">
-      {/* Header */}
       <div className="h-16 border-b bg-card/80 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
           {isMobile && <button onClick={onBack} className="p-1"><ChevronLeft /></button>}
@@ -232,7 +235,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         </div>
       </div>
 
-      {/* Messages */}
       <ScrollArea ref={scrollRef} className="flex-1 p-4">
         <div className="space-y-4 max-w-4xl mx-auto">
           {messages.map((m) => (
@@ -253,7 +255,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         </div>
       </ScrollArea>
 
-      {/* Input */}
       <div className="p-4 border-t bg-card/80 backdrop-blur-md">
         <div className="max-w-4xl mx-auto space-y-2">
           {statusMessage && (

@@ -8,7 +8,6 @@ import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
-// Константы сети 2026 (Sharded Mesh)
 const CLUSTER_ID = 1;
 const SHARD_ID = 0;
 
@@ -19,16 +18,16 @@ export function createContentTopic(id: string) {
 
 export function getMessageEncoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
+  // SDK 2026 требует контент-топик строкой первым аргументом
   return createEncoder({
     contentTopic,
     ephemeral: true,
     pubsubTopic
-  });
+  } as any);
 }
 
 export function getMessageDecoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  // В v0.0.25+ топик передается строкой первым аргументом
   return createDecoder(contentTopic, pubsubTopic);
 }
 
@@ -51,19 +50,21 @@ export async function initWaku() {
       await node.start();
       
       try {
-        // Гибкое ожидание пиров (совместимость API 2026)
         const anyNode = node as any;
         const protocols = [Protocols.LightPush, Protocols.Filter];
         
+        console.log('[Waku] Waiting for peers with Filter and LightPush protocols...');
+        
+        // Хирургическое ожидание пиров с проверкой существования метода
         if (anyNode.waitForRemotePeer) {
-          await anyNode.waitForRemotePeer(protocols, 15000);
+          await anyNode.waitForRemotePeer(protocols, 30000);
         } else if (anyNode.waitForPeers) {
-          await anyNode.waitForPeers(protocols, 15000);
+          await anyNode.waitForPeers(protocols, 30000);
         }
         
         console.log('[Waku] Connected to Global Mesh Shard 0.');
       } catch (e) {
-        console.warn('[Waku] Peer discovery is slow, continuing in background...');
+        console.warn('[Waku] Peer discovery is taking time, connection will stabilize in background.');
       }
       
       nodeInstance = node;
@@ -112,7 +113,13 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
-    // Подписка через массив декодеров (Стандарт 2026)
+    // Ожидание готовности перед подпиской
+    const protocols = [Protocols.Filter];
+    const anyNode = node as any;
+    if (anyNode.waitForRemotePeer) {
+      await anyNode.waitForRemotePeer(protocols, 5000).catch(() => {});
+    }
+
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
