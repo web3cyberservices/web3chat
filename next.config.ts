@@ -24,7 +24,8 @@ const nextConfig: NextConfig = {
       "0.0.0.0:3000",
       "0.0.0.0:9002",
       "*.cluster-4cmpbiopffe5oqk7tloeb2ltrk.cloudworkstations.dev",
-      "*.cloudworkstations.dev"
+      "*.cloudworkstations.dev",
+      "6000-firebase-studio-1777733792819.cluster-4cmpbiopffe5oqk7tloeb2ltrk.cloudworkstations.dev"
     ]
   }
 };

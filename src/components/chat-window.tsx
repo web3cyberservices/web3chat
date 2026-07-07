@@ -33,6 +33,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     if (!activeChat || !currentUserId) return;
 
     let isMounted = true;
+    let channel: any = null;
     
     async function setup() {
       try {
@@ -43,19 +44,27 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
 
         const channelName = getChannelName(currentUserId, activeChat!.id);
-        const channel = await setupReliableChannel(node, channelName, currentUserId);
+        channel = await setupReliableChannel(node, channelName, currentUserId);
         if (!isMounted) return;
         
         channelRef.current = channel;
 
-        // Обработка входящих сообщений через Reliable Channel
+        // Обработка входящих сообщений
         channel.addEventListener("message-received", async (event: any) => {
           const wakuMessage = event.detail;
           try {
+            // Декодируем и расшифровываем
             const encryptedPayload = new TextDecoder().decode(wakuMessage.payload);
+            // Если сообщение от нас, оно расшифруется ключом собеседника, если от него - нашим
+            // ReliableChannel возвращает все сообщения канала. Мы пробуем расшифровать как входящее.
             const decrypted = await decryptMessage(encryptedPayload, currentUserId);
             
-            if (decrypted.startsWith('[Error')) return;
+            if (decrypted.startsWith('[Error')) {
+              // Попробуем расшифровать как наше собственное (для синхронизации между устройствами)
+              const selfDecrypted = await decryptMessage(encryptedPayload, activeChat!.id);
+              if (selfDecrypted.startsWith('[Error')) return;
+              return; // Свои сообщения мы добавляем при отправке
+            }
             
             const decodedProto = ChatDataPacket.decode(Buffer.from(decrypted, 'base64'));
             const msgData = ChatDataPacket.toObject(decodedProto);
@@ -86,11 +95,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               });
             }
           } catch (e) {
-            console.error("Message processing error:", e);
+            console.error("Processing error:", e);
           }
         });
 
-        // Статусы отправки
         channel.addEventListener("message-sent", (event: any) => {
           const msgId = event.detail;
           setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' } : m));
@@ -101,7 +109,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'acknowledged' } : m));
         });
 
-        // Статус синхронизации
         channel.syncStatus.addEventListener("synced", () => {
           setNetworkStatus('online');
           setStatusMessage(null);
@@ -113,12 +120,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         });
 
       } catch (e) {
-        console.error("Channel setup failure:", e);
+        console.error("Setup failure:", e);
         if (isMounted) setNetworkStatus('error');
       }
     }
 
-    // Загрузка локальной истории
     async function loadHistory() {
       const stored = await getLocalMessages(activeChat!.id);
       const decrypted: Message[] = [];
@@ -149,6 +155,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     return () => {
       isMounted = false;
       channelRef.current = null;
+      // В реальном SDK ReliableChannel может требовать удаления слушателей
     };
   }, [activeChat?.id, currentUserId]);
 
@@ -158,13 +165,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     const textToSend = input;
     setInput('');
     setIsProcessing(true);
-    setStatusMessage("Sealing message...");
 
     try {
       const msgId = Date.now();
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       
-      // 1. Кодируем в Protobuf
       const protoMsg = ChatDataPacket.create({
         timestamp: msgId,
         sender: currentUserId,
@@ -172,12 +177,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       });
       const encodedProto = ChatDataPacket.encode(protoMsg).finish();
       
-      // 2. Шифруем (как Base64 для передачи через ReliableChannel)
       const binaryString = Array.from(encodedProto).map(b => String.fromCharCode(b)).join('');
       const base64Proto = btoa(binaryString);
       const encrypted = await encryptMessage(base64Proto, activeChat!.id);
 
-      // 3. Сохраняем локально
       await saveLocalMessage({
         id: msgId,
         chatId: activeChat!.id,
@@ -196,7 +199,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         status: 'sending'
       }]);
 
-      // 4. Отправляем через Reliable Channel
       const payloadBytes = new TextEncoder().encode(encrypted);
       channelRef.current.send(payloadBytes);
 
@@ -204,7 +206,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       toast({ title: "Security Violation", description: "Encryption failed", variant: "destructive" });
     } finally {
       setIsProcessing(false);
-      setStatusMessage(null);
     }
   };
 
@@ -246,8 +247,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
                 {networkStatus === 'online' ? 'Mesh Active' :
-                 networkStatus === 'syncing' ? 'Syncing SDS...' :
-                 networkStatus === 'connecting' ? 'Initializing...' : 'Disconnected'}
+                 networkStatus === 'syncing' ? 'Syncing...' :
+                 networkStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
               </span>
             </div>
           </div>
@@ -287,7 +288,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       <div className="p-4 border-t bg-card/80 backdrop-blur-md">
         <div className="max-w-4xl mx-auto space-y-2">
           {statusMessage && (
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground animate-pulse">
               <RefreshCw className="w-3 h-3 animate-spin" />
               {statusMessage}
             </div>
@@ -298,7 +299,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !isProcessing && handleSend()}
               disabled={isProcessing}
-              placeholder={isProcessing ? "Crypting..." : "Type secure message..."}
+              placeholder={isProcessing ? "Processing..." : "Type secure message..."}
               className="flex-1 bg-secondary/50 rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all"
             />
             <button
