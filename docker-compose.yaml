@@ -1,3 +1,4 @@
+
 services:
   web3-chat:
     build:
@@ -10,9 +11,9 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
-      # Синхронизируем статику с хостом для прямого доступа Nginx
-      - ./.next/static:/app/.next/static
-      - ./public:/app/public
+      # Важно: монтируем папки для Nginx (на хосте они должны существовать)
+      - ./_next_static:/app/.next/static
+      - ./public_assets:/app/public
     networks:
       - chat-network
 

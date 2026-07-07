@@ -1,3 +1,4 @@
+
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
@@ -7,12 +8,12 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  // Стандарт 2026: Слушаем 0.0.0.0 для корректной работы внутри Docker
+  // Слушаем 0.0.0.0 для корректной работы внутри Docker контейнера
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
   }).listen(3000, '0.0.0.0', (err) => {
     if (err) throw err;
-    console.log('> Web3 Chat: Ready on 0.0.0.0:3000');
+    console.log('> Web3 Chat: Ready on http://0.0.0.0:3000');
   });
 });

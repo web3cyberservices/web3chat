@@ -1,3 +1,4 @@
+
 'use server';
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
@@ -47,7 +48,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = await createContentTopic(targetId);
     
-    // Используем any для обхода строгого интерфейса EncoderOptions
+    // В версии 2026 поле routingInfo обязательно
     const encoder = createEncoder({ 
       contentTopic: topic, 
       ephemeral: true,
