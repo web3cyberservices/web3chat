@@ -29,8 +29,7 @@ export function getMessageEncoder(contentTopic: string) {
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  // В SDK 2026 (v0.0.25) createDecoder ожидает строку contentTopic
-  // Шардирование подхватывается из настроек ноды автоматически
+  // Исправление: SDK 2026 (v0.0.25) createDecoder ожидает строку contentTopic
   return createDecoder(contentTopic);
 }
 
@@ -45,11 +44,10 @@ export async function initWaku() {
       const node = await createLightNode({ 
         defaultBootstrap: false, 
         peerDiscovery: [
-          wakuDnsDiscovery({
-            enrUrls: [
-              "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
-            ]
-          })
+          // Исправление: в SDK 2026 wakuDnsDiscovery ожидает массив строк напрямую
+          (wakuDnsDiscovery as any)([
+            "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
+          ])
         ],
         shardInfo: {
           clusterId: CLUSTER_ID,
@@ -64,7 +62,7 @@ export async function initWaku() {
       
       console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
       
-      // Хирургический барьер ожидания пиров с гибкой типизацией для Next.js 16
+      // Хирургический барьер ожидания пиров
       if (anyNode.waitForRemotePeer) {
         await anyNode.waitForRemotePeer(protocols, 30000);
       } else if (anyNode.waitForPeers) {
@@ -119,8 +117,9 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     };
 
     const anyNode = node as any;
+    // Блокируем выполнение подписки до появления пиров
     if (anyNode.waitForRemotePeer) {
-      await anyNode.waitForRemotePeer([Protocols.Filter], 10000).catch(() => {});
+      await anyNode.waitForRemotePeer([Protocols.Filter], 15000).catch(() => {});
     }
 
     // В SDK 2026 подписка принимает массив декодеров
