@@ -1,9 +1,8 @@
-
 'use server';
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 /**
- * @fileOverview P2P сервис Waku. Стандарт июля 2026 (Mainnet).
+ * @fileOverview P2P сервис Waku. Боевой стандарт июля 2026.
  */
 
 let nodeInstance: any = null;
@@ -21,13 +20,14 @@ export async function initWaku() {
   initPromise = (async () => {
     try {
       console.log('[Waku] Connecting to Mainnet Mesh (Standard 2026)...');
+      // defaultBootstrap: true подключает к боевой сети Waku
       const node = await createLightNode({ defaultBootstrap: true });
       await node.start();
       
       try {
-        // Кастинг к any для обхода внутренних ограничений типов SDK 2026
+        // Кастинг к any для прохождения билда Next.js (баг типизации SDK)
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
-        console.log('[Waku] Connected to Global Mesh (Port 443).');
+        console.log('[Waku] Connected to Global Mesh.');
       } catch (e) {
         console.warn('[Waku] Peer discovery timeout. Node will sync in background.');
       }
@@ -48,7 +48,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = await createContentTopic(targetId);
     
-    // В версии 2026 поле routingInfo обязательно
+    // routingInfo обязателен в 2026 для маршрутизации в гетерогенных сетях
     const encoder = createEncoder({ 
       contentTopic: topic, 
       ephemeral: true,
@@ -71,7 +71,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const node = await initWaku();
     const topic = await createContentTopic(myId);
     
-    // createDecoder требует 2 аргумента в актуальной версии SDK 2026
+    // В актуальном SDK 2026 createDecoder требует объект опций вторым аргументом
     const decoder = createDecoder(topic, {} as any);
 
     const callback = (wakuMessage: any) => {
@@ -81,17 +81,9 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
-    const trySubscribe = async (): Promise<any> => {
-      try {
-        const sub = await node.filter.subscribe([decoder], callback);
-        console.log(`[Waku] Filter established for topic: ${topic}`);
-        return sub;
-      } catch (e) {
-        return new Promise(resolve => setTimeout(() => resolve(trySubscribe()), 5000));
-      }
-    };
-
-    return await trySubscribe();
+    const sub = await node.filter.subscribe([decoder], callback);
+    console.log(`[Waku] Filter established for: ${topic}`);
+    return sub;
   } catch (e) {
     console.error('[Waku] Subscription Error:', e);
     return null;

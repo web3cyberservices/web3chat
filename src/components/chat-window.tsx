@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -82,7 +81,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Переподписка каждые 30 секунд для предотвращения таймаутов
+        // Heartbeat: Авто-восстановление подписки каждые 30 секунд
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();
@@ -134,7 +133,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     const textToSend = input;
     setInput('');
     setIsProcessing(true);
-    setStatusMessage("Broadcasting via P2P Mesh...");
+    setStatusMessage("Broadcasting via Mainnet...");
 
     try {
       const msgId = Date.now();
@@ -159,7 +158,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       if (!success) {
         toast({
           title: "Broadcast Delayed",
-          description: "Saved locally. Retrying...",
+          description: "Stored locally. Searching for peers...",
           variant: "destructive"
         });
       }
@@ -187,7 +186,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground">
         <Lock className="w-12 h-12 opacity-20 mb-4" />
         <h2 className="text-xl font-bold text-foreground">Secure Vault</h2>
-        <p className="text-sm">Connect to a peer node for E2EE session.</p>
+        <p className="text-sm">Connect to Mainnet for E2EE session.</p>
       </div>
     );
   }
@@ -209,7 +208,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'connecting' ? 'bg-accent animate-spin' : 'bg-destructive'
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
-                {networkStatus === 'online' ? 'P2P Active' :
+                {networkStatus === 'online' ? 'Mainnet Active' :
                  networkStatus === 'connecting' ? 'Syncing...' : 'Network failure'}
               </span>
             </div>

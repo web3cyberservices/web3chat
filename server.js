@@ -1,4 +1,3 @@
-
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
@@ -8,7 +7,7 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  // Слушаем 0.0.0.0 для корректной работы внутри Docker контейнера
+  // Внутри Docker всегда слушаем 0.0.0.0
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
