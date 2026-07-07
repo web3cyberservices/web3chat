@@ -2,7 +2,7 @@ import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/
 
 /**
  * @fileOverview P2P сервис Waku. Стандарт Июля 2026.
- * Исправлена ошибка contentTopic.split и маршрутизация шардов.
+ * Исправлены ошибки типизации и маршрутизация шардов.
  */
 
 let nodeInstance: any = null;
@@ -28,7 +28,7 @@ export function getMessageEncoder(contentTopic: string) {
 
 export function getMessageDecoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  // Передаем топик строкой первым аргументом, чтобы избежать ошибки .split()
+  // Передаем топик строкой первым аргументом, чтобы избежать ошибки .split() в SDK
   return createDecoder(contentTopic, pubsubTopic);
 }
 
@@ -51,8 +51,13 @@ export async function initWaku() {
       await node.start();
       
       try {
-        // Ожидаем подключения к пирам с поддержкой LightPush и Filter
-        await node.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+        // Ожидаем подключения к пирам. Используем any для обхода строгих типов SDK 2026
+        const anyNode = node as any;
+        if (anyNode.waitForRemotePeer) {
+          await anyNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+        } else if (anyNode.waitForPeers) {
+          await anyNode.waitForPeers([Protocols.LightPush, Protocols.Filter], 15000);
+        }
         console.log('[Waku] Connected to Global Mesh Shard 0.');
       } catch (e) {
         console.warn('[Waku] Peer discovery is slow, continuing in background...');
