@@ -37,7 +37,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     if (!currentUserId) return;
     
     let isMounted = true;
-    let unsubscribeFn: any = null;
+    let subscription: any = null;
 
     const handleIncoming = async (encryptedPayload: string) => {
       try {
@@ -80,13 +80,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           setStatusMessage("Connecting to P2P Mesh...");
         }
         
-        // Ждем инициализации ноды и пиров
         await initWaku();
         
         if (!isMounted) return;
         
-        // Подписываемся на сообщения
-        unsubscribeFn = await subscribeToP2P(currentUserId, handleIncoming);
+        // Оформляем подписку и сохраняем её для очистки
+        subscription = await subscribeToP2P(currentUserId, handleIncoming);
         
         if (isMounted) {
           setNetworkStatus('online');
@@ -105,13 +104,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      // Обязательная очистка подписки для предотвращения утечек ОЗУ
-      if (unsubscribeFn) {
-        if (typeof unsubscribeFn === 'function') {
-          unsubscribeFn();
-        } else if (unsubscribeFn.unsubscribe) {
-          unsubscribeFn.unsubscribe();
-        }
+      // Очистка подписки при размонтировании (Предотвращение утечек ОЗУ)
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
       }
     };
   }, [currentUserId, toast]);

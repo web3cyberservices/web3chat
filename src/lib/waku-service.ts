@@ -4,14 +4,16 @@ import { wakuDnsDiscovery } from '@waku/dns-discovery';
 
 /**
  * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
- * Использует DNS Discovery для подключения к Mainnet и объектный синтаксис SDK.
+ * Использует DNS Discovery и Sharded Mesh.
  */
 
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
 const CLUSTER_ID = 1;
+// Основной шард приложения, но нода теперь слушает группу шардов для стабильности
 const SHARD_ID = 0;
+const PUBSUB_TOPIC = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
 
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
@@ -19,16 +21,17 @@ export function createContentTopic(id: string) {
 }
 
 export function getMessageEncoder(contentTopic: string) {
-  // В SDK 2026 createEncoder принимает объект
+  // В SDK 2026 передаем объект конфигурации
   return createEncoder({ 
     contentTopic, 
+    pubsubTopic: PUBSUB_TOPIC,
     ephemeral: true 
   });
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  // В SDK 2026 (v0.0.25) createDecoder ожидает строку contentTopic напрямую
-  return createDecoder(contentTopic);
+  // В SDK 2026 (v0.0.25) createDecoder ожидает контент-топик и опции
+  return (createDecoder as any)(contentTopic, { pubsubTopic: PUBSUB_TOPIC });
 }
 
 export async function initWaku() {
@@ -42,14 +45,14 @@ export async function initWaku() {
       const node = await createLightNode({ 
         defaultBootstrap: false, 
         peerDiscovery: [
-          // Боевое DNS дерево Waku Network
           (wakuDnsDiscovery as any)([
             "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
           ])
         ],
         shardInfo: {
           clusterId: CLUSTER_ID,
-          shards: [SHARD_ID]
+          // Слушаем набор шардов для предотвращения ошибок миссматча
+          shards: [0, 1, 2, 3]
         }
       } as any);
       
@@ -60,14 +63,13 @@ export async function initWaku() {
       
       console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
       
-      // Хирургический барьер ожидания пиров
       if (anyNode.waitForRemotePeer) {
         await anyNode.waitForRemotePeer(protocols, 30000);
       } else if (anyNode.waitForPeers) {
         await anyNode.waitForPeers(protocols, 30000);
       }
       
-      console.log('[Waku] Connected to Global Mainnet Shard 0.');
+      console.log('[Waku] Connected to Global Mainnet.');
       nodeInstance = node;
       return node;
     } catch (error) {
@@ -103,10 +105,6 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const topic = createContentTopic(myId);
     const decoder = getMessageDecoder(topic);
 
-    if (!decoder || !node.filter) {
-      throw new Error('Filter or Decoder not initialized');
-    }
-
     const callback = (wakuMessage: any) => {
       if (wakuMessage?.payload) {
         const decoded = new TextDecoder().decode(wakuMessage.payload);
@@ -115,12 +113,11 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     };
 
     const anyNode = node as any;
-    // Блокируем подписку до появления пиров в боевой сети
     if (anyNode.waitForRemotePeer) {
       await anyNode.waitForRemotePeer([Protocols.Filter], 15000).catch(() => {});
     }
 
-    // Подписка
+    // Возвращаем объект подписки для последующей очистки
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
