@@ -1,12 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-      },
+  experimental: {
+    allowedDevOrigins: [
+      '6000-firebase-studio-1777733792819.cluster-4cmpbiopffe5oqk7tloeb2ltrk.cloudworkstations.dev',
+      'localhost:9002',
+      '0.0.0.0:9002'
     ],
   },
   typescript: {
@@ -14,16 +13,6 @@ const nextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true,
-  },
-  experimental: {
-    allowedDevOrigins: [
-      "localhost:3000",
-      "localhost:9002",
-      "0.0.0.0:3000",
-      "0.0.0.0:9002",
-      "*.cluster-4cmpbiopffe5oqk7tloeb2ltrk.cloudworkstations.dev",
-      "*.cloudworkstations.dev"
-    ]
   }
 };
 
