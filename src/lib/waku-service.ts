@@ -20,12 +20,21 @@ export function createContentTopic(id: string) {
 
 export function getMessageEncoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  return createEncoder(contentTopic, pubsubTopic);
+  // В SDK 2026 передаем объект конфигурации
+  return createEncoder({ 
+    contentTopic, 
+    pubsubTopic,
+    ephemeral: true 
+  });
 }
 
 export function getMessageDecoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  return createDecoder(contentTopic, pubsubTopic);
+  // В SDK 2026 передаем объект конфигурации
+  return createDecoder({ 
+    contentTopic, 
+    pubsubTopic 
+  });
 }
 
 export async function initWaku() {
@@ -58,6 +67,7 @@ export async function initWaku() {
       
       console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
       
+      // Хирургический барьер ожидания пиров
       if (anyNode.waitForRemotePeer) {
         await anyNode.waitForRemotePeer(protocols, 30000);
       } else if (anyNode.waitForPeers) {
@@ -116,6 +126,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       await anyNode.waitForRemotePeer([Protocols.Filter], 10000).catch(() => {});
     }
 
+    // В SDK 2026 подписка принимает массив декодеров
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);

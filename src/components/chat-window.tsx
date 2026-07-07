@@ -80,6 +80,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           setStatusMessage("Connecting to P2P Mesh...");
         }
         
+        // Ожидаем инициализации и прохождения барьера пиров
         await initWaku();
         
         if (!isMounted) return;
@@ -91,6 +92,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           setStatusMessage(null);
         }
 
+        // Переподписка раз в минуту для поддержания соединения в Mainnet
         heartbeatInterval = setInterval(async () => {
           if (unsubscribe) {
             try {
