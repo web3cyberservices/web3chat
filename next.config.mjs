@@ -1,11 +1,8 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
-  reactStrictMode: false,
-  images: {
-    unoptimized: true,
-  },
+  // Отключаем standalone, так как используем кастомный server.js
+  reactStrictMode: true,
 };
 
 export default nextConfig;
