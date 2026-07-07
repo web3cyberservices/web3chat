@@ -2,11 +2,15 @@ import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/
 
 /**
  * @fileOverview P2P сервис Waku. Стандарт Июля 2026.
- * Использует обязательное шардирование и типизацию v2.0.
+ * Исправлена ошибка pubsubTopic и ETARGET.
  */
 
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
+
+// Константы сети 2026
+const CLUSTER_ID = 1;
+const SHARD_ID = 0;
 
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
@@ -14,18 +18,17 @@ export function createContentTopic(id: string) {
 }
 
 export function getMessageEncoder(contentTopic: string) {
-  // В 2026 обязательно указываем routingInfo для прохождения через шлюзы
   return createEncoder({ 
     contentTopic, 
     ephemeral: true,
-    routingInfo: { shard: 0 } as any
+    pubsubTopic: `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`
   });
 }
 
 export function getMessageDecoder(contentTopic: string) {
   return createDecoder({
     contentTopic,
-    routingInfo: { shard: 0 } as any
+    pubsubTopic: `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`
   });
 }
 
@@ -35,19 +38,23 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Initializing July 2026 Standard Mesh...');
+      console.log('[Waku] Initializing July 2026 Mesh (Sharded)...');
       
       const node = await createLightNode({ 
         defaultBootstrap: true,
+        shardInfo: {
+          clusterId: CLUSTER_ID,
+          shards: [SHARD_ID]
+        }
       });
       
       await node.start();
       
       try {
-        await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
-        console.log('[Waku] Connected to Global Mesh.');
+        await node.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
+        console.log('[Waku] Connected to Global Mesh Shard 0.');
       } catch (e) {
-        console.warn('[Waku] Mesh discovery slow, node will continue in background.');
+        console.warn('[Waku] Peer discovery is slow, continuing in background...');
       }
       
       nodeInstance = node;
@@ -92,10 +99,11 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
-    // В 2026 фильтр принимает массив декодеров
+    // В SDK 2026 фильтр принимает массив декодеров. 
+    // Явное указание pubsubTopic в decoder решает ошибку undefined.pubsubTopic.
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
-    console.error('[Waku] Subscription Error:', e);
+    console.error('[Waku] Subscription Failure:', e);
     return null;
   }
 }

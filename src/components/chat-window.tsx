@@ -35,7 +35,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   useEffect(() => {
     if (!currentUserId) return;
     let isMounted = true;
-    let activeSubscription: any = null;
+    let unsubscribe: any = null;
     let heartbeatInterval: NodeJS.Timeout;
 
     const handleIncoming = async (encryptedPayload: string) => {
@@ -74,20 +74,21 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     const setup = async () => {
       try {
-        setNetworkStatus('connecting');
+        if (isMounted) setNetworkStatus('connecting');
         await initWaku();
         if (!isMounted) return;
-        setNetworkStatus('online');
+        
+        unsubscribe = await subscribeToP2P(currentUserId, handleIncoming);
+        if (isMounted) setNetworkStatus('online');
 
-        activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
-
-        // Heartbeat для самовосстановления связи
         heartbeatInterval = setInterval(async () => {
-          if (activeSubscription) {
-             if (typeof activeSubscription === 'function') activeSubscription();
-             else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
+          if (unsubscribe) {
+            try {
+              if (typeof unsubscribe === 'function') await unsubscribe();
+              else if (unsubscribe.unsubscribe) await unsubscribe.unsubscribe();
+            } catch (e) {}
           }
-          activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
+          unsubscribe = await subscribeToP2P(currentUserId, handleIncoming);
         }, 30000);
 
       } catch (e) {
@@ -101,9 +102,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     return () => {
       isMounted = false;
       clearInterval(heartbeatInterval);
-      if (activeSubscription) {
-        if (typeof activeSubscription === 'function') activeSubscription();
-        else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
+      if (unsubscribe) {
+        if (typeof unsubscribe === 'function') unsubscribe();
+        else if (unsubscribe.unsubscribe) unsubscribe.unsubscribe();
       }
     };
   }, [currentUserId, toast]);
