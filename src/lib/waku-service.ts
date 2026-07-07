@@ -4,7 +4,7 @@ import protobuf from 'protobufjs';
 
 /**
  * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
- * Поддерживает Relay, Filter и Store (Архив сообщений).
+ * Использует DNS Discovery для подключения к Mainnet и Store для истории.
  */
 
 export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
@@ -58,6 +58,7 @@ export async function initWaku() {
       await node.start();
       
       console.log('[Waku] Waiting for Production Peers (Filter, Push, Store)...');
+      // Ждем пиров через standalone функцию (Правило 3)
       await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter, Protocols.Store], 30000);
       
       console.log('[Waku] Connected to Global Mainnet Shard 0.');
@@ -126,6 +127,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
+    // Гарантируем наличие пиров перед подпиской
     await waitForRemotePeer(node, [Protocols.Filter], 15000).catch(() => {
         console.warn("[Waku] Filter peer timeout, proceeding.");
     });

@@ -1,7 +1,9 @@
 node_modules
 .next
+out
+build
 .git
-Dockerfile
+.vscode
+.env
 docker-compose.yaml
-nginx.conf
-README.md
+Dockerfile

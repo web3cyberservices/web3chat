@@ -26,7 +26,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const processIncomingPayload = async (payload: string, isFromHistory = false) => {
+  const processIncomingPayload = async (payload: string) => {
     try {
       const decrypted = await decryptMessage(payload, currentUserId);
       if (decrypted.startsWith('[Error')) return;
@@ -104,9 +104,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           unsubscribe = sub;
           setNetworkStatus('online');
           
-          // 3. Подгрузка истории из Waku Store (для синхронизации оффлайн-сообщений)
+          // 3. Подгрузка истории из Waku Store
           getWakuHistory(currentUserId, (payload) => {
-            if (isMounted) processIncomingPayload(payload, true);
+            if (isMounted) processIncomingPayload(payload);
           });
         }
       } catch (e) {
@@ -118,8 +118,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      if (unsubscribe) {
-        unsubscribe.unsubscribe?.().catch(console.error);
+      if (unsubscribe && unsubscribe.unsubscribe) {
+        unsubscribe.unsubscribe().catch(console.error);
       }
     };
   }, [activeChat?.id, currentUserId]);
@@ -164,7 +164,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       const success = await sendP2PMessage(activeChat!.id, encrypted);
       
-      if (success && isMounted) {
+      if (success) {
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' as const } : m));
       } else {
         throw new Error('P2P failure');
