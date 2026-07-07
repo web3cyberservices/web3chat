@@ -68,7 +68,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           });
         }
       } catch (e) {
-        console.error("Message handling error:", e);
+        console.error("Incoming message error:", e);
       }
     };
 
@@ -81,6 +81,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
+        // Heartbeat для самовосстановления связи
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();
@@ -90,7 +91,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         }, 30000);
 
       } catch (e) {
-        console.error('[Waku] Network setup failed:', e);
+        console.error('[Waku] Network setup failure:', e);
         if (isMounted) setNetworkStatus('error');
       }
     };
@@ -157,15 +158,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const success = await sendP2PMessage(activeChat.id, encrypted);
       if (!success) {
         toast({
-          title: "Network Delay",
-          description: "Message stored locally. Searching for more peers...",
+          title: "Network Latency",
+          description: "Message queued locally. Syncing with peers...",
           variant: "destructive"
         });
       }
     } catch (e) {
       toast({
-        title: "Encryption Failure",
-        description: "Could not secure the message channel.",
+        title: "Security Violation",
+        description: "Cryptographic context failed.",
         variant: "destructive"
       });
     } finally {
@@ -185,8 +186,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     return (
       <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground">
         <Lock className="w-12 h-12 opacity-20 mb-4" />
-        <h2 className="text-xl font-bold text-foreground">Secure Workspace</h2>
-        <p className="text-sm">Select a contact to start an encrypted session.</p>
+        <h2 className="text-xl font-bold text-foreground">Secure Vault</h2>
+        <p className="text-sm">Initiate an encrypted P2P session.</p>
       </div>
     );
   }
@@ -208,8 +209,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'connecting' ? 'bg-accent animate-spin' : 'bg-destructive'
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
-                {networkStatus === 'online' ? 'Global Mesh Active' :
-                 networkStatus === 'connecting' ? 'Syncing...' : 'Network Offline'}
+                {networkStatus === 'online' ? 'P2P Mesh Active' :
+                 networkStatus === 'connecting' ? 'Syncing...' : 'Disconnected'}
               </span>
             </div>
           </div>
@@ -253,8 +254,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !isProcessing && handleSend()}
               disabled={isProcessing}
-              placeholder={isProcessing ? "Processing security protocols..." : "Type encrypted message..."}
-              className="flex-1 bg-secondary/50 rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all placeholder:text-muted-foreground/50"
+              placeholder={isProcessing ? "Processing..." : "Type encrypted message..."}
+              className="flex-1 bg-secondary/50 rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all"
             />
             <button
               onClick={handleSend}
