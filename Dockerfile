@@ -1,8 +1,10 @@
+
 # Stage 1: Зависимости
 FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
+# Устанавливаем всё, включая dev-депы для билда
 RUN npm install
 
 # Stage 2: Билдер
@@ -11,15 +13,16 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Собираем проект
 RUN npm run build
 
-# Stage 3: Боевой образ (Runner)
+# Stage 3: Финальный образ (Runner)
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Для кастомного server.js нам нужны полные node_modules и папка .next
+# Для кастомного сервера нам нужны полные зависимости и результат билда
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
@@ -30,5 +33,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Запускаем кастомный сервер
+# Запуск через кастомный server.js
 CMD ["node", "server.js"]
