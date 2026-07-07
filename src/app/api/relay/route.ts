@@ -24,9 +24,11 @@ async function ensureTableExists() {
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
         timestamp BIGINT NOT NULL,
+        target_id TEXT NOT NULL,
         payload TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_id);
     `);
     isInitialized = true;
   } catch (error) {
@@ -41,16 +43,16 @@ export async function POST(req: Request) {
     await ensureTableExists();
     const body = await req.json();
     
-    if (!body.payload) {
-      return NextResponse.json({ error: 'No payload' }, { status: 400 });
+    if (!body.payload || !body.targetId) {
+      return NextResponse.json({ error: 'Payload or targetId missing' }, { status: 400 });
     }
 
-    const timestamp = Date.now();
+    const timestamp = body.timestamp || Date.now();
     
     // Сохраняем пакет в Immutable Audit Log
     await pool.query(
-      'INSERT INTO messages (timestamp, payload) VALUES ($1, $2)',
-      [timestamp, body.payload]
+      'INSERT INTO messages (timestamp, target_id, payload) VALUES ($1, $2, $3)',
+      [timestamp, body.targetId, body.payload]
     );
 
     return NextResponse.json({ success: true });
@@ -65,11 +67,16 @@ export async function GET(req: Request) {
     await ensureTableExists();
     const { searchParams } = new URL(req.url);
     const since = Number(searchParams.get('since') || 0);
+    const targetId = searchParams.get('targetId');
 
-    // Выбираем только новые сообщения
+    if (!targetId) {
+      return NextResponse.json({ error: 'targetId required' }, { status: 400 });
+    }
+
+    // Выбираем только новые сообщения для конкретного пользователя
     const { rows } = await pool.query(
-      'SELECT timestamp, payload FROM messages WHERE timestamp > $1 ORDER BY timestamp ASC LIMIT 100',
-      [since]
+      'SELECT timestamp, payload FROM messages WHERE target_id = $1 AND timestamp > $2 ORDER BY timestamp ASC LIMIT 100',
+      [targetId, since]
     );
     
     return NextResponse.json({ messages: rows });

@@ -1,20 +1,17 @@
-import protobuf from 'protobufjs';
-
 /**
- * @fileOverview HTTP Stealth Relay. Полная замена Waku P2P.
- * Реализует бронебойную доставку зашифрованных сообщений через собственный Relay API.
- * Все сообщения шифруются на клиенте (E2EE), сервер видит только бинарный шум.
+ * @fileOverview HTTP Stealth Relay. Waku полностью удален.
+ * Бронебойная доставка зашифрованных сообщений через собственный сервер.
  */
 
-// Protobuf структура для бинарной упаковки (Stealth Mode)
-export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
-  .add(new protobuf.Field("timestamp", 1, "uint64"))
-  .add(new protobuf.Field("sender", 2, "string"))
-  .add(new protobuf.Field("message", 3, "string"));
-
+// Заглушки, чтобы не ломать старый код UI
 export async function initWaku() {
-  console.log('[Relay] Waku engine removed. Using Indestructible Stealth Relay.');
-  return { connected: true };
+  console.log('[Relay] Waku engine removed. Using Indestructible HTTP Relay.');
+  return true; 
+}
+
+export async function getWakuHistory(targetId: string, onMessage: (payload: string) => void) {
+  // История автоматически подгружается при первом вызове subscribeToP2P через lastSync
+  return; 
 }
 
 /**
@@ -25,7 +22,11 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const res = await fetch('/api/relay', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ payload: encryptedPayload })
+      body: JSON.stringify({ 
+        targetId, 
+        payload: encryptedPayload,
+        timestamp: Date.now()
+      })
     });
     return res.ok;
   } catch (e) {
@@ -45,7 +46,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   const poll = async () => {
     if (!isSubscribed) return;
     try {
-      const res = await fetch(`/api/relay?since=${lastSync}`);
+      const res = await fetch(`/api/relay?targetId=${myId}&since=${lastSync}`);
       if (res.ok) {
         const data = await res.json();
         if (data.messages && Array.isArray(data.messages)) {
@@ -74,8 +75,4 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       isSubscribed = false; 
     }
   };
-}
-
-export async function getWakuHistory(targetId: string, onMessage: (payload: string) => void) {
-  // История автоматически подгружается при первом вызове subscribeToP2P через lastSync
 }

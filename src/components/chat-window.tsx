@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
 import { getLocalMessages, saveLocalMessage, deleteLocalMessage, type ChatSession } from '@/lib/db';
-import { sendP2PMessage, subscribeToP2P, ChatDataPacket } from '@/lib/waku-service';
+import { sendP2PMessage, subscribeToP2P } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -31,9 +31,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const decrypted = await decryptMessage(payload, currentUserId);
       if (decrypted.startsWith('[Error')) return;
       
-      const decodedProto = ChatDataPacket.decode(Buffer.from(decrypted, 'base64'));
-      const msgData = ChatDataPacket.toObject(decodedProto) as any;
-      
+      const msgData = JSON.parse(decrypted);
       const msgId = Number(msgData.timestamp);
       const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -80,8 +78,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
             const payloadData = await decryptMessage(m.payload, secret);
             if (!payloadData.startsWith('[Error')) {
-              const decodedProto = ChatDataPacket.decode(Buffer.from(payloadData, 'base64'));
-              const msgData = ChatDataPacket.toObject(decodedProto) as any;
+              const msgData = JSON.parse(payloadData);
               decrypted.push({ 
                 id: m.id, 
                 text: msgData.message, 
@@ -98,12 +95,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         }
 
         // 2. Подписка на новые сообщения
-        const sub = await subscribeToP2P(currentUserId, (payload) => {
+        const subResult = await subscribeToP2P(currentUserId, (payload) => {
           if (isMounted) processIncomingPayload(payload);
         });
 
-        if (sub && isMounted) {
-          subscription = sub;
+        if (subResult && isMounted) {
+          subscription = subResult;
           setNetworkStatus('online');
         }
       } catch (e) {
@@ -115,8 +112,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      if (subscription && typeof subscription === 'function') {
-        subscription();
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
       }
     };
   }, [activeChat?.id, currentUserId]);
@@ -132,14 +129,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const msgId = Date.now();
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       
-      const protoMsg = ChatDataPacket.create({
+      const rawData = JSON.stringify({
         timestamp: msgId,
         sender: currentUserId,
         message: textToSend
       });
-      const encodedProto = ChatDataPacket.encode(protoMsg).finish();
-      const base64Proto = Buffer.from(encodedProto).toString('base64');
-      const encrypted = await encryptMessage(base64Proto, activeChat!.id);
+      
+      const encrypted = await encryptMessage(rawData, activeChat!.id);
 
       await saveLocalMessage({
         id: msgId,
@@ -164,11 +160,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       if (success) {
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' as const } : m));
       } else {
-        throw new Error('P2P failure');
+        throw new Error('Network failure');
       }
 
     } catch (e) {
-      toast({ title: "Send Failed", description: "P2P network error", variant: "destructive" });
+      toast({ title: "Send Failed", description: "Network relay error", variant: "destructive" });
     } finally {
       setIsProcessing(false);
     }
@@ -210,7 +206,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'connecting' ? 'bg-muted animate-pulse' : 'bg-destructive'
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
-                {networkStatus === 'online' ? 'Mesh Active' :
+                {networkStatus === 'online' ? 'Relay Active' :
                  networkStatus === 'connecting' ? 'Syncing...' : 'Disconnected'}
               </span>
             </div>
