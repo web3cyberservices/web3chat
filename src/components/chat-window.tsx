@@ -87,7 +87,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         // Оформляем подписку и сохраняем её для очистки
         subscription = await subscribeToP2P(currentUserId, handleIncoming);
         
-        if (isMounted) {
+        if (isMounted && subscription) {
           setNetworkStatus('online');
           setStatusMessage(null);
         }
@@ -95,7 +95,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         console.error('[Waku] Network setup failure:', e);
         if (isMounted) {
           setNetworkStatus('error');
-          setStatusMessage("Connection failed. Retrying...");
+          setStatusMessage("P2P Mesh Discovery slow. Retrying...");
+          // Повторная попытка через 5 секунд при ошибке (например, таймауте поиска пиров)
+          setTimeout(() => {
+            if (isMounted) setup();
+          }, 5000);
         }
       }
     };
@@ -104,7 +108,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      // Очистка подписки при размонтировании (Предотвращение утечек ОЗУ)
+      // Очистка подписки при размонтировании (Предотвращение утечек ОЗУ и зомби-процессов)
       if (subscription && typeof subscription.unsubscribe === 'function') {
         subscription.unsubscribe();
       }

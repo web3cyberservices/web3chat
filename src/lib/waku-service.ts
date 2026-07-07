@@ -1,4 +1,6 @@
 
+'use client';
+
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 import { wakuDnsDiscovery } from '@waku/dns-discovery';
 
@@ -11,9 +13,6 @@ let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
 const CLUSTER_ID = 1;
-// Основной шард приложения, но нода теперь слушает группу шардов для стабильности
-const SHARD_ID = 0;
-const PUBSUB_TOPIC = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
 
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
@@ -21,17 +20,16 @@ export function createContentTopic(id: string) {
 }
 
 export function getMessageEncoder(contentTopic: string) {
-  // В SDK 2026 передаем объект конфигурации
+  // В SDK 2026 (v0.0.25+) createEncoder ожидает объект.
   return createEncoder({ 
     contentTopic, 
-    pubsubTopic: PUBSUB_TOPIC,
     ephemeral: true 
   });
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  // В SDK 2026 (v0.0.25) createDecoder ожидает контент-топик и опции
-  return (createDecoder as any)(contentTopic, { pubsubTopic: PUBSUB_TOPIC });
+  // Согласно логам TSC: createDecoder ожидает строку (contentTopic)
+  return createDecoder(contentTopic);
 }
 
 export async function initWaku() {
@@ -49,10 +47,10 @@ export async function initWaku() {
             "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
           ])
         ],
+        // Слушаем все шарды кластера 1, чтобы избежать "Pubsub topic not configured"
         shardInfo: {
           clusterId: CLUSTER_ID,
-          // Слушаем набор шардов для предотвращения ошибок миссматча
-          shards: [0, 1, 2, 3]
+          shards: [0, 1, 2, 3, 4, 5, 6, 7]
         }
       } as any);
       
@@ -61,15 +59,16 @@ export async function initWaku() {
       const anyNode = node as any;
       const protocols = [Protocols.LightPush, Protocols.Filter];
       
-      console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
+      console.log('[Waku] Waiting for Production Peers (Mainnet Discovery)...');
       
       if (anyNode.waitForRemotePeer) {
-        await anyNode.waitForRemotePeer(protocols, 30000);
-      } else if (anyNode.waitForPeers) {
-        await anyNode.waitForPeers(protocols, 30000);
+        // Увеличиваем таймаут для медленных сетей
+        await anyNode.waitForRemotePeer(protocols, 60000).catch(() => {
+          console.warn('[Waku] Initial peer discovery is taking longer than expected...');
+        });
       }
       
-      console.log('[Waku] Connected to Global Mainnet.');
+      console.log('[Waku] Node online.');
       nodeInstance = node;
       return node;
     } catch (error) {
@@ -113,14 +112,18 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     };
 
     const anyNode = node as any;
+    
+    // КРИТИЧЕСКИЙ БАРЬЕР: Ждем именно Filter пира перед подпиской.
+    // Это устраняет ошибку "No peer found to initiate subscription".
     if (anyNode.waitForRemotePeer) {
-      await anyNode.waitForRemotePeer([Protocols.Filter], 15000).catch(() => {});
+      console.log('[Waku] Waiting for Filter-capable peer...');
+      await anyNode.waitForRemotePeer([Protocols.Filter], 30000);
     }
 
-    // Возвращаем объект подписки для последующей очистки
+    console.log('[Waku] Initiating subscription for:', topic);
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
-    return null;
+    throw e; // Пробрасываем ошибку для обработки в UI компоненте
   }
 }
