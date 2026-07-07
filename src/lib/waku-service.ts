@@ -55,7 +55,7 @@ export async function initWaku() {
           clusterId: CLUSTER_ID,
           shards: [SHARD_ID]
         }
-      });
+      } as any);
       
       await node.start();
       
