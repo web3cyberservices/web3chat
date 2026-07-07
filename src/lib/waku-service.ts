@@ -20,7 +20,7 @@ export function createContentTopic(id: string) {
 
 export function getMessageEncoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  // В SDK 2026 передаем объект конфигурации
+  // В SDK 2026 для энкодера передаем объект конфигурации
   return createEncoder({ 
     contentTopic, 
     pubsubTopic,
@@ -29,12 +29,9 @@ export function getMessageEncoder(contentTopic: string) {
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  // В SDK 2026 передаем объект конфигурации
-  return createDecoder({ 
-    contentTopic, 
-    pubsubTopic 
-  });
+  // В SDK 2026 (v0.0.25) createDecoder ожидает строку contentTopic
+  // Шардирование подхватывается из настроек ноды автоматически
+  return createDecoder(contentTopic);
 }
 
 export async function initWaku() {
@@ -67,7 +64,7 @@ export async function initWaku() {
       
       console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
       
-      // Хирургический барьер ожидания пиров
+      // Хирургический барьер ожидания пиров с гибкой типизацией для Next.js 16
       if (anyNode.waitForRemotePeer) {
         await anyNode.waitForRemotePeer(protocols, 30000);
       } else if (anyNode.waitForPeers) {
