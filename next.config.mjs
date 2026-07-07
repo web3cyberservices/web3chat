@@ -1,8 +1,14 @@
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Режим standalone отключен для совместимости с кастомным server.js и полными node_modules
-  reactStrictMode: true,
+  output: 'standalone',
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

@@ -1,10 +1,8 @@
-
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 /**
  * @fileOverview P2P сервис Waku. Стандарт июля 2026.
  * Работает в основной сети (Mainnet Mesh) через порт 443.
- * Директива 'use server' удалена, чтобы не ломать билд синхронными функциями.
  */
 
 let nodeInstance: any = null;
