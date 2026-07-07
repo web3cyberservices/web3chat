@@ -1,3 +1,4 @@
+
 services:
   web3-chat:
     build:
@@ -10,7 +11,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
-      # Прокидываем статику на хост для Nginx
+      # Монтируем статику наружу для Nginx
       - ./_next_static:/app/.next/static
       - ./public_assets:/app/public
     networks:

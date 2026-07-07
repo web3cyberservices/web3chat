@@ -1,14 +1,15 @@
+
+'use server';
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 /**
- * @fileOverview P2P сервис Waku. Стандарт июля 2026.
- * Подключение к The Waku Network (Mainnet) через порт 443.
+ * @fileOverview P2P сервис Waku. Стандарт июля 2026 (Mainnet).
  */
 
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
-export function createContentTopic(id: string) {
+export async function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
   return `/web3chat/2/u-${safeId}/proto`;
 }
@@ -24,9 +25,9 @@ export async function initWaku() {
       await node.start();
       
       try {
-        // Кастинг к any для обхода внутренних ограничений типов SDK
+        // Кастинг к any для обхода внутренних ограничений типов SDK 2026
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
-        console.log('[Waku] Connected to Global Mesh.');
+        console.log('[Waku] Connected to Global Mesh (Port 443).');
       } catch (e) {
         console.warn('[Waku] Peer discovery timeout. Node will sync in background.');
       }
@@ -45,9 +46,9 @@ export async function initWaku() {
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
     const node = await initWaku();
-    const topic = createContentTopic(targetId);
+    const topic = await createContentTopic(targetId);
     
-    // routingInfo необходим в новых версиях SDK для корректной маршрутизации
+    // routingInfo необходим в новых версиях SDK для корректной маршрутизации пакетов
     const encoder = createEncoder({ 
       contentTopic: topic, 
       ephemeral: true,
@@ -69,9 +70,9 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   try {
     const node = await initWaku();
-    const topic = createContentTopic(myId);
+    const topic = await createContentTopic(myId);
     
-    // createDecoder требует 2 аргумента в актуальной версии
+    // createDecoder требует 2 аргумента в актуальной версии SDK 2026
     const decoder = createDecoder(topic, {} as any);
 
     const callback = (wakuMessage: any) => {
@@ -84,14 +85,17 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const trySubscribe = async (): Promise<any> => {
       try {
         const sub = await node.filter.subscribe([decoder], callback);
+        console.log(`[Waku] Filter established for topic: ${topic}`);
         return sub;
       } catch (e) {
+        // Рекурсивный retry при временной недоступности сети
         return new Promise(resolve => setTimeout(() => resolve(trySubscribe()), 5000));
       }
     };
 
     return await trySubscribe();
   } catch (e) {
+    console.error('[Waku] Subscription Error:', e);
     return null;
   }
 }

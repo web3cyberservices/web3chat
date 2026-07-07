@@ -27,6 +27,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // Отслеживаем активный чат через Ref для корректной работы фоновой подписки
   const activeChatRef = useRef(activeChat?.id);
 
   useEffect(() => {
@@ -64,8 +65,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           });
         } else {
           toast({ 
-            title: "Encrypted Packet", 
-            description: `Incoming secure message from User ${parsed.senderId?.slice(0, 8)}` 
+            title: "Secure Packet Received", 
+            description: `Incoming message from User ${parsed.senderId?.slice(0, 8)}` 
           });
         }
       } catch (e) {
@@ -80,10 +81,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
-        // Первичная установка P2P фильтра
+        // Первичная подписка на входящий канал
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Переподписка каждые 30 секунд для предотвращения "тихого" разрыва в децентрализованной сети
+        // Heartbeat: Переподписка каждые 30 секунд для предотвращения "тихого" разрыва в P2P сети
         heartbeatInterval = setInterval(async () => {
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();
@@ -136,7 +137,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     const textToSend = input;
     setInput('');
     setIsProcessing(true);
-    setStatusMessage("Broadcasting via P2P...");
+    setStatusMessage("Broadcasting via P2P Mesh...");
 
     try {
       const msgId = Date.now();
@@ -162,14 +163,14 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       if (!success) {
         toast({
           title: "Broadcast Delayed",
-          description: "Message saved locally. Broadcast will continue in background.",
+          description: "Message saved locally. Network retry in background.",
           variant: "destructive"
         });
       }
     } catch (e) {
       toast({
-        title: "Security Violation",
-        description: "Cryptographic layer failure. Check your identity.",
+        title: "Cryptographic Error",
+        description: "Failed to seal packet. Check identity integrity.",
         variant: "destructive"
       });
     } finally {
@@ -189,8 +190,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     return (
       <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground">
         <Lock className="w-12 h-12 opacity-20 mb-4" />
-        <h2 className="text-xl font-bold text-foreground">Decentralized Workspace</h2>
-        <p className="text-sm">Connect with a peer to establish an encrypted tunnel.</p>
+        <h2 className="text-xl font-bold text-foreground">Secure Vault</h2>
+        <p className="text-sm">Connect to a peer node for end-to-end encrypted session.</p>
       </div>
     );
   }
@@ -212,8 +213,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'connecting' ? 'bg-accent animate-spin' : 'bg-destructive'
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
-                {networkStatus === 'online' ? 'P2P Online' :
-                 networkStatus === 'connecting' ? 'Mesh Syncing...' : 'Connectivity Error'}
+                {networkStatus === 'online' ? 'P2P Mainnet Active' :
+                 networkStatus === 'connecting' ? 'Syncing Mesh...' : 'Network Failure'}
               </span>
             </div>
           </div>
