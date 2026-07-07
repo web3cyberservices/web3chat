@@ -19,17 +19,15 @@ export function createContentTopic(id: string) {
 }
 
 export function getMessageEncoder(contentTopic: string) {
-  const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  // В SDK 2026 для энкодера передаем объект конфигурации
+  // В SDK 2026 pubsubTopic не является частью EncoderOptions
   return createEncoder({ 
     contentTopic, 
-    pubsubTopic,
     ephemeral: true 
   });
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  // Исправление: SDK 2026 (v0.0.25) createDecoder ожидает строку contentTopic
+  // В SDK 2026 (v0.0.25) createDecoder ожидает строку contentTopic напрямую
   return createDecoder(contentTopic);
 }
 
@@ -44,7 +42,7 @@ export async function initWaku() {
       const node = await createLightNode({ 
         defaultBootstrap: false, 
         peerDiscovery: [
-          // Исправление: в SDK 2026 wakuDnsDiscovery ожидает массив строк напрямую
+          // В SDK 2026 wakuDnsDiscovery принимает массив строк ENR URL
           (wakuDnsDiscovery as any)([
             "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
           ])
