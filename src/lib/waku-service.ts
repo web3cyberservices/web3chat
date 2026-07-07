@@ -2,7 +2,7 @@ import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/
 
 /**
  * @fileOverview P2P сервис Waku. Стандарт июля 2026.
- * Работает в основной сети (Mainnet Mesh) через порт 443.
+ * Использует Mainnet Mesh для децентрализованного обмена сообщениями.
  */
 
 let nodeInstance: any = null;
@@ -28,7 +28,7 @@ export async function initWaku() {
       await node.start();
       
       try {
-        // Ожидание пиров для стабильной работы
+        // Ожидание пиров для стабильной работы (используем as any для обхода строгой типизации SDK)
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         console.log('[Waku] Node connected to Mainnet Mesh.');
       } catch (e) {
@@ -80,7 +80,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const node = await initWaku();
     const topic = createContentTopic(myId);
     
-    // Новые требования SDK: объект настроек вторым аргументом
+    // Новые требования SDK 2026: передаем пустой объект настроек вторым аргументом
     const decoder = createDecoder(topic, {} as any);
 
     const callback = (wakuMessage: any) => {

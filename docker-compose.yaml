@@ -9,10 +9,7 @@ services:
       - NODE_ENV=production
     ports:
       - "127.0.0.1:3000:3000"
-    volumes:
-      # Монтируем статику из контейнера на хост для Nginx
-      - ./_next_static:/app/.next/static
-      - ./public_assets:/app/public
+    # Удаляем тома, которые затирали статику внутри контейнера
     networks:
       - chat-network
 
