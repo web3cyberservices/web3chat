@@ -36,7 +36,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     if (!currentUserId) return;
     
     let isMounted = true;
-    let subscription: any = null;
+    let unsubscribe: any = null;
 
     const handleIncoming = async (encryptedPayload: string) => {
       try {
@@ -82,9 +82,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         await initWaku();
         if (!isMounted) return;
         
-        subscription = await subscribeToP2P(currentUserId, handleIncoming);
+        unsubscribe = await subscribeToP2P(currentUserId, handleIncoming);
         
-        if (isMounted && subscription) {
+        if (isMounted && unsubscribe) {
           setNetworkStatus('online');
           setStatusMessage(null);
         }
@@ -93,7 +93,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (isMounted) {
           setNetworkStatus('error');
           setStatusMessage("P2P Mesh Discovery slow. Retrying...");
-          // Авто-перезапуск через 5 секунд
           setTimeout(() => {
             if (isMounted) setup();
           }, 5000);
@@ -105,15 +104,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      if (subscription) {
-        try {
-          if (typeof subscription.unsubscribe === 'function') {
-            subscription.unsubscribe();
-          } else if (typeof subscription === 'function') {
-            subscription();
-          }
-        } catch (e) {
-          console.warn('[Waku] Subscription cleanup warning:', e);
+      if (unsubscribe) {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        } else if (unsubscribe.unsubscribe) {
+          unsubscribe.unsubscribe();
         }
       }
     };

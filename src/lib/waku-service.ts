@@ -20,7 +20,6 @@ export function createContentTopic(id: string) {
 }
 
 export function getMessageEncoder(contentTopic: string) {
-  // В SDK 2026 используем объект конфигурации
   return createEncoder({ 
     contentTopic, 
     ephemeral: true 
@@ -28,8 +27,7 @@ export function getMessageEncoder(contentTopic: string) {
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  // На основе логов TSC: в этой версии SDK createDecoder принимает строку напрямую
-  return createDecoder(contentTopic);
+  return createDecoder({ contentTopic });
 }
 
 export async function initWaku() {
@@ -38,7 +36,7 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Initializing July 2026 Production Mesh (DNS Discovery)...');
+      console.log('[Waku] Initializing Production Mesh...');
       
       const node = await createLightNode({ 
         defaultBootstrap: false, 
@@ -47,7 +45,6 @@ export async function initWaku() {
             "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
           ])
         ],
-        // Используем networkConfig вместо устаревшего shardInfo
         networkConfig: {
           clusterId: CLUSTER_ID,
           shards: [SHARD_ID]
@@ -56,8 +53,7 @@ export async function initWaku() {
       
       await node.start();
       
-      console.log('[Waku] Waiting for remote peers (LightPush & Filter)...');
-      // Используем standalone функцию waitForRemotePeer
+      console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
       await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 45000);
       
       console.log('[Waku] Node online and peered with Mainnet.');
@@ -103,14 +99,11 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
-    // Ожидаем пира с поддержкой Filter перед подпиской
     await waitForRemotePeer(node, [Protocols.Filter], 30000).catch(() => {
       console.warn('[Waku] Filter peer discovery slow, attempting anyway...');
     });
 
     console.log('[Waku] Initiating subscription for:', topic);
-    
-    // В SDK 2026 подписка возвращает объект, который можно использовать для отписки
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
