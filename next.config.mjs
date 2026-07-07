@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* Standalone mode is disabled to support custom server.js with full node_modules */
+  /* Кастомный сервер требует стандартного билда (output: standalone удален) */
   reactStrictMode: true,
   images: {
     remotePatterns: [

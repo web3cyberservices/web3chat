@@ -3,7 +3,6 @@ FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
-# Устанавливаем все зависимости, включая devDependencies для билда
 RUN npm install
 
 # Stage 2: Билдер
@@ -14,7 +13,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Stage 3: Боевой образ
+# Stage 3: Боевой образ (Runner)
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -31,5 +30,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Запускаем кастомный сервер Next.js
+# Запускаем кастомный сервер
 CMD ["node", "server.js"]

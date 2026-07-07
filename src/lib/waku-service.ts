@@ -1,9 +1,9 @@
-'use server';
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
 
 /**
  * @fileOverview P2P сервис Waku. Боевой стандарт июля 2026.
  * Подключение к Mainnet Mesh с поддержкой отказоустойчивой маршрутизации.
+ * Директива 'use server' удалена, так как нода должна инициализироваться в рантайме.
  */
 
 let nodeInstance: any = null;
@@ -23,7 +23,6 @@ export async function initWaku() {
     try {
       console.log('[Waku] Initializing Global Mainnet Mesh (2026 Standard)...');
       
-      // defaultBootstrap: true подключает к стабильной боевой сети Waku
       const node = await createLightNode({ 
         defaultBootstrap: true,
       });
@@ -55,8 +54,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    // routingInfo обязателен в 2026 для маршрутизации в гетерогенных сетях
-    // Используем приведение к any для обхода строгой типизации SDK
+    // В 2026 году routingInfo обязателен для корректной маршрутизации
     const encoder = createEncoder({ 
       contentTopic: topic, 
       ephemeral: true,
