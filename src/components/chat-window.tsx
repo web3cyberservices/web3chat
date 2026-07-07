@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -36,7 +37,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     if (!currentUserId) return;
     
     let isMounted = true;
-    let unsubscribe: any = null;
+    let subscription: any = null;
 
     const handleIncoming = async (encryptedPayload: string) => {
       try {
@@ -82,9 +83,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         await initWaku();
         if (!isMounted) return;
         
-        unsubscribe = await subscribeToP2P(currentUserId, handleIncoming);
+        subscription = await subscribeToP2P(currentUserId, handleIncoming);
         
-        if (isMounted && unsubscribe) {
+        if (isMounted && subscription) {
           setNetworkStatus('online');
           setStatusMessage(null);
         }
@@ -104,11 +105,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      if (unsubscribe) {
-        if (typeof unsubscribe === 'function') {
-          unsubscribe();
-        } else if (unsubscribe.unsubscribe) {
-          unsubscribe.unsubscribe();
+      if (subscription) {
+        // Вызываем метод отписки для предотвращения утечек памяти
+        if (typeof subscription === 'function') {
+          subscription();
+        } else if (subscription.unsubscribe) {
+          subscription.unsubscribe();
         }
       }
     };

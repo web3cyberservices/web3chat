@@ -1,11 +1,12 @@
+
 'use client';
 
 import { createLightNode, Protocols, createEncoder, createDecoder, waitForRemotePeer } from '@waku/sdk';
 import { wakuDnsDiscovery } from '@waku/dns-discovery';
 
 /**
- * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
- * Использует DNS Discovery, networkConfig и автономную функцию waitForRemotePeer.
+ * @fileOverview Сетевой слой Waku. Стандарт Июля 2026.
+ * Исправлены сигнатуры методов, управление шардами и обнаружение пиров.
  */
 
 let nodeInstance: any = null;
@@ -22,12 +23,16 @@ export function createContentTopic(id: string) {
 export function getMessageEncoder(contentTopic: string) {
   return createEncoder({ 
     contentTopic, 
+    pubsubTopic: `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`,
     ephemeral: true 
   });
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  return createDecoder({ contentTopic });
+  return createDecoder({ 
+    contentTopic,
+    pubsubTopic: `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`
+  });
 }
 
 export async function initWaku() {
@@ -54,6 +59,7 @@ export async function initWaku() {
       await node.start();
       
       console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
+      // Используем внешнюю функцию для ожидания пиров
       await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 45000);
       
       console.log('[Waku] Node online and peered with Mainnet.');
@@ -74,6 +80,9 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     const encoder = getMessageEncoder(topic);
+
+    // Убеждаемся, что есть пир для отправки
+    await waitForRemotePeer(node, [Protocols.LightPush], 5000);
 
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload)
@@ -99,12 +108,14 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
+    console.log('[Waku] Waiting for Filter peer for subscription...');
     await waitForRemotePeer(node, [Protocols.Filter], 30000).catch(() => {
       console.warn('[Waku] Filter peer discovery slow, attempting anyway...');
     });
 
     console.log('[Waku] Initiating subscription for:', topic);
-    return await node.filter.subscribe([decoder], callback);
+    const subscription = await node.filter.subscribe([decoder], callback);
+    return subscription;
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
     throw e;
