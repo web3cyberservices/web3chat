@@ -53,7 +53,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    // В 2026 обязательно указываем routingInfo для прохождения через шлюзы
+    // В 2026 обязательно указываем routingInfo (shard) для прохождения через шлюзы
     const encoder = (createEncoder as any)({ 
       contentTopic: topic, 
       ephemeral: true,
