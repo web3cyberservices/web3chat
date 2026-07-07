@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -8,6 +9,7 @@ import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
 import { getLocalMessages, saveLocalMessage, deleteLocalMessage, type ChatSession } from '@/lib/db';
 import { initWaku, setupStandardChannel, ChatDataPacket } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
+import { waitForRemotePeer, Protocols } from '@waku/sdk';
 
 interface Message {
   id: number;
@@ -45,6 +47,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         encoderRef.current = encoder;
 
+        // Ждем пиров именно для фильтрации в этом канале
+        await waitForRemotePeer(node, [Protocols.Filter], 10000).catch(() => console.warn('Filter peer wait timeout'));
+
         const callback = async (wakuMessage: any) => {
           if (!wakuMessage?.payload) return;
           
@@ -55,7 +60,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             if (decrypted.startsWith('[Error')) return;
             
             const decodedProto = ChatDataPacket.decode(Buffer.from(decrypted, 'base64'));
-            const msgData = ChatDataPacket.toObject(decodedProto);
+            const msgData = ChatDataPacket.toObject(decodedProto) as any;
             
             const msgId = Number(msgData.timestamp);
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -87,7 +92,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           }
         };
 
-        unsubscribe = await node.filter.subscribe([decoder], callback);
+        const subscription = await node.filter.subscribe([decoder], callback);
+        unsubscribe = async () => {
+          await subscription.unsubscribe([decoder]);
+        };
+        
         if (isMounted) setNetworkStatus('online');
 
       } catch (e) {
@@ -105,7 +114,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           const payloadData = await decryptMessage(m.payload, secret);
           if (!payloadData.startsWith('[Error')) {
             const decodedProto = ChatDataPacket.decode(Buffer.from(payloadData, 'base64'));
-            const msgData = ChatDataPacket.toObject(decodedProto);
+            const msgData = ChatDataPacket.toObject(decodedProto) as any;
             decrypted.push({ 
               id: m.id, 
               text: msgData.message, 

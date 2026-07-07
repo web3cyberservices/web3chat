@@ -1,12 +1,16 @@
+
 /**
- * @fileOverview Сетевой слой Waku (стабильные протоколы).
- * Использует Filter для получения и Light Push для отправки.
+ * @fileOverview Сетевой слой Waku (Стандарт Июля 2026).
+ * Реализовано: DNS Discovery, networkConfig, standalone waitForRemotePeer.
  */
 
-import { createLightNode, Protocols, waitForRemotePeer, createEncoder, createDecoder } from '@waku/sdk';
+import { createLightNode, Protocols, createEncoder, createDecoder, waitForRemotePeer } from '@waku/sdk';
+import { wakuDnsDiscovery } from '@waku/dns-discovery';
 import protobuf from 'protobufjs';
 
-// Protobuf структура для сообщений
+const CLUSTER_ID = 1;
+const SHARD_ID = 0;
+
 export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
   .add(new protobuf.Field("timestamp", 1, "uint64"))
   .add(new protobuf.Field("sender", 2, "string"))
@@ -22,26 +26,31 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Initializing Node with Mainnet Config...');
+      console.log('[Waku] Booting P2P Node (Mainnet 2026)...');
       const node = await createLightNode({ 
-        defaultBootstrap: true,
+        libp2p: {
+          peerDiscovery: [
+            wakuDnsDiscovery([
+              "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
+            ])
+          ]
+        },
         networkConfig: {
-          clusterId: 1,
-          shards: [0]
+          clusterId: CLUSTER_ID,
+          shards: [SHARD_ID]
         }
       });
+      
       await node.start();
       
-      console.log('[Waku] Waiting for Peers (Filter/LightPush)...');
-      await waitForRemotePeer(node, [Protocols.Filter, Protocols.LightPush], 20000).catch(e => {
-        console.warn('[Waku] Peer discovery timeout, proceeding anyway.');
-      });
-
-      console.log('[Waku] Node started.');
+      console.log('[Waku] Waiting for Filter & LightPush peers...');
+      await waitForRemotePeer(node, [Protocols.Filter, Protocols.LightPush], 25000);
+      
+      console.log('[Waku] Mesh Active.');
       nodeInstance = node;
       return node;
     } catch (error) {
-      console.error('[Waku] Initialization Failed:', error);
+      console.error('[Waku] Connection Failed:', error);
       initPromise = null;
       throw error;
     }
