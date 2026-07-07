@@ -35,9 +35,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
   useEffect(() => {
     if (!currentUserId) return;
+    
     let isMounted = true;
-    let unsubscribe: any = null;
-    let heartbeatInterval: NodeJS.Timeout;
+    let unsubscribeFn: any = null;
 
     const handleIncoming = async (encryptedPayload: string) => {
       try {
@@ -80,29 +80,18 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           setStatusMessage("Connecting to P2P Mesh...");
         }
         
-        // Ожидаем инициализации и прохождения барьера пиров
+        // Ждем инициализации ноды и пиров
         await initWaku();
         
         if (!isMounted) return;
         
-        unsubscribe = await subscribeToP2P(currentUserId, handleIncoming);
+        // Подписываемся на сообщения
+        unsubscribeFn = await subscribeToP2P(currentUserId, handleIncoming);
         
         if (isMounted) {
           setNetworkStatus('online');
           setStatusMessage(null);
         }
-
-        // Переподписка раз в минуту для поддержания соединения в Mainnet
-        heartbeatInterval = setInterval(async () => {
-          if (unsubscribe) {
-            try {
-              if (typeof unsubscribe === 'function') await unsubscribe();
-              else if (unsubscribe.unsubscribe) await unsubscribe.unsubscribe();
-            } catch (e) {}
-          }
-          unsubscribe = await subscribeToP2P(currentUserId, handleIncoming);
-        }, 60000);
-
       } catch (e) {
         console.error('[Waku] Network setup failure:', e);
         if (isMounted) {
@@ -116,10 +105,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      clearInterval(heartbeatInterval);
-      if (unsubscribe) {
-        if (typeof unsubscribe === 'function') unsubscribe();
-        else if (unsubscribe.unsubscribe) unsubscribe.unsubscribe();
+      // Обязательная очистка подписки для предотвращения утечек ОЗУ
+      if (unsubscribeFn) {
+        if (typeof unsubscribeFn === 'function') {
+          unsubscribeFn();
+        } else if (unsubscribeFn.unsubscribe) {
+          unsubscribeFn.unsubscribe();
+        }
       }
     };
   }, [currentUserId, toast]);

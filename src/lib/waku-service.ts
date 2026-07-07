@@ -4,7 +4,7 @@ import { wakuDnsDiscovery } from '@waku/dns-discovery';
 
 /**
  * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
- * Использует DNS Discovery для подключения к Mainnet.
+ * Использует DNS Discovery для подключения к Mainnet и объектный синтаксис SDK.
  */
 
 let nodeInstance: any = null;
@@ -19,7 +19,7 @@ export function createContentTopic(id: string) {
 }
 
 export function getMessageEncoder(contentTopic: string) {
-  // В SDK 2026 pubsubTopic не является частью EncoderOptions
+  // В SDK 2026 createEncoder принимает объект
   return createEncoder({ 
     contentTopic, 
     ephemeral: true 
@@ -42,7 +42,7 @@ export async function initWaku() {
       const node = await createLightNode({ 
         defaultBootstrap: false, 
         peerDiscovery: [
-          // В SDK 2026 wakuDnsDiscovery принимает массив строк ENR URL
+          // Боевое DNS дерево Waku Network
           (wakuDnsDiscovery as any)([
             "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
           ])
@@ -115,12 +115,12 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     };
 
     const anyNode = node as any;
-    // Блокируем выполнение подписки до появления пиров
+    // Блокируем подписку до появления пиров в боевой сети
     if (anyNode.waitForRemotePeer) {
       await anyNode.waitForRemotePeer([Protocols.Filter], 15000).catch(() => {});
     }
 
-    // В SDK 2026 подписка принимает массив декодеров
+    // Подписка
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
