@@ -28,7 +28,7 @@ export async function initWaku() {
       await node.start();
       
       try {
-        // Ожидание пиров для стабильной работы
+        // Ожидание пиров для стабильной работы. Используем any для обхода строгих типов SDK 2026
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         console.log('[Waku] Node connected to Mainnet Mesh.');
       } catch (e) {
@@ -53,9 +53,11 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const topic = createContentTopic(targetId);
     
     // В 2026 обязательно указываем routingInfo для прохождения через шлюзы
-    const encoder = createEncoder({ 
+    // Используем приведение к any, если сигнатура SDK требует специфический объект shard
+    const encoder = (createEncoder as any)({ 
       contentTopic: topic, 
-      ephemeral: true
+      ephemeral: true,
+      routingInfo: { shard: 0 } 
     });
 
     const result = await node.lightPush.send(encoder, {
@@ -79,7 +81,11 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const node = await initWaku();
     const topic = createContentTopic(myId);
     
-    const decoder = createDecoder(topic);
+    // В 2026 Decoder также требует объект конфигурации
+    const decoder = (createDecoder as any)({
+      contentTopic: topic,
+      routingInfo: { shard: 0 }
+    });
 
     const callback = (wakuMessage: any) => {
       if (wakuMessage?.payload) {
