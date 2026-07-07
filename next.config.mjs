@@ -10,12 +10,6 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '2mb',
-      timeout: 120,
-    },
-  },
 };
 
 export default nextConfig;
