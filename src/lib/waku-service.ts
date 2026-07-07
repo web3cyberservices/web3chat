@@ -29,7 +29,6 @@ export async function initWaku() {
       await node.start();
       
       try {
-        // Ожидание пиров для стабильной работы
         await (node as any).waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         console.log('[Waku] Node connected to Mainnet Mesh.');
       } catch (e) {
@@ -53,23 +52,18 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
     const node = await initWaku();
     const topic = createContentTopic(targetId);
     
-    // В 2026 обязательно указываем routingInfo (shard) для прохождения через шлюзы
-    const encoder = (createEncoder as any)({ 
+    // В 2026 обязательно указываем routingInfo (shard)
+    const encoder = createEncoder({ 
       contentTopic: topic, 
       ephemeral: true,
-      routingInfo: { shard: 0 } 
+      routingInfo: { shard: 0 } as any
     });
 
     const result = await node.lightPush.send(encoder, {
       payload: new TextEncoder().encode(encryptedPayload)
     });
 
-    if (result?.errors?.length) {
-      console.error('[Waku] Send errors:', result.errors);
-      return false;
-    }
-
-    return true;
+    return !result?.errors?.length;
   } catch (e) {
     console.error('[Waku] Critical Send Error:', e);
     return false;
@@ -81,10 +75,9 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     const node = await initWaku();
     const topic = createContentTopic(myId);
     
-    // В 2026 Decoder также требует объект конфигурации routingInfo
-    const decoder = (createDecoder as any)({
+    const decoder = createDecoder({
       contentTopic: topic,
-      routingInfo: { shard: 0 }
+      routingInfo: { shard: 0 } as any
     });
 
     const callback = (wakuMessage: any) => {
@@ -94,9 +87,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
-    const sub = await node.filter.subscribe([decoder], callback);
-    console.log(`[Waku] Filter established for topic: ${topic}`);
-    return sub;
+    return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
     return null;
