@@ -1,5 +1,19 @@
-
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: web3-chat-db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: audit_log
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - chat-network
+
   web3-chat:
     build:
       context: .
@@ -8,10 +22,17 @@ services:
     restart: always
     ports:
       - "127.0.0.1:3000:3000"
+    environment:
+      # Next.js автоматически прочитает эту переменную внутри контейнера
+      DATABASE_URL: "postgresql://admin:${DB_PASSWORD}@postgres:5432/audit_log"
     networks:
       - chat-network
-    # Удалены все volumes для предотвращения 404 ошибок из-за затенения статики хостом
+    depends_on:
+      - postgres
 
 networks:
   chat-network:
     driver: bridge
+
+volumes:
+  pgdata:
