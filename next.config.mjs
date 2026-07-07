@@ -2,15 +2,10 @@
 const nextConfig = {
   output: 'standalone',
   experimental: {
-    allowedDevOrigins: ['localhost:3000', '127.0.0.1:3000', 'localhost:9002']
+    // allowedDevOrigins удален, так как он не распознается в этой версии canary
   },
-  webpack: (config) => {
-    config.externals.push({
-      'utf-8-validate': 'commonjs utf-8-validate',
-      'bufferutil': 'commonjs bufferutil',
-    });
-    return config;
-  },
+  // Пустой конфиг turbopack для устранения ошибки несовместимости с webpack-настройками
+  turbopack: {}
 };
 
 export default nextConfig;
