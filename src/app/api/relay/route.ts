@@ -12,6 +12,9 @@ const pool = new Pool({
 
 let isInitialized = false;
 
+/**
+ * Инициализация таблицы сообщений
+ */
 async function ensureTableExists() {
   if (isInitialized) return;
   
@@ -44,6 +47,7 @@ export async function POST(req: Request) {
 
     const timestamp = Date.now();
     
+    // Сохраняем пакет в Immutable Audit Log
     await pool.query(
       'INSERT INTO messages (timestamp, payload) VALUES ($1, $2)',
       [timestamp, body.payload]
@@ -62,8 +66,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const since = Number(searchParams.get('since') || 0);
 
+    // Выбираем только новые сообщения
     const { rows } = await pool.query(
-      'SELECT timestamp, payload FROM messages WHERE timestamp > $1 ORDER BY timestamp ASC',
+      'SELECT timestamp, payload FROM messages WHERE timestamp > $1 ORDER BY timestamp ASC LIMIT 100',
       [since]
     );
     

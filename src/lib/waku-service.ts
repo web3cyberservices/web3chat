@@ -1,20 +1,25 @@
 import protobuf from 'protobufjs';
 
 /**
- * @fileOverview HTTP Stealth Relay. Замена Waku P2P.
- * Бронебойная доставка зашифрованных сообщений через собственный сервер.
+ * @fileOverview HTTP Stealth Relay. Полная замена Waku P2P.
+ * Реализует бронебойную доставку зашифрованных сообщений через собственный Relay API.
+ * Все сообщения шифруются на клиенте (E2EE), сервер видит только бинарный шум.
  */
 
+// Protobuf структура для бинарной упаковки (Stealth Mode)
 export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
   .add(new protobuf.Field("timestamp", 1, "uint64"))
   .add(new protobuf.Field("sender", 2, "string"))
   .add(new protobuf.Field("message", 3, "string"));
 
 export async function initWaku() {
-  console.log('[Relay] Waku mesh disabled. Using indestructible HTTP Relay.');
+  console.log('[Relay] Waku engine removed. Using Indestructible Stealth Relay.');
   return { connected: true };
 }
 
+/**
+ * Отправка сообщения через HTTP Relay
+ */
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
     const res = await fetch('/api/relay', {
@@ -29,9 +34,12 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   }
 }
 
+/**
+ * Подписка на сообщения (Short Polling)
+ */
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   let isSubscribed = true;
-  // При первом запуске запрашиваем сообщения за последние 24 часа
+  // Синхронизируем сообщения за последние 24 часа при старте
   let lastSync = Date.now() - (24 * 60 * 60 * 1000); 
 
   const poll = async () => {
@@ -49,19 +57,25 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
         }
       }
     } catch (e) {
-      // Игнорируем ошибки сети
+      // Игнорируем сетевые ошибки, повторяем через цикл
     }
     
-    if (isSubscribed) setTimeout(poll, 2000);
+    // Опрос сервера каждые 2 секунды (Баланс между скоростью и нагрузкой)
+    if (isSubscribed) {
+      setTimeout(poll, 2000);
+    }
   };
 
   poll();
 
   return {
-    unsubscribe: () => { isSubscribed = false; }
+    unsubscribe: () => { 
+      console.log('[Relay] Subscription stopped.');
+      isSubscribed = false; 
+    }
   };
 }
 
 export async function getWakuHistory(targetId: string, onMessage: (payload: string) => void) {
-  // История подтягивается автоматически при первом poll()
+  // История автоматически подгружается при первом вызове subscribeToP2P через lastSync
 }
