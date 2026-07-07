@@ -2,13 +2,13 @@ import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/
 
 /**
  * @fileOverview P2P сервис Waku. Стандарт Июля 2026.
- * Исправлена ошибка pubsubTopic и ETARGET.
+ * Исправлена ошибка contentTopic.split и маршрутизация шардов.
  */
 
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
-// Константы сети 2026
+// Константы сети 2026 (Sharded Mesh)
 const CLUSTER_ID = 1;
 const SHARD_ID = 0;
 
@@ -18,18 +18,18 @@ export function createContentTopic(id: string) {
 }
 
 export function getMessageEncoder(contentTopic: string) {
-  return createEncoder({ 
-    contentTopic, 
+  const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
+  return createEncoder({
+    contentTopic,
     ephemeral: true,
-    pubsubTopic: `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`
+    pubsubTopic
   });
 }
 
 export function getMessageDecoder(contentTopic: string) {
-  return createDecoder({
-    contentTopic,
-    pubsubTopic: `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`
-  });
+  const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
+  // Передаем топик строкой первым аргументом, чтобы избежать ошибки .split()
+  return createDecoder(contentTopic, pubsubTopic);
 }
 
 export async function initWaku() {
@@ -51,6 +51,7 @@ export async function initWaku() {
       await node.start();
       
       try {
+        // Ожидаем подключения к пирам с поддержкой LightPush и Filter
         await node.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 15000);
         console.log('[Waku] Connected to Global Mesh Shard 0.');
       } catch (e) {
@@ -99,8 +100,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
-    // В SDK 2026 фильтр принимает массив декодеров. 
-    // Явное указание pubsubTopic в decoder решает ошибку undefined.pubsubTopic.
+    // В SDK 2026 подписка принимает массив декодеров
     return await node.filter.subscribe([decoder], callback);
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
