@@ -56,6 +56,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           time
         });
 
+        // Используем ref, чтобы всегда проверять актуальный активный чат
         if (activeChatRef.current === parsed.senderId) {
           setMessages(prev => {
             if (prev.some(m => m.id === msgId)) return prev;
@@ -63,8 +64,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           });
         } else {
           toast({ 
-            title: "Secure Message", 
-            description: `From User ${parsed.senderId?.slice(0, 8)}` 
+            title: "Secure Message Received", 
+            description: `From User ${parsed.senderId?.slice(0, 8)}...` 
           });
         }
       } catch (e) {
@@ -79,10 +80,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         if (!isMounted) return;
         setNetworkStatus('online');
 
+        // Первичная подписка
         activeSubscription = await subscribeToP2P(currentUserId, handleIncoming);
 
-        // Heartbeat: Авто-восстановление подписки каждые 30 секунд
+        // Heartbeat: Самовосстановление подписки каждые 30 секунд для предотвращения разрывов в P2P-сети
         heartbeatInterval = setInterval(async () => {
+          console.log('[Waku] Heartbeat: refreshing subscription...');
           if (activeSubscription) {
              if (typeof activeSubscription === 'function') activeSubscription();
              else if (activeSubscription.unsubscribe) activeSubscription.unsubscribe();
@@ -91,6 +94,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         }, 30000);
 
       } catch (e) {
+        console.error('[Waku] Network setup failed:', e);
         if (isMounted) setNetworkStatus('error');
       }
     };
@@ -133,13 +137,14 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     const textToSend = input;
     setInput('');
     setIsProcessing(true);
-    setStatusMessage("Broadcasting via Mainnet...");
+    setStatusMessage("Sealing cryptographic packet...");
 
     try {
       const msgId = Date.now();
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const rawData = JSON.stringify({ text: textToSend, senderId: currentUserId, timestamp: msgId });
 
+      // Выполнение PoW для предотвращения спама в P2P-сети
       await performPoW(rawData);
       const encrypted = await encryptMessage(rawData, activeChat.id);
 
@@ -157,15 +162,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       const success = await sendP2PMessage(activeChat.id, encrypted);
       if (!success) {
         toast({
-          title: "Broadcast Delayed",
-          description: "Stored locally. Searching for peers...",
+          title: "Network Delay",
+          description: "Message stored locally. Searching for more peers...",
           variant: "destructive"
         });
       }
     } catch (e) {
       toast({
-        title: "Cryptographic Error",
-        description: "Failed to seal packet.",
+        title: "Encryption Failure",
+        description: "Could not secure the message channel.",
         variant: "destructive"
       });
     } finally {
@@ -185,8 +190,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     return (
       <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-background text-muted-foreground">
         <Lock className="w-12 h-12 opacity-20 mb-4" />
-        <h2 className="text-xl font-bold text-foreground">Secure Vault</h2>
-        <p className="text-sm">Connect to Mainnet for E2EE session.</p>
+        <h2 className="text-xl font-bold text-foreground">Secure Workspace</h2>
+        <p className="text-sm">Select a contact to start an encrypted session.</p>
       </div>
     );
   }
@@ -208,8 +213,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 networkStatus === 'connecting' ? 'bg-accent animate-spin' : 'bg-destructive'
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
-                {networkStatus === 'online' ? 'Mainnet Active' :
-                 networkStatus === 'connecting' ? 'Syncing...' : 'Network failure'}
+                {networkStatus === 'online' ? 'Global Mesh Active' :
+                 networkStatus === 'connecting' ? 'Syncing...' : 'Network Offline'}
               </span>
             </div>
           </div>
@@ -224,11 +229,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           {messages.map((m) => (
             <div key={m.id} className={`flex ${m.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[80%] rounded-2xl px-4 py-2 relative group ${
-                m.sender === 'me' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-card border rounded-tl-none'
+                m.sender === 'me' ? 'bg-primary text-primary-foreground rounded-tr-none shadow-lg shadow-primary/10' : 'bg-card border rounded-tl-none shadow-sm'
               }`}>
-                <p className="text-sm">{m.text}</p>
+                <p className="text-sm leading-relaxed">{m.text}</p>
                 <div className="flex items-center justify-between gap-4 mt-1 opacity-50">
-                  <span className="text-[9px]">{m.time}</span>
+                  <span className="text-[9px] font-mono">{m.time}</span>
                   <button onClick={() => deleteLocalMessage(m.id).then(() => setMessages(prev => prev.filter(msg => msg.id !== m.id)))}>
                     <Trash2 className="w-3 h-3 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
@@ -251,10 +256,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              onKeyDown={(e) => e.key === 'Enter' && !isProcessing && handleSend()}
               disabled={isProcessing}
-              placeholder={isProcessing ? "Processing Security..." : "Type encrypted message..."}
-              className="flex-1 bg-secondary rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all"
+              placeholder={isProcessing ? "Processing security protocols..." : "Type encrypted message..."}
+              className="flex-1 bg-secondary/50 rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all placeholder:text-muted-foreground/50"
             />
             <button
               onClick={handleSend}
