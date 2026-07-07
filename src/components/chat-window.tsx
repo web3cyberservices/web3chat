@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -193,7 +192,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   useEffect(() => {
     if (scrollRef.current) {
       const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (viewport) viewport.scrollTop = viewport.scrollHeight;
+      if (viewport) {
+        (viewport as HTMLElement).scrollTop = (viewport as HTMLElement).scrollHeight;
+      }
     }
   }, [messages]);
 

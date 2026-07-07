@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
@@ -24,7 +23,6 @@ export function createContentTopic(id: string) {
 
 /**
  * Возвращает энкодер для отправки сообщений.
- * В SDK 2026 createEncoder ожидает объект конфигурации.
  */
 export function getMessageEncoder(contentTopic: string) {
   return createEncoder({ 
@@ -35,9 +33,9 @@ export function getMessageEncoder(contentTopic: string) {
 
 /**
  * Возвращает декодер для получения сообщений.
- * В SDK 2026 createDecoder ожидает строку (contentTopic).
  */
 export function getMessageDecoder(contentTopic: string) {
+  // В SDK 2026 createDecoder принимает строку contentTopic.
   return createDecoder(contentTopic);
 }
 
@@ -50,16 +48,15 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Initializing July 2026 Production Mesh...');
+      console.log('[Waku] Initializing July 2026 Production Mesh (DNS Discovery)...');
       
       const node = await createLightNode({ 
         defaultBootstrap: false, 
         peerDiscovery: [
-          (wakuDnsDiscovery as any)([
+          wakuDnsDiscovery([
             "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
           ])
         ],
-        // Слушаем все шарды кластера 1, чтобы избежать ошибок конфигурации топиков
         shardInfo: {
           clusterId: CLUSTER_ID,
           shards: [0, 1, 2, 3, 4, 5, 6, 7]
@@ -72,11 +69,11 @@ export async function initWaku() {
       
       // Ждем базовых пиров для работы сети
       if (anyNode.waitForRemotePeer) {
-        console.log('[Waku] Discovery in progress (Mainnet)...');
-        await anyNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 60000);
+        console.log('[Waku] Waiting for remote peers (LightPush & Filter)...');
+        await anyNode.waitForRemotePeer([Protocols.LightPush, Protocols.Filter], 45000);
       }
       
-      console.log('[Waku] Node online and peered.');
+      console.log('[Waku] Node online and peered with Mainnet.');
       nodeInstance = node;
       return node;
     } catch (error) {
@@ -110,8 +107,7 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
 }
 
 /**
- * Подписывается на входящие сообщения.
- * Внедрен барьер ожидания пиров Filter для предотвращения ошибок подписки.
+ * Подписывается на входящие сообщения с механизмом повторных попыток.
  */
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   try {
@@ -128,14 +124,31 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 
     const anyNode = node as any;
     
-    // КРИТИЧЕСКИЙ БАРЬЕР: Ждем именно Filter пира перед подпиской.
+    // КРИТИЧЕСКИЙ БАРЬЕР: Ждем именно Filter пира
     if (anyNode.waitForRemotePeer) {
-      console.log('[Waku] Waiting for Filter-capable peer to establish subscription...');
       await anyNode.waitForRemotePeer([Protocols.Filter], 30000);
     }
 
     console.log('[Waku] Initiating subscription for:', topic);
-    const subscription = await node.filter.subscribe([decoder], callback);
+    
+    // Цикл повторных попыток для исключения ошибки "No peer found"
+    let subscription;
+    let attempts = 3;
+    while (attempts > 0) {
+      try {
+        subscription = await node.filter.subscribe([decoder], callback);
+        if (subscription) break;
+      } catch (e: any) {
+        if (e.message?.includes('No peer found') && attempts > 1) {
+          console.warn('[Waku] Subscription attempt failed (no peer), retrying in 5s...');
+          attempts--;
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
+        }
+        throw e;
+      }
+    }
+    
     return subscription;
   } catch (e) {
     console.error('[Waku] Subscription Failure:', e);
