@@ -80,10 +80,8 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         }
         
         await initWaku();
-        
         if (!isMounted) return;
         
-        // Оформляем подписку и ждем пиров
         subscription = await subscribeToP2P(currentUserId, handleIncoming);
         
         if (isMounted && subscription) {
@@ -106,7 +104,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      // ГАРАНТИРОВАННАЯ ОЧИСТКА: Удаляем подписку при закрытии чата
       if (subscription) {
         try {
           if (typeof subscription.unsubscribe === 'function') {
