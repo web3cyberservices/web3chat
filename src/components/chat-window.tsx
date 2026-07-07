@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
 import { getLocalMessages, saveLocalMessage, deleteLocalMessage, type ChatSession } from '@/lib/db';
-import { initWaku, setupReliableChannel, getChannelName, ChatDataPacket } from '@/lib/waku-service';
+import { initWaku, setupStandardChannel, ChatDataPacket } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -16,52 +16,45 @@ interface Message {
   sender: string;
   senderId?: string;
   time: string;
-  status?: 'sending' | 'sent' | 'acknowledged';
+  status?: 'sending' | 'sent' | 'error';
 }
 
 export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { currentUserId: string, activeChat: ChatSession | null, onBack?: () => void, isMobile?: boolean }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [networkStatus, setNetworkStatus] = useState<'connecting' | 'online' | 'syncing' | 'error'>('connecting');
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [networkStatus, setNetworkStatus] = useState<'connecting' | 'online' | 'error'>('connecting');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const channelRef = useRef<any>(null);
+  const nodeRef = useRef<any>(null);
+  const encoderRef = useRef<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (!activeChat || !currentUserId) return;
 
     let isMounted = true;
-    let channel: any = null;
+    let unsubscribe: (() => Promise<void>) | null = null;
     
     async function setup() {
       try {
         setNetworkStatus('connecting');
-        setStatusMessage("Connecting to P2P Mesh...");
-        
         const node = await initWaku();
         if (!isMounted) return;
+        nodeRef.current = node;
 
-        const channelName = getChannelName(currentUserId, activeChat!.id);
-        channel = await setupReliableChannel(node, channelName, currentUserId);
+        const { encoder, decoder } = await setupStandardChannel(node, activeChat!.id);
         if (!isMounted) return;
-        
-        channelRef.current = channel;
+        encoderRef.current = encoder;
 
-        // Поток входящих сообщений
-        channel.addEventListener("message-received", async (event: any) => {
-          const wakuMessage = event.detail;
+        // Подписка на входящие сообщения через Filter
+        unsubscribe = await node.filter.subscribe([decoder], async (wakuMessage: any) => {
+          if (!wakuMessage?.payload) return;
+          
           try {
             const encryptedPayload = new TextDecoder().decode(wakuMessage.payload);
             const decrypted = await decryptMessage(encryptedPayload, currentUserId);
             
-            if (decrypted.startsWith('[Error')) {
-              // Попытка расшифровать свое сообщение для синхронизации
-              const selfDecrypted = await decryptMessage(encryptedPayload, activeChat!.id);
-              if (selfDecrypted.startsWith('[Error')) return;
-              return;
-            }
+            if (decrypted.startsWith('[Error')) return;
             
             const decodedProto = ChatDataPacket.decode(Buffer.from(decrypted, 'base64'));
             const msgData = ChatDataPacket.toObject(decodedProto);
@@ -87,7 +80,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                   sender: 'other', 
                   senderId: activeChat!.id, 
                   time,
-                  status: 'acknowledged'
+                  status: 'sent'
                 }].sort((a, b) => a.id - b.id);
               });
             }
@@ -96,40 +89,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           }
         });
 
-        channel.addEventListener("message-sent", (event: any) => {
-          const msgId = event.detail;
-          if (isMounted) {
-            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' } : m));
-          }
-        });
-
-        channel.addEventListener("message-acknowledged", (event: any) => {
-          const msgId = event.detail;
-          if (isMounted) {
-            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'acknowledged' } : m));
-          }
-        });
-
-        channel.syncStatus.addEventListener("synced", () => {
-          if (isMounted) {
-            setNetworkStatus('online');
-            setStatusMessage(null);
-          }
-        });
-
-        channel.syncStatus.addEventListener("syncing", (event: any) => {
-          if (isMounted) {
-            setNetworkStatus('syncing');
-            setStatusMessage(`Syncing ${event.detail.missing} messages...`);
-          }
-        });
+        if (isMounted) setNetworkStatus('online');
 
       } catch (e) {
         console.error("Setup failure:", e);
-        if (isMounted) {
-          setNetworkStatus('error');
-          setStatusMessage("Connection failed. Retrying...");
-        }
+        if (isMounted) setNetworkStatus('error');
       }
     }
 
@@ -139,9 +103,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       for (const m of stored) {
         try {
           const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
-          const payload = await decryptMessage(m.payload, secret);
-          if (!payload.startsWith('[Error')) {
-            const decodedProto = ChatDataPacket.decode(Buffer.from(payload, 'base64'));
+          const payloadData = await decryptMessage(m.payload, secret);
+          if (!payloadData.startsWith('[Error')) {
+            const decodedProto = ChatDataPacket.decode(Buffer.from(payloadData, 'base64'));
             const msgData = ChatDataPacket.toObject(decodedProto);
             decrypted.push({ 
               id: m.id, 
@@ -149,7 +113,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               sender: m.sender, 
               senderId: m.senderId, 
               time: m.time,
-              status: 'acknowledged'
+              status: 'sent'
             });
           }
         } catch (e) {}
@@ -162,18 +126,14 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      if (channelRef.current) {
-        // Удаление всех слушателей для предотвращения утечек
-        channelRef.current.removeEventListener("message-received");
-        channelRef.current.removeEventListener("message-sent");
-        channelRef.current.removeEventListener("message-acknowledged");
-        channelRef.current = null;
+      if (unsubscribe) {
+        unsubscribe().catch(console.error);
       }
     };
   }, [activeChat?.id, currentUserId]);
 
   const handleSend = async () => {
-    if (!channelRef.current || !input.trim()) return;
+    if (!nodeRef.current || !encoderRef.current || !input.trim()) return;
 
     const textToSend = input;
     setInput('');
@@ -213,10 +173,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       }]);
 
       const payloadBytes = new TextEncoder().encode(encrypted);
-      channelRef.current.send(payloadBytes);
+      await nodeRef.current.lightPush.send(encoderRef.current, { payload: payloadBytes });
+      
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' } : m));
 
     } catch (e) {
-      toast({ title: "Security Violation", description: "Encryption failed", variant: "destructive" });
+      toast({ title: "Send Failed", description: "P2P network error", variant: "destructive" });
     } finally {
       setIsProcessing(false);
     }
@@ -255,19 +217,17 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             <div className="flex items-center gap-1">
               <div className={`w-1.5 h-1.5 rounded-full ${
                 networkStatus === 'online' ? 'bg-primary' :
-                networkStatus === 'syncing' ? 'bg-accent animate-pulse' :
                 networkStatus === 'connecting' ? 'bg-muted animate-pulse' : 'bg-destructive'
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
                 {networkStatus === 'online' ? 'Mesh Active' :
-                 networkStatus === 'syncing' ? 'Syncing...' :
                  networkStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
               </span>
             </div>
           </div>
         </div>
         <div className="flex gap-4 items-center">
-          {networkStatus !== 'error' ? <Wifi className="w-4 h-4 text-primary opacity-50" /> : <WifiOff className="w-4 h-4 text-destructive animate-pulse" />}
+          {networkStatus === 'online' ? <Wifi className="w-4 h-4 text-primary opacity-50" /> : <WifiOff className="w-4 h-4 text-destructive animate-pulse" />}
         </div>
       </div>
 
@@ -283,8 +243,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                   <span className="text-[9px] font-mono">{m.time}</span>
                   <div className="flex items-center gap-1">
                     {m.sender === 'me' && (
-                      m.status === 'acknowledged' ? <CheckCheck className="w-3 h-3 text-primary-foreground" /> :
-                      m.status === 'sent' ? <Check className="w-3 h-3 text-primary-foreground/70" /> :
+                      m.status === 'sent' ? <Check className="w-3 h-3 text-primary-foreground" /> :
                       <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                     )}
                     <button onClick={() => deleteLocalMessage(m.id).then(() => setMessages(prev => prev.filter(msg => msg.id !== m.id)))}>
@@ -299,30 +258,22 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       </ScrollArea>
 
       <div className="p-4 border-t bg-card/80 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto space-y-2">
-          {statusMessage && (
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground animate-pulse">
-              <RefreshCw className="w-3 h-3 animate-spin" />
-              {statusMessage}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !isProcessing && handleSend()}
-              disabled={isProcessing}
-              placeholder={isProcessing ? "Processing..." : "Type secure message..."}
-              className="flex-1 bg-secondary/50 rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || isProcessing}
-              className="p-3 bg-primary text-primary-foreground rounded-xl disabled:opacity-50 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
-            >
-              {isProcessing ? <Cpu className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            </button>
-          </div>
+        <div className="max-w-4xl mx-auto flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !isProcessing && handleSend()}
+            disabled={isProcessing}
+            placeholder={isProcessing ? "Sending..." : "Type secure message..."}
+            className="flex-1 bg-secondary/50 rounded-xl py-2 px-4 outline-none border border-transparent focus:border-primary/30 transition-all"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isProcessing}
+            className="p-3 bg-primary text-primary-foreground rounded-xl disabled:opacity-50 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
+          >
+            {isProcessing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+          </button>
         </div>
       </div>
     </div>

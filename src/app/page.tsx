@@ -2,11 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { getIdentity, saveIdentity, saveLocalMessage, saveChat, getChats, type ChatSession } from '@/lib/db';
+import { getIdentity, saveIdentity, type ChatSession } from '@/lib/db';
 import { Toaster } from '@/components/ui/toaster';
-import { subscribeToP2P } from '@/lib/waku-service';
-import { decryptMessage } from '@/lib/crypto-utils';
-import images from '@/app/lib/placeholder-images.json';
 
 const ChatSidebar = dynamic(() => import('@/components/chat-sidebar').then(m => m.ChatSidebar), { 
   ssr: false,

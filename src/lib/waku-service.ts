@@ -1,13 +1,14 @@
-
-'use client';
-
-import { createLightNode, ReliableChannel, Protocols, waitForRemotePeer } from '@waku/sdk';
-import protobuf from 'protobufjs';
-
 /**
- * @fileOverview Сетевой слой Waku Reliable Channel.
- * Использует SDS (Scalable Data Sync) для гарантированной доставки и синхронизации.
+ * @fileOverview Сетевой слой Waku (стандартные протоколы).
+ * Использует Filter для получения и Light Push для отправки.
+ * 
+ * - initWaku - Инициализация ноды Waku в браузере.
+ * - getChannelName - Генерация детерминированного имени канала.
+ * - setupStandardChannel - Настройка энкодеров и декодеров для чата.
  */
+
+import { createLightNode, Protocols, waitForRemotePeer } from '@waku/sdk';
+import protobuf from 'protobufjs';
 
 // Protobuf структура для сообщений
 export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
@@ -19,6 +20,7 @@ let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
 export async function initWaku() {
+  if (typeof window === 'undefined') return null;
   if (nodeInstance) return nodeInstance;
   if (initPromise) return initPromise;
 
@@ -29,7 +31,7 @@ export async function initWaku() {
         defaultBootstrap: true,
         networkConfig: {
           clusterId: 1,
-          shards: [0, 1, 2, 3]
+          shards: [0]
         }
       });
       await node.start();
@@ -50,7 +52,7 @@ export function getChannelName(id1: string, id2: string) {
   return [id1, id2].sort().join('-').slice(0, 32);
 }
 
-export async function setupReliableChannel(node: any, channelName: string, myId: string) {
+export async function setupStandardChannel(node: any, channelName: string) {
   const ct = `/web3chat/1/${channelName}/proto`;
   
   const encoder = node.createEncoder({ contentTopic: ct });
@@ -58,9 +60,8 @@ export async function setupReliableChannel(node: any, channelName: string, myId:
 
   console.log('[Waku] Waiting for Peers (Filter/LightPush)...');
   await waitForRemotePeer(node, [Protocols.Filter, Protocols.LightPush], 20000).catch(e => {
-    console.warn('[Waku] Peer discovery timeout, but proceeding with creation.');
+    console.warn('[Waku] Peer discovery timeout, proceeding with current peers.');
   });
 
-  console.log('[Waku] Creating Reliable Channel:', channelName);
-  return await ReliableChannel.create(node, channelName, myId, encoder, decoder);
+  return { encoder, decoder, contentTopic: ct };
 }
