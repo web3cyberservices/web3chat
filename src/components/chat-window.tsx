@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Trash2, ChevronLeft, RefreshCw, Wifi, WifiOff, Check } from 'lucide-react';
+import { Send, Lock, Trash2, ChevronLeft, RefreshCw, Wifi, WifiOff, Check, CheckCheck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
 import { getLocalMessages, saveLocalMessage, deleteLocalMessage, type ChatSession } from '@/lib/db';
-import { sendP2PMessage, subscribeToP2P, ChatDataPacket } from '@/lib/waku-service';
+import { sendP2PMessage, subscribeToP2P, getWakuHistory, ChatDataPacket } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -26,6 +26,42 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  const processIncomingPayload = async (payload: string, isFromHistory = false) => {
+    try {
+      const decrypted = await decryptMessage(payload, currentUserId);
+      if (decrypted.startsWith('[Error')) return;
+      
+      const decodedProto = ChatDataPacket.decode(Buffer.from(decrypted, 'base64'));
+      const msgData = ChatDataPacket.toObject(decodedProto) as any;
+      
+      const msgId = Number(msgData.timestamp);
+      const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      await saveLocalMessage({
+        id: msgId,
+        chatId: activeChat!.id,
+        payload: payload,
+        sender: 'other',
+        senderId: activeChat!.id,
+        time
+      });
+
+      setMessages(prev => {
+        if (prev.some(m => m.id === msgId)) return prev;
+        return [...prev, { 
+          id: msgId, 
+          text: msgData.message, 
+          sender: 'other', 
+          senderId: activeChat!.id, 
+          time,
+          status: 'sent' as const
+        }].sort((a, b) => a.id - b.id);
+      });
+    } catch (e) {
+      console.error("Payload processing error:", e);
+    }
+  };
+
   useEffect(() => {
     if (!activeChat || !currentUserId) return;
 
@@ -36,78 +72,48 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       try {
         setNetworkStatus('connecting');
         
-        const sub = await subscribeToP2P(currentUserId, async (payload) => {
+        // 1. Загрузка из локальной БД
+        const stored = await getLocalMessages(activeChat!.id);
+        const decrypted: Message[] = [];
+        for (const m of stored) {
           try {
-            const decrypted = await decryptMessage(payload, currentUserId);
-            if (decrypted.startsWith('[Error')) return;
-            
-            const decodedProto = ChatDataPacket.decode(Buffer.from(decrypted, 'base64'));
-            const msgData = ChatDataPacket.toObject(decodedProto) as any;
-            
-            const msgId = Number(msgData.timestamp);
-            const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            await saveLocalMessage({
-              id: msgId,
-              chatId: activeChat!.id,
-              payload: payload,
-              sender: 'other',
-              senderId: activeChat!.id,
-              time
-            });
-
-            if (isMounted) {
-              setMessages(prev => {
-                if (prev.some(m => m.id === msgId)) return prev;
-                return [...prev, { 
-                  id: msgId, 
-                  text: msgData.message, 
-                  sender: 'other', 
-                  senderId: activeChat!.id, 
-                  time,
-                  status: 'sent' as const
-                }].sort((a, b) => a.id - b.id);
+            const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
+            const payloadData = await decryptMessage(m.payload, secret);
+            if (!payloadData.startsWith('[Error')) {
+              const decodedProto = ChatDataPacket.decode(Buffer.from(payloadData, 'base64'));
+              const msgData = ChatDataPacket.toObject(decodedProto) as any;
+              decrypted.push({ 
+                id: m.id, 
+                text: msgData.message, 
+                sender: m.sender, 
+                senderId: m.senderId, 
+                time: m.time,
+                status: 'sent' as const
               });
             }
-          } catch (e) {
-            console.error("Msg processing error:", e);
-          }
+          } catch (e) {}
+        }
+        if (isMounted) setMessages(decrypted.sort((a, b) => a.id - b.id));
+
+        // 2. Подписка на новые сообщения
+        const sub = await subscribeToP2P(currentUserId, (payload) => {
+          if (isMounted) processIncomingPayload(payload);
         });
 
         if (sub && isMounted) {
           unsubscribe = sub;
           setNetworkStatus('online');
+          
+          // 3. Подгрузка истории из Waku Store (для синхронизации оффлайн-сообщений)
+          getWakuHistory(currentUserId, (payload) => {
+            if (isMounted) processIncomingPayload(payload, true);
+          });
         }
       } catch (e) {
         if (isMounted) setNetworkStatus('error');
       }
     }
 
-    async function loadHistory() {
-      const stored = await getLocalMessages(activeChat!.id);
-      const decrypted: Message[] = [];
-      for (const m of stored) {
-        try {
-          const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
-          const payloadData = await decryptMessage(m.payload, secret);
-          if (!payloadData.startsWith('[Error')) {
-            const decodedProto = ChatDataPacket.decode(Buffer.from(payloadData, 'base64'));
-            const msgData = ChatDataPacket.toObject(decodedProto) as any;
-            decrypted.push({ 
-              id: m.id, 
-              text: msgData.message, 
-              sender: m.sender, 
-              senderId: m.senderId, 
-              time: m.time,
-              status: 'sent' as const
-            });
-          }
-        } catch (e) {}
-      }
-      if (isMounted) setMessages(decrypted.sort((a, b) => a.id - b.id));
-    }
-
-    loadHistory();
     setup();
 
     return () => {
@@ -158,7 +164,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
       const success = await sendP2PMessage(activeChat!.id, encrypted);
       
-      if (success) {
+      if (success && isMounted) {
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' as const } : m));
       } else {
         throw new Error('P2P failure');
@@ -208,7 +214,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               }`} />
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
                 {networkStatus === 'online' ? 'Mesh Active' :
-                 networkStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                 networkStatus === 'connecting' ? 'Syncing...' : 'Disconnected'}
               </span>
             </div>
           </div>
@@ -230,7 +236,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                   <span className="text-[9px] font-mono">{m.time}</span>
                   <div className="flex items-center gap-1">
                     {m.sender === 'me' && (
-                      m.status === 'sent' ? <Check className="w-3 h-3 text-primary-foreground" /> :
+                      m.status === 'sent' ? <CheckCheck className="w-3 h-3 text-primary-foreground" /> :
                       <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                     )}
                     <button onClick={() => deleteLocalMessage(m.id).then(() => setMessages(prev => prev.filter(msg => msg.id !== m.id)))}>

@@ -1,7 +1,7 @@
 node_modules
 .next
 .git
-.env
-README.md
-docker-compose.yaml
 Dockerfile
+docker-compose.yaml
+nginx.conf
+README.md

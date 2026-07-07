@@ -4,11 +4,8 @@ import protobuf from 'protobufjs';
 
 /**
  * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
- * Использует DNS Discovery для подключения к Mainnet.
+ * Поддерживает Relay, Filter и Store (Архив сообщений).
  */
-
-const CLUSTER_ID = 1;
-const SHARD_ID = 0;
 
 export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
   .add(new protobuf.Field("timestamp", 1, "uint64"))
@@ -18,6 +15,9 @@ export const ChatDataPacket = new protobuf.Type("ChatDataPacket")
 let nodeInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
+const CLUSTER_ID = 1;
+const SHARD_ID = 0;
+
 export function createContentTopic(id: string) {
   const safeId = (id || 'default').slice(0, 10);
   return `/web3chat/1/u-${safeId}/proto`;
@@ -25,7 +25,7 @@ export function createContentTopic(id: string) {
 
 export function getMessageEncoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  return createEncoder({ contentTopic, pubsubTopic, ephemeral: true });
+  return createEncoder({ contentTopic, pubsubTopic, ephemeral: false });
 }
 
 export function getMessageDecoder(contentTopic: string) {
@@ -57,8 +57,8 @@ export async function initWaku() {
       
       await node.start();
       
-      console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
-      await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 30000);
+      console.log('[Waku] Waiting for Production Peers (Filter, Push, Store)...');
+      await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter, Protocols.Store], 30000);
       
       console.log('[Waku] Connected to Global Mainnet Shard 0.');
       nodeInstance = node;
@@ -91,6 +91,27 @@ export async function sendP2PMessage(targetId: string, encryptedPayload: string)
   }
 }
 
+export async function getWakuHistory(targetId: string, onMessage: (payload: string) => void) {
+  try {
+    const node = await initWaku();
+    if (!node || !node.store) return;
+    const topic = createContentTopic(targetId);
+    const decoder = getMessageDecoder(topic);
+
+    console.log('[Waku] Fetching history from Store...');
+    for await (const messagesPage of node.store.queryGenerator([decoder])) {
+      for (const msg of messagesPage) {
+        if (msg && msg.payload) {
+          const decoded = new TextDecoder().decode(msg.payload);
+          onMessage(decoded);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[Waku] Store Error:', e);
+  }
+}
+
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
   try {
     const node = await initWaku();
@@ -106,7 +127,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
     };
 
     await waitForRemotePeer(node, [Protocols.Filter], 15000).catch(() => {
-        console.warn("[Waku] Timeout waiting for Filter peers, proceeding.");
+        console.warn("[Waku] Filter peer timeout, proceeding.");
     });
 
     return await node.filter.subscribe([decoder], callback);
