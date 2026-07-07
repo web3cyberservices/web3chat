@@ -24,8 +24,7 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Initializing Node...');
-      // В 2026 используем networkConfig для управления шардами
+      console.log('[Waku] Initializing Node with Mainnet Config...');
       const node = await createLightNode({ 
         defaultBootstrap: true,
         networkConfig: {
@@ -54,14 +53,12 @@ export function getChannelName(id1: string, id2: string) {
 export async function setupReliableChannel(node: any, channelName: string, myId: string) {
   const ct = `/web3chat/1/${channelName}/proto`;
   
-  // Создаем энкодер и декодер (объектный синтаксис 2026)
   const encoder = node.createEncoder({ contentTopic: ct });
   const decoder = node.createDecoder({ contentTopic: ct });
 
   console.log('[Waku] Waiting for Peers (Filter/LightPush)...');
-  // Standalone функция ожидания пиров
-  await waitForRemotePeer(node, [Protocols.Filter, Protocols.LightPush], 15000).catch(e => {
-    console.warn('[Waku] Timeout waiting for peers, but continuing...');
+  await waitForRemotePeer(node, [Protocols.Filter, Protocols.LightPush], 20000).catch(e => {
+    console.warn('[Waku] Peer discovery timeout, but proceeding with creation.');
   });
 
   console.log('[Waku] Creating Reliable Channel:', channelName);

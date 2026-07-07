@@ -49,21 +49,18 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         
         channelRef.current = channel;
 
-        // Обработка входящих сообщений
+        // Поток входящих сообщений
         channel.addEventListener("message-received", async (event: any) => {
           const wakuMessage = event.detail;
           try {
-            // Декодируем и расшифровываем
             const encryptedPayload = new TextDecoder().decode(wakuMessage.payload);
-            // Если сообщение от нас, оно расшифруется ключом собеседника, если от него - нашим
-            // ReliableChannel возвращает все сообщения канала. Мы пробуем расшифровать как входящее.
             const decrypted = await decryptMessage(encryptedPayload, currentUserId);
             
             if (decrypted.startsWith('[Error')) {
-              // Попробуем расшифровать как наше собственное (для синхронизации между устройствами)
+              // Попытка расшифровать свое сообщение для синхронизации
               const selfDecrypted = await decryptMessage(encryptedPayload, activeChat!.id);
               if (selfDecrypted.startsWith('[Error')) return;
-              return; // Свои сообщения мы добавляем при отправке
+              return;
             }
             
             const decodedProto = ChatDataPacket.decode(Buffer.from(decrypted, 'base64'));
@@ -101,27 +98,38 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
         channel.addEventListener("message-sent", (event: any) => {
           const msgId = event.detail;
-          setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' } : m));
+          if (isMounted) {
+            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' } : m));
+          }
         });
 
         channel.addEventListener("message-acknowledged", (event: any) => {
           const msgId = event.detail;
-          setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'acknowledged' } : m));
+          if (isMounted) {
+            setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'acknowledged' } : m));
+          }
         });
 
         channel.syncStatus.addEventListener("synced", () => {
-          setNetworkStatus('online');
-          setStatusMessage(null);
+          if (isMounted) {
+            setNetworkStatus('online');
+            setStatusMessage(null);
+          }
         });
 
         channel.syncStatus.addEventListener("syncing", (event: any) => {
-          setNetworkStatus('syncing');
-          setStatusMessage(`Syncing ${event.detail.missing} messages...`);
+          if (isMounted) {
+            setNetworkStatus('syncing');
+            setStatusMessage(`Syncing ${event.detail.missing} messages...`);
+          }
         });
 
       } catch (e) {
         console.error("Setup failure:", e);
-        if (isMounted) setNetworkStatus('error');
+        if (isMounted) {
+          setNetworkStatus('error');
+          setStatusMessage("Connection failed. Retrying...");
+        }
       }
     }
 
@@ -154,8 +162,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      channelRef.current = null;
-      // В реальном SDK ReliableChannel может требовать удаления слушателей
+      if (channelRef.current) {
+        // Удаление всех слушателей для предотвращения утечек
+        channelRef.current.removeEventListener("message-received");
+        channelRef.current.removeEventListener("message-sent");
+        channelRef.current.removeEventListener("message-acknowledged");
+        channelRef.current = null;
+      }
     };
   }, [activeChat?.id, currentUserId]);
 
