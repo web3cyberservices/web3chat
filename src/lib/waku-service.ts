@@ -1,8 +1,10 @@
 
 import { createLightNode, Protocols, createEncoder, createDecoder } from '@waku/sdk';
+import { wakuDnsDiscovery } from '@waku/dns-discovery';
 
 /**
- * @fileOverview P2P сервис Waku. Стандарт Июля 2026 (Sharded Mesh).
+ * @fileOverview Боевой P2P сервис Waku. Стандарт Июля 2026.
+ * Использует DNS Discovery для подключения к Mainnet.
  */
 
 let nodeInstance: any = null;
@@ -18,12 +20,7 @@ export function createContentTopic(id: string) {
 
 export function getMessageEncoder(contentTopic: string) {
   const pubsubTopic = `/waku/2/rs/${CLUSTER_ID}/${SHARD_ID}`;
-  // SDK 2026 требует контент-топик строкой первым аргументом
-  return createEncoder({
-    contentTopic,
-    ephemeral: true,
-    pubsubTopic
-  } as any);
+  return createEncoder(contentTopic, pubsubTopic);
 }
 
 export function getMessageDecoder(contentTopic: string) {
@@ -37,10 +34,17 @@ export async function initWaku() {
 
   initPromise = (async () => {
     try {
-      console.log('[Waku] Initializing July 2026 Mesh (Sharded)...');
+      console.log('[Waku] Initializing July 2026 Production Mesh...');
       
       const node = await createLightNode({ 
-        defaultBootstrap: true,
+        defaultBootstrap: false, 
+        peerDiscovery: [
+          wakuDnsDiscovery({
+            enrUrls: [
+              "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
+            ]
+          })
+        ],
         shardInfo: {
           clusterId: CLUSTER_ID,
           shards: [SHARD_ID]
@@ -49,28 +53,22 @@ export async function initWaku() {
       
       await node.start();
       
-      try {
-        const anyNode = node as any;
-        const protocols = [Protocols.LightPush, Protocols.Filter];
-        
-        console.log('[Waku] Waiting for peers with Filter and LightPush protocols...');
-        
-        // Хирургическое ожидание пиров с проверкой существования метода
-        if (anyNode.waitForRemotePeer) {
-          await anyNode.waitForRemotePeer(protocols, 30000);
-        } else if (anyNode.waitForPeers) {
-          await anyNode.waitForPeers(protocols, 30000);
-        }
-        
-        console.log('[Waku] Connected to Global Mesh Shard 0.');
-      } catch (e) {
-        console.warn('[Waku] Peer discovery is taking time, connection will stabilize in background.');
+      const anyNode = node as any;
+      const protocols = [Protocols.LightPush, Protocols.Filter];
+      
+      console.log('[Waku] Waiting for Production Peers (Filter & LightPush)...');
+      
+      if (anyNode.waitForRemotePeer) {
+        await anyNode.waitForRemotePeer(protocols, 30000);
+      } else if (anyNode.waitForPeers) {
+        await anyNode.waitForPeers(protocols, 30000);
       }
       
+      console.log('[Waku] Connected to Global Mainnet Shard 0.');
       nodeInstance = node;
       return node;
     } catch (error) {
-      console.error('[Waku] Bootstrap failed:', error);
+      console.error('[Waku] Mainnet Connection Failed:', error);
       initPromise = null;
       throw error;
     }
@@ -113,11 +111,9 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       }
     };
 
-    // Ожидание готовности перед подпиской
-    const protocols = [Protocols.Filter];
     const anyNode = node as any;
     if (anyNode.waitForRemotePeer) {
-      await anyNode.waitForRemotePeer(protocols, 5000).catch(() => {});
+      await anyNode.waitForRemotePeer([Protocols.Filter], 10000).catch(() => {});
     }
 
     return await node.filter.subscribe([decoder], callback);
