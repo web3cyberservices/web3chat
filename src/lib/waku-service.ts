@@ -1,7 +1,7 @@
 import protobuf from 'protobufjs';
 
 /**
- * @fileOverview HTTP Stealth Relay. Замена Waku P2P для обеспечения стабильности.
+ * @fileOverview HTTP Stealth Relay. Замена Waku P2P.
  * Бронебойная доставка зашифрованных сообщений через собственный сервер.
  */
 
@@ -40,10 +40,13 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
       const res = await fetch(`/api/relay?since=${lastSync}`);
       if (res.ok) {
         const data = await res.json();
-        data.messages.forEach((msg: any) => {
-          if (msg.timestamp > lastSync) lastSync = msg.timestamp;
-          onMessage(msg.payload);
-        });
+        if (data.messages && Array.isArray(data.messages)) {
+          data.messages.forEach((msg: any) => {
+            const ts = Number(msg.timestamp);
+            if (ts > lastSync) lastSync = ts;
+            onMessage(msg.payload);
+          });
+        }
       }
     } catch (e) {
       // Игнорируем ошибки сети
@@ -60,5 +63,5 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 }
 
 export async function getWakuHistory(targetId: string, onMessage: (payload: string) => void) {
-  // История автоматически подтягивается при первом poll в subscribeToP2P
+  // История подтягивается автоматически при первом poll()
 }

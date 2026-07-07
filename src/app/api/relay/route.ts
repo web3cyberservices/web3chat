@@ -6,12 +6,10 @@ import { Pool } from 'pg';
  * Реализует Immutable Audit Log для зашифрованных сообщений.
  */
 
-// Инициализация пула соединений с БД
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Флаг ленивой инициализации схемы данных
 let isInitialized = false;
 
 async function ensureTableExists() {
@@ -46,7 +44,6 @@ export async function POST(req: Request) {
 
     const timestamp = Date.now();
     
-    // Immutable Audit Log: только вставка
     await pool.query(
       'INSERT INTO messages (timestamp, payload) VALUES ($1, $2)',
       [timestamp, body.payload]
@@ -65,7 +62,6 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const since = Number(searchParams.get('since') || 0);
 
-    // Выборка новых сообщений для синхронизации клиента
     const { rows } = await pool.query(
       'SELECT timestamp, payload FROM messages WHERE timestamp > $1 ORDER BY timestamp ASC',
       [since]
