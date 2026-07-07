@@ -1,3 +1,4 @@
+
 services:
   web3-chat:
     build:
@@ -9,6 +10,7 @@ services:
       - NODE_ENV=production
     ports:
       - "127.0.0.1:3000:3000"
+    # УБРАНЫ тома, которые затирали статику внутри контейнера
     networks:
       - chat-network
 
