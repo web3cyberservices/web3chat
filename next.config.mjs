@@ -6,9 +6,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    turbopack: {}
-  }
+  // Turbopack config should be at the root, not inside experimental
+  turbopack: {},
 };
 
 export default nextConfig;

@@ -7,6 +7,14 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
+// Парсинг аргументов командной строки для поддержки Firebase Studio
+const args = process.argv.slice(2);
+const portArgIndex = args.indexOf('--port');
+const hostnameArgIndex = args.indexOf('--hostname');
+
+const PORT = (portArgIndex !== -1 && args[portArgIndex + 1]) ? parseInt(args[portArgIndex + 1]) : (process.env.PORT || 3000);
+const HOSTNAME = (hostnameArgIndex !== -1 && args[hostnameArgIndex + 1]) ? args[hostnameArgIndex + 1] : (process.env.HOSTNAME || '0.0.0.0');
+
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
@@ -42,9 +50,8 @@ app.prepare().then(() => {
     });
   });
 
-  const PORT = process.env.PORT || 3000;
-  server.listen(PORT, (err) => {
+  server.listen(PORT, HOSTNAME, (err) => {
     if (err) throw err;
-    console.log(`> Web3 Chat: HTTP + WebSocket Server ready on http://localhost:${PORT}`);
+    console.log(`> Web3 Chat: HTTP + WebSocket Server ready on http://${HOSTNAME}:${PORT}`);
   });
 });
