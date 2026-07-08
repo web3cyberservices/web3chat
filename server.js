@@ -7,7 +7,7 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-// Парсинг аргументов командной строки для поддержки Firebase Studio
+// Парсинг аргументов командной строки для поддержки Firebase Studio (порт 9002)
 const args = process.argv.slice(2);
 const portArgIndex = args.indexOf('--port');
 const hostnameArgIndex = args.indexOf('--hostname');
@@ -21,7 +21,7 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  // Инициализация Socket.IO
+  // Инициализация Socket.IO с поддержкой CORS
   const io = new Server(server, {
     cors: {
       origin: "*",
@@ -32,7 +32,7 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     console.log('[Socket] User connected:', socket.id);
 
-    // Привязываем сокет-соединение к конкретному User ID
+    // Привязываем сокет-соединение к конкретному User ID (Room)
     socket.on('register', (userId) => {
       socket.join(userId);
       console.log(`[Socket] Linked socket ${socket.id} to user ${userId}`);

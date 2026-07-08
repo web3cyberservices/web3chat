@@ -2,12 +2,11 @@
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  turbopack: {}, // Теперь в корне, как требует Next.js 16
   serverExternalPackages: ['pg'],
   images: {
     unoptimized: true,
   },
-  // Turbopack config should be at the root, not inside experimental
-  turbopack: {},
 };
 
 export default nextConfig;
