@@ -8,16 +8,17 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-// Настройка пула БД для логирования сообщений
+// Настройка пула БД для логирования сообщений (Immutable Audit Log)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Парсинг аргументов командной строки для поддержки Firebase Studio
+// Парсинг аргументов командной строки для поддержки портов Firebase Studio
 const args = process.argv.slice(2);
 const portArgIndex = args.indexOf('--port');
 const hostnameArgIndex = args.indexOf('--hostname');
 
+// Если аргументы не переданы, используем 3000/0.0.0.0 или ENV
 const PORT = (portArgIndex !== -1 && args[portArgIndex + 1]) ? parseInt(args[portArgIndex + 1]) : (process.env.PORT || 3000);
 const HOSTNAME = (hostnameArgIndex !== -1 && args[hostnameArgIndex + 1]) ? args[hostnameArgIndex + 1] : (process.env.HOSTNAME || '0.0.0.0');
 
@@ -55,10 +56,10 @@ app.prepare().then(() => {
 
     socket.on('send_message', async (data) => {
       if (data.targetId) {
-        // Мгновенная доставка
+        // Мгновенная доставка через сокеты
         socket.to(data.targetId).emit('receive_message', data);
         
-        // Персистентное сохранение (Audit Log)
+        // Персистентное сохранение (Immutable Audit Log)
         await logMessageToDB(data.targetId, data.payload, data.timestamp);
       }
     });
