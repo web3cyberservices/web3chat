@@ -5,9 +5,10 @@ import { Send, Lock, Trash2, ChevronLeft, RefreshCw, Wifi, WifiOff, Check, Check
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
-import { getLocalMessages, saveLocalMessage, deleteLocalMessage, type ChatSession } from '@/lib/db';
+import { getLocalMessages, saveLocalMessage, deleteLocalMessage, saveChat, getChat, type ChatSession } from '@/lib/db';
 import { sendP2PMessage, subscribeToP2P } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
+import images from '@/app/lib/placeholder-images.json';
 
 interface Message {
   id: number;
@@ -52,6 +53,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const actualSenderId = msgData.sender; 
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // Сохраняем сообщение в историю
             await saveLocalMessage({
               id: msgId,
               chatId: actualSenderId,
@@ -60,6 +62,18 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               senderId: actualSenderId,
               time
             });
+
+            // КРИТИЧЕСКИЙ ФИКС: Создаем или обновляем чат в списке контактов
+            const existingChat = await getChat(actualSenderId);
+            const chatToSave: ChatSession = {
+              id: actualSenderId,
+              name: existingChat?.name || `User ${actualSenderId.slice(0, 8)}`,
+              type: existingChat?.type || 'private',
+              lastMsg: msgData.message,
+              time: time,
+              avatar: existingChat?.avatar || images[Math.floor(Math.random() * 3)].url
+            };
+            await saveChat(chatToSave);
 
             if (activeChatRef.current === actualSenderId) {
               setMessages(prev => {
@@ -74,7 +88,10 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 }].sort((a, b) => a.id - b.id);
               });
             } else {
-              toast({ title: "New Message", description: "You received a secure message" });
+              toast({ 
+                title: "New Message", 
+                description: `From ${chatToSave.name}: ${msgData.message.slice(0, 30)}${msgData.message.length > 30 ? '...' : ''}` 
+              });
             }
           } catch (e) {
             console.error("Payload processing error:", e);
@@ -154,6 +171,13 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         payload: encrypted,
         sender: 'me',
         senderId: currentUserId,
+        time
+      });
+
+      // Обновляем последнее сообщение в чате
+      await saveChat({
+        ...activeChat,
+        lastMsg: textToSend,
         time
       });
 
