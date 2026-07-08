@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Settings, MessageSquare, Users, ShieldCheck, Copy, Check, LogOut, Lock, QrCode, X, Plus, UserPlus, Edit3, Save } from 'lucide-react';
+import { Search, Settings, MessageSquare, Users, ShieldCheck, Copy, Check, LogOut, Lock, QrCode, X, Plus, UserPlus, Edit3, Save, Download } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import images from '@/app/lib/placeholder-images.json';
@@ -23,12 +24,9 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
   const [showAddMenu, setShowAddMenu] = useState<'none' | 'private' | 'group' | 'settings' | 'edit-contact'>('none');
   const [myProfile, setMyProfile] = useState<UserProfile | null>(null);
   const [editingChat, setEditingChat] = useState<ChatSession | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
   const [newChatId, setNewChatId] = useState('');
-  const [groupName, setGroupName] = useState('');
-  const [groupMembers, setGroupMembers] = useState('');
-  
-  // Settings fields
   const [editName, setEditName] = useState('');
   const [editStatus, setEditStatus] = useState('');
 
@@ -50,12 +48,34 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
       }
     }
     loadData();
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
     const interval = setInterval(async () => {
       const stored = await getChats();
       setActiveChats(stored);
     }, 3000);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, [currentUserId]);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    setDeferredPrompt(null);
+  };
 
   const copyId = async () => {
     try {
@@ -64,15 +84,9 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         toast({ title: "ID Copied" });
-      } else {
-        throw new Error('Clipboard API unavailable');
       }
     } catch (err) {
-      toast({ 
-        title: "Copy Blocked", 
-        description: "Clipboard access denied by browser policy.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Copy Blocked", variant: "destructive" });
     }
   };
 
@@ -189,7 +203,13 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
             </div>
             <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Display Name" className="w-full bg-background border rounded-lg p-2 text-xs outline-none" />
             <input value={editStatus} onChange={(e) => setEditStatus(e.target.value)} placeholder="Status Message" className="w-full bg-background border rounded-lg p-2 text-xs outline-none" />
-            <Button onClick={handleSaveProfile} className="w-full h-8 text-[10px] rounded-lg">Save Profile</Button>
+            <Button onClick={handleSaveProfile} className="w-full h-8 text-[10px] rounded-lg mb-2">Save Profile</Button>
+            
+            {deferredPrompt && (
+              <Button onClick={handleInstallClick} variant="outline" className="w-full h-8 text-[10px] rounded-lg border-primary/50 text-primary">
+                <Download className="w-3 h-3 mr-2" /> Install App
+              </Button>
+            )}
           </div>
         )}
 
@@ -211,7 +231,7 @@ export function ChatSidebar({ currentUserId, activeChatId, onSelectChat }: ChatS
               placeholder="Private notes about this person..." 
               className="w-full bg-background border rounded-lg p-2 text-xs outline-none h-20 resize-none" 
             />
-            <Button onClick={handleSaveContact} variant="accent" className="w-full h-8 text-[10px] rounded-lg bg-accent text-accent-foreground hover:bg-accent/90">Save Changes</Button>
+            <Button onClick={handleSaveContact} variant="secondary" className="w-full h-8 text-[10px] rounded-lg bg-accent text-accent-foreground hover:bg-accent/90">Save Changes</Button>
           </div>
         )}
 
