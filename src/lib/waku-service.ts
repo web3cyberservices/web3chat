@@ -1,78 +1,68 @@
+import { io, Socket } from 'socket.io-client';
+
 /**
- * @fileOverview HTTP Stealth Relay. Waku полностью удален.
- * Бронебойная доставка зашифрованных сообщений через собственный сервер.
+ * @fileOverview Socket.IO Service. 
+ * Используется как прозрачная замена Waku/Relay для real-time доставки.
  */
 
-// Заглушки, чтобы не ломать старый код UI
+let socket: Socket | null = null;
+
 export async function initWaku() {
-  console.log('[Relay] Waku engine removed. Using Indestructible HTTP Relay.');
-  return true; 
+  if (typeof window === 'undefined') return null;
+  
+  if (!socket) {
+    // Подключаемся к текущему хосту
+    socket = io();
+    console.log('[Socket] Initialized');
+  }
+  return socket;
 }
 
-export async function getWakuHistory(targetId: string, onMessage: (payload: string) => void) {
-  // История автоматически подгружается при первом вызове subscribeToP2P через lastSync
+// Заглушка для истории (в Socket.IO версии реализуется через БД отдельно)
+export async function getWakuHistory() {
   return; 
 }
 
-/**
- * Отправка сообщения через HTTP Relay
- */
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
-    const res = await fetch('/api/relay', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        targetId, 
-        payload: encryptedPayload,
-        timestamp: Date.now()
-      })
+    const s = await initWaku();
+    if (!s) return false;
+    
+    s.emit('send_message', {
+      targetId,
+      payload: encryptedPayload,
+      timestamp: Date.now()
     });
-    return res.ok;
+
+    console.log('[Socket] Message emitted');
+    return true;
   } catch (e) {
-    console.error('[Relay] Send Error:', e);
+    console.error('[Socket] Send Error:', e);
     return false;
   }
 }
 
-/**
- * Подписка на сообщения (Short Polling)
- */
 export async function subscribeToP2P(myId: string, onMessage: (payload: string) => void) {
-  let isSubscribed = true;
-  // Синхронизируем сообщения за последние 24 часа при старте
-  let lastSync = Date.now() - (24 * 60 * 60 * 1000); 
+  const s = await initWaku();
+  if (!s) return null;
+  
+  console.log(`[Socket] Subscribing for ID: ${myId}`);
 
-  const poll = async () => {
-    if (!isSubscribed) return;
-    try {
-      const res = await fetch(`/api/relay?targetId=${myId}&since=${lastSync}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.messages && Array.isArray(data.messages)) {
-          data.messages.forEach((msg: any) => {
-            const ts = Number(msg.timestamp);
-            if (ts > lastSync) lastSync = ts;
-            onMessage(msg.payload);
-          });
-        }
-      }
-    } catch (e) {
-      // Игнорируем сетевые ошибки, повторяем через цикл
-    }
-    
-    // Опрос сервера каждые 2 секунды (Баланс между скоростью и нагрузкой)
-    if (isSubscribed) {
-      setTimeout(poll, 2000);
+  const handler = (data: { targetId: string, payload: string }) => {
+    // В базовой версии Socket.IO ретранслируем всё, 
+    // клиент сам отфильтрует то, что не сможет расшифровать
+    if (data.targetId === myId || !data.targetId) {
+      onMessage(data.payload);
     }
   };
 
-  poll();
+  s.on('receive_message', handler);
 
+  // Возвращаем объект с методом отписки для совместимости с ChatWindow
   return {
-    unsubscribe: () => { 
-      console.log('[Relay] Subscription stopped.');
-      isSubscribed = false; 
+    unsubscribe: () => {
+      console.log('[Socket] Unsubscribed');
+      s.off('receive_message', handler);
     }
   };
 }
