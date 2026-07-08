@@ -26,77 +26,64 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const processIncomingPayload = async (payload: string) => {
-    try {
-      const decrypted = await decryptMessage(payload, currentUserId);
-      if (decrypted.startsWith('[Error')) return;
-      
-      const msgData = JSON.parse(decrypted);
-      const msgId = Number(msgData.timestamp);
-      const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      await saveLocalMessage({
-        id: msgId,
-        chatId: activeChat!.id,
-        payload: payload,
-        sender: 'other',
-        senderId: activeChat!.id,
-        time
-      });
-
-      setMessages(prev => {
-        if (prev.some(m => m.id === msgId)) return prev;
-        return [...prev, { 
-          id: msgId, 
-          text: msgData.message, 
-          sender: 'other', 
-          senderId: activeChat!.id, 
-          time,
-          status: 'sent' as const
-        }].sort((a, b) => a.id - b.id);
-      });
-    } catch (e) {
-      console.error("Payload processing error:", e);
-    }
-  };
-
+  // Отслеживаем активный чат без перерисовки useEffect сетевой подписки
+  const activeChatRef = useRef<string | undefined>(activeChat?.id);
   useEffect(() => {
-    if (!activeChat || !currentUserId) return;
+    activeChatRef.current = activeChat?.id;
+  }, [activeChat?.id]);
+
+  // ЭФФЕКТ 1: Глобальная подписка на входящие сообщения (зависит только от currentUserId)
+  useEffect(() => {
+    if (!currentUserId) return;
 
     let isMounted = true;
     let subscription: any = null;
     
-    async function setup() {
+    async function setupNetwork() {
       try {
         setNetworkStatus('connecting');
         
-        // 1. Загрузка из локальной БД
-        const stored = await getLocalMessages(activeChat!.id);
-        const decrypted: Message[] = [];
-        for (const m of stored) {
+        const subResult = await subscribeToP2P(currentUserId, async (payload) => {
+          if (!isMounted) return;
           try {
-            const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
-            const payloadData = await decryptMessage(m.payload, secret);
-            if (!payloadData.startsWith('[Error')) {
-              const msgData = JSON.parse(payloadData);
-              decrypted.push({ 
-                id: m.id, 
-                text: msgData.message, 
-                sender: m.sender, 
-                senderId: m.senderId, 
-                time: m.time,
-                status: 'sent' as const
-              });
-            }
-          } catch (e) {}
-        }
-        if (isMounted) {
-          setMessages(decrypted.sort((a, b) => a.id - b.id));
-        }
+            const decrypted = await decryptMessage(payload, currentUserId);
+            if (decrypted.startsWith('[Error')) return;
+            
+            const msgData = JSON.parse(decrypted);
+            const msgId = Number(msgData.timestamp);
+            const actualSenderId = msgData.sender; // Берем реальный ID отправителя из пакета
+            const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // 2. Подписка на новые сообщения
-        const subResult = await subscribeToP2P(currentUserId, (payload) => {
-          if (isMounted) processIncomingPayload(payload);
+            // Сохраняем сообщение в историю чата именно с тем, кто его прислал
+            await saveLocalMessage({
+              id: msgId,
+              chatId: actualSenderId,
+              payload: payload,
+              sender: 'other',
+              senderId: actualSenderId,
+              time
+            });
+
+            // Обновляем экран только если сейчас открыт чат с этим отправителем
+            if (activeChatRef.current === actualSenderId) {
+              setMessages(prev => {
+                if (prev.some(m => m.id === msgId)) return prev;
+                return [...prev, { 
+                  id: msgId, 
+                  text: msgData.message, 
+                  sender: 'other', 
+                  senderId: actualSenderId, 
+                  time,
+                  status: 'sent' as const
+                }].sort((a, b) => a.id - b.id);
+              });
+            } else {
+              // Если чат не открыт, показываем уведомление
+              toast({ title: "New Message", description: "You received a secure message" });
+            }
+          } catch (e) {
+            console.error("Payload processing error:", e);
+          }
         });
 
         if (subResult && isMounted) {
@@ -108,7 +95,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
       }
     }
 
-    setup();
+    setupNetwork();
 
     return () => {
       isMounted = false;
@@ -116,10 +103,40 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         subscription.unsubscribe();
       }
     };
+  }, [currentUserId, toast]);
+
+  // ЭФФЕКТ 2: Загрузка локальной истории сообщений при переключении чатов
+  useEffect(() => {
+    if (!activeChat || !currentUserId) return;
+
+    async function loadHistory() {
+      const stored = await getLocalMessages(activeChat!.id);
+      const decrypted: Message[] = [];
+      for (const m of stored) {
+        try {
+          const secret = m.sender === 'me' ? activeChat!.id : currentUserId;
+          const payloadData = await decryptMessage(m.payload, secret);
+          if (!payloadData.startsWith('[Error')) {
+            const msgData = JSON.parse(payloadData);
+            decrypted.push({ 
+              id: m.id, 
+              text: msgData.message, 
+              sender: m.sender, 
+              senderId: m.senderId, 
+              time: m.time,
+              status: 'sent' as const
+            });
+          }
+        } catch (e) {}
+      }
+      setMessages(decrypted.sort((a, b) => a.id - b.id));
+    }
+
+    loadHistory();
   }, [activeChat?.id, currentUserId]);
 
   const handleSend = async () => {
-    if (!input.trim() || isProcessing) return;
+    if (!input.trim() || isProcessing || !activeChat) return;
 
     const textToSend = input;
     setInput('');
@@ -135,11 +152,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         message: textToSend
       });
       
-      const encrypted = await encryptMessage(rawData, activeChat!.id);
+      const encrypted = await encryptMessage(rawData, activeChat.id);
 
       await saveLocalMessage({
         id: msgId,
-        chatId: activeChat!.id,
+        chatId: activeChat.id,
         payload: encrypted,
         sender: 'me',
         senderId: currentUserId,
@@ -155,7 +172,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         status: 'sending' as const
       }]);
 
-      const success = await sendP2PMessage(activeChat!.id, encrypted);
+      const success = await sendP2PMessage(activeChat.id, encrypted);
       
       if (success) {
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'sent' as const } : m));
@@ -185,6 +202,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         <Lock className="w-12 h-12 opacity-20 mb-4" />
         <h2 className="text-xl font-bold text-foreground">Secure Vault</h2>
         <p className="text-sm">Select a contact to start an encrypted session.</p>
+        
+        {/* Индикатор статуса сети в режиме ожидания */}
+        <div className="mt-8 flex items-center gap-2 text-xs">
+          <div className={`w-2 h-2 rounded-full ${networkStatus === 'online' ? 'bg-primary' : 'bg-muted animate-pulse'}`} />
+          {networkStatus === 'online' ? 'Connected to Relay' : 'Connecting...'}
+        </div>
       </div>
     );
   }

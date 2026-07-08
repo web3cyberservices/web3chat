@@ -24,10 +24,17 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     console.log('[Socket] User connected:', socket.id);
 
-    // Ретрансляция зашифрованных сообщений
+    // Привязываем сокет-соединение к конкретному User ID
+    socket.on('register', (userId) => {
+      socket.join(userId);
+      console.log(`[Socket] Linked socket ${socket.id} to user ${userId}`);
+    });
+
+    // Ретрансляция зашифрованных сообщений лично получателю
     socket.on('send_message', (data) => {
-      // Broadcast всем, кроме отправителя
-      socket.broadcast.emit('receive_message', data);
+      if (data.targetId) {
+        socket.to(data.targetId).emit('receive_message', data);
+      }
     });
 
     socket.on('disconnect', () => {

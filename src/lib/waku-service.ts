@@ -18,7 +18,7 @@ export async function initWaku() {
   return socket;
 }
 
-// Заглушка для истории (в Socket.IO версии реализуется через БД отдельно)
+// Заглушка для истории
 export async function getWakuHistory() {
   return; 
 }
@@ -48,17 +48,17 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   
   console.log(`[Socket] Subscribing for ID: ${myId}`);
 
+  // Регистрируем наш ID в комнате на сервере
+  s.emit('register', myId);
+
   const handler = (data: { targetId: string, payload: string }) => {
-    // В базовой версии Socket.IO ретранслируем всё, 
-    // клиент сам отфильтрует то, что не сможет расшифровать
-    if (data.targetId === myId || !data.targetId) {
-      onMessage(data.payload);
-    }
+    // Получаем сообщение (сервер уже отфильтровал его для нас)
+    onMessage(data.payload);
   };
 
   s.on('receive_message', handler);
 
-  // Возвращаем объект с методом отписки для совместимости с ChatWindow
+  // Возвращаем объект с методом отписки
   return {
     unsubscribe: () => {
       console.log('[Socket] Unsubscribed');
