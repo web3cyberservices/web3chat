@@ -4,18 +4,30 @@ const next = require('next');
 const { Server } = require('socket.io');
 const { Pool } = require('pg');
 
+// Парсинг аргументов командной строки (для Firebase Studio)
+const args = process.argv.slice(2);
+const portArg = args.indexOf('--port');
+const hostArg = args.indexOf('--hostname');
+
+const PORT = portArg !== -1 ? parseInt(args[portArg + 1], 10) : (process.env.PORT || 3000);
+const HOSTNAME = hostArg !== -1 ? args[hostArg + 1] : (process.env.HOSTNAME || '0.0.0.0');
+
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-// Настройка пула БД для логирования сообщений (Immutable Audit Log)
-// Используем переменную окружения DATABASE_URL из docker-compose
+// Настройка пула БД
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Добавляем таймаут, чтобы не ждать вечно в среде без БД
+  connectionTimeoutMillis: 5000,
 });
 
-// Инициализация таблицы при старте
 async function initDB() {
+  if (!process.env.DATABASE_URL) {
+    console.log('[DB] DATABASE_URL not set, skipping initialization');
+    return;
+  }
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -29,23 +41,22 @@ async function initDB() {
     `);
     console.log('[DB] Database initialized');
   } catch (err) {
-    console.error('[DB] Initialization error:', err);
+    console.error('[DB] Initialization error:', err.message);
+    // Не выбрасываем ошибку дальше, чтобы сервер мог запуститься без БД (для превью)
   }
 }
 
 async function logMessageToDB(targetId, payload, timestamp) {
+  if (!process.env.DATABASE_URL) return;
   try {
     await pool.query(
       'INSERT INTO messages (timestamp, target_id, payload) VALUES ($1, $2, $3)',
       [timestamp || Date.now(), targetId, payload]
     );
   } catch (err) {
-    console.error('[DB Error] Failed to log message:', err);
+    console.error('[DB Error] Failed to log message:', err.message);
   }
 }
-
-const PORT = process.env.PORT || 3000;
-const HOSTNAME = process.env.HOSTNAME || '0.0.0.0';
 
 app.prepare().then(async () => {
   await initDB();
@@ -63,28 +74,18 @@ app.prepare().then(async () => {
   });
 
   io.on('connection', (socket) => {
-    console.log('[Socket] Connection established:', socket.id);
-
-    // Регистрация пользователя в персональной комнате по его ID
     socket.on('register', (userId) => {
       if (userId) {
         socket.join(userId);
-        console.log(`[Socket] User ${userId} joined their private room`);
+        console.log(`[Socket] User ${userId} joined room`);
       }
     });
 
     socket.on('send_message', async (data) => {
       if (data.targetId && data.payload) {
-        // Мгновенная доставка адресату через его комнату
         io.to(data.targetId).emit('receive_message', data);
-        
-        // Персистентное сохранение в БД (Audit Log)
         await logMessageToDB(data.targetId, data.payload, data.timestamp);
       }
-    });
-
-    socket.on('disconnect', () => {
-      console.log('[Socket] User disconnected');
     });
   });
 
