@@ -2,11 +2,13 @@
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
-  // Изолируем драйвер pg от Webpack, чтобы избежать ошибок с нативными модулями при сборке
   serverExternalPackages: ['pg'],
   images: {
     unoptimized: true,
   },
+  experimental: {
+    // Удален turbopack отсюда, так как в v16 он настраивается иначе или через CLI
+  }
 };
 
 export default nextConfig;

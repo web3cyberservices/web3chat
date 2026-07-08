@@ -26,13 +26,11 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Отслеживаем активный чат без перерисовки useEffect сетевой подписки
   const activeChatRef = useRef<string | undefined>(activeChat?.id);
   useEffect(() => {
     activeChatRef.current = activeChat?.id;
   }, [activeChat?.id]);
 
-  // ЭФФЕКТ 1: Глобальная подписка на входящие сообщения (зависит только от currentUserId)
   useEffect(() => {
     if (!currentUserId) return;
 
@@ -51,10 +49,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             
             const msgData = JSON.parse(decrypted);
             const msgId = Number(msgData.timestamp);
-            const actualSenderId = msgData.sender; // Берем реальный ID отправителя из пакета
+            const actualSenderId = msgData.sender; 
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Сохраняем сообщение в историю чата именно с тем, кто его прислал
             await saveLocalMessage({
               id: msgId,
               chatId: actualSenderId,
@@ -64,7 +61,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               time
             });
 
-            // Обновляем экран только если сейчас открыт чат с этим отправителем
             if (activeChatRef.current === actualSenderId) {
               setMessages(prev => {
                 if (prev.some(m => m.id === msgId)) return prev;
@@ -78,7 +74,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
                 }].sort((a, b) => a.id - b.id);
               });
             } else {
-              // Если чат не открыт, показываем уведомление
               toast({ title: "New Message", description: "You received a secure message" });
             }
           } catch (e) {
@@ -105,7 +100,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     };
   }, [currentUserId, toast]);
 
-  // ЭФФЕКТ 2: Загрузка локальной истории сообщений при переключении чатов
   useEffect(() => {
     if (!activeChat || !currentUserId) return;
 
@@ -203,7 +197,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         <h2 className="text-xl font-bold text-foreground">Secure Vault</h2>
         <p className="text-sm">Select a contact to start an encrypted session.</p>
         
-        {/* Индикатор статуса сети в режиме ожидания */}
         <div className="mt-8 flex items-center gap-2 text-xs">
           <div className={`w-2 h-2 rounded-full ${networkStatus === 'online' ? 'bg-primary' : 'bg-muted animate-pulse'}`} />
           {networkStatus === 'online' ? 'Connected to Relay' : 'Connecting...'}

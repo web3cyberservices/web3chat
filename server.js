@@ -13,12 +13,11 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Парсинг аргументов командной строки для поддержки портов Firebase Studio
+// Парсинг аргументов командной строки для поддержки портов и хостов
 const args = process.argv.slice(2);
 const portArgIndex = args.indexOf('--port');
 const hostnameArgIndex = args.indexOf('--hostname');
 
-// Если аргументы не переданы, используем 3000/0.0.0.0 или ENV
 const PORT = (portArgIndex !== -1 && args[portArgIndex + 1]) ? parseInt(args[portArgIndex + 1]) : (process.env.PORT || 3000);
 const HOSTNAME = (hostnameArgIndex !== -1 && args[hostnameArgIndex + 1]) ? args[hostnameArgIndex + 1] : (process.env.HOSTNAME || '0.0.0.0');
 
@@ -47,25 +46,26 @@ app.prepare().then(() => {
   });
 
   io.on('connection', (socket) => {
-    console.log('[Socket] User connected:', socket.id);
+    console.log('[Socket] Connection established:', socket.id);
 
+    // Регистрация пользователя в персональной комнате по его ID
     socket.on('register', (userId) => {
       socket.join(userId);
-      console.log(`[Socket] User ${userId} registered to room`);
+      console.log(`[Socket] User ${userId} joined their private room`);
     });
 
     socket.on('send_message', async (data) => {
       if (data.targetId) {
-        // Мгновенная доставка через сокеты
+        // Мгновенная доставка адресату через его комнату
         socket.to(data.targetId).emit('receive_message', data);
         
-        // Персистентное сохранение (Immutable Audit Log)
+        // Персистентное сохранение в БД (Audit Log)
         await logMessageToDB(data.targetId, data.payload, data.timestamp);
       }
     });
 
     socket.on('disconnect', () => {
-      console.log('[Socket] User disconnected:', socket.id);
+      console.log('[Socket] User disconnected');
     });
   });
 

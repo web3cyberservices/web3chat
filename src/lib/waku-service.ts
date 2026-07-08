@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 
 /**
  * @fileOverview Socket.IO Service. 
- * Используется для real-time доставки с автоматической регистрацией в комнатах.
+ * Реализует доставку сообщений через WebSocket с поддержкой комнат.
  */
 
 let socket: Socket | null = null;
@@ -11,6 +11,7 @@ export async function initWaku() {
   if (typeof window === 'undefined') return null;
   
   if (!socket) {
+    // Подключаемся к текущему хосту
     socket = io({
       reconnectionAttempts: 5,
       timeout: 10000,
@@ -45,7 +46,7 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   const s = await initWaku();
   if (!s) return null;
   
-  // Регистрация в персональной комнате для получения личных сообщений
+  // Сообщаем серверу наш ID, чтобы он добавил нас в нашу комнату
   s.emit('register', myId);
 
   const handler = (data: { payload: string }) => {
@@ -62,6 +63,6 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 }
 
 export async function getWakuHistory() {
-  // История подтягивается из локальной БД (IndexedDB) или через API GET /api/relay
+  // История подгружается автоматически из локальной IndexedDB или API
   return;
 }
