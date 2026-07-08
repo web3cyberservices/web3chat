@@ -2,10 +2,13 @@
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
-  serverExternalPackages: ['pg'], // <-- КРИТИЧЕСКИ ВАЖНО: Защита от ошибок pg-native
+  serverExternalPackages: ['pg'],
   images: {
     unoptimized: true,
   },
+  experimental: {
+    turbopack: {}
+  }
 };
 
 export default nextConfig;

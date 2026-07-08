@@ -1,8 +1,6 @@
 node_modules
 .next
-out
-build
 .git
-.vscode
 .env
-.env.local
+Dockerfile
+docker-compose.yaml
