@@ -1,7 +1,14 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'web3-chat-secure-v1';
-const DB_VERSION = 3;
+const DB_VERSION = 4; // Увеличиваем версию для новой схемы
+
+export interface UserProfile {
+  type: 'me';
+  name: string;
+  status?: string;
+  avatar?: string;
+}
 
 export interface UserCredential {
   type: 'identity';
@@ -12,20 +19,22 @@ export interface UserCredential {
 export interface EncryptedMessage {
   id: number;
   chatId: string;
-  payload: string; // Зашифрованный JSON
+  payload: string;
   sender: string;
   senderId?: string;
   time: string;
 }
 
 export interface ChatSession {
-  id: string; // Vortex ID собеседника или Group ID
+  id: string;
   name: string;
   type: 'private' | 'group';
-  members?: string[]; // Для групп
+  members?: string[];
   lastMsg?: string;
   time?: string;
   avatar?: string;
+  notes?: string; // Локальные заметки о собеседнике
+  customName?: string; // Локальное имя собеседника
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
@@ -45,10 +54,25 @@ export function getDB() {
         if (!db.objectStoreNames.contains('chats')) {
           db.createObjectStore('chats', { keyPath: 'id' });
         }
+        if (!db.objectStoreNames.contains('profiles')) {
+          db.createObjectStore('profiles', { keyPath: 'type' });
+        }
       },
     });
   }
   return dbPromise;
+}
+
+export async function saveMyProfile(profile: Omit<UserProfile, 'type'>) {
+  const db = await getDB();
+  if (!db) return;
+  await db.put('profiles', { ...profile, type: 'me' });
+}
+
+export async function getMyProfile(): Promise<UserProfile | null> {
+  const db = await getDB();
+  if (!db) return null;
+  return db.get('profiles', 'me');
 }
 
 export async function saveIdentity(id: string) {
@@ -110,4 +134,5 @@ export async function clearAllData() {
   await db.clear('user_credentials');
   await db.clear('encrypted_messages');
   await db.clear('chats');
+  await db.clear('profiles');
 }

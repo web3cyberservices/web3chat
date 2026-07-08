@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Trash2, ChevronLeft, RefreshCw, Wifi, WifiOff, Check, CheckCheck } from 'lucide-react';
+import { Send, Lock, Trash2, ChevronLeft, RefreshCw, Wifi, WifiOff, Check, CheckCheck, Info } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
@@ -53,7 +53,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             const actualSenderId = msgData.sender; 
             const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Сохраняем сообщение в историю
             await saveLocalMessage({
               id: msgId,
               chatId: actualSenderId,
@@ -63,11 +62,12 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
               time
             });
 
-            // КРИТИЧЕСКИЙ ФИКС: Создаем или обновляем чат в списке контактов
             const existingChat = await getChat(actualSenderId);
             const chatToSave: ChatSession = {
               id: actualSenderId,
               name: existingChat?.name || `User ${actualSenderId.slice(0, 8)}`,
+              customName: existingChat?.customName,
+              notes: existingChat?.notes,
               type: existingChat?.type || 'private',
               lastMsg: msgData.message,
               time: time,
@@ -90,7 +90,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
             } else {
               toast({ 
                 title: "New Message", 
-                description: `From ${chatToSave.name}: ${msgData.message.slice(0, 30)}${msgData.message.length > 30 ? '...' : ''}` 
+                description: `From ${chatToSave.customName || chatToSave.name}: ${msgData.message.slice(0, 30)}${msgData.message.length > 30 ? '...' : ''}` 
               });
             }
           } catch (e) {
@@ -174,7 +174,6 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
         time
       });
 
-      // Обновляем последнее сообщение в чате
       await saveChat({
         ...activeChat,
         lastMsg: textToSend,
@@ -236,10 +235,17 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           {isMobile && <button onClick={onBack} className="p-1"><ChevronLeft /></button>}
           <Avatar className="w-10 h-10">
             <AvatarImage src={activeChat.avatar} />
-            <AvatarFallback>{activeChat.name[0]}</AvatarFallback>
+            <AvatarFallback className="bg-secondary">{activeChat.customName?.[0] || activeChat.name[0]}</AvatarFallback>
           </Avatar>
-          <div>
-            <h2 className="font-bold text-sm truncate">{activeChat.name}</h2>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-sm truncate max-w-[150px]">{activeChat.customName || activeChat.name}</h2>
+              {activeChat.notes && (
+                <div title={activeChat.notes} className="cursor-help text-accent">
+                  <Info className="w-3 h-3" />
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-1">
               <div className={`w-1.5 h-1.5 rounded-full ${
                 networkStatus === 'online' ? 'bg-primary' :
@@ -253,6 +259,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
           </div>
         </div>
         <div className="flex gap-4 items-center">
+          <span className="text-[10px] text-muted-foreground font-mono hidden lg:block opacity-50">{activeChat.id.slice(0, 16)}...</span>
           {networkStatus === 'online' ? <Wifi className="w-4 h-4 text-primary opacity-50" /> : <WifiOff className="w-4 h-4 text-destructive animate-pulse" />}
         </div>
       </div>
