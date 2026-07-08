@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 
 /**
  * @fileOverview Socket.IO Service. 
- * Реализует доставку сообщений через WebSocket с поддержкой комнат.
+ * Реализует доставку сообщений через WebSocket с поддержкой комнат и авто-реконнекта.
  */
 
 let socket: Socket | null = null;
@@ -11,14 +11,18 @@ export async function initWaku() {
   if (typeof window === 'undefined') return null;
   
   if (!socket) {
-    // Подключаемся к текущему хосту
     socket = io({
-      reconnectionAttempts: 5,
-      timeout: 10000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      timeout: 20000,
     });
     
     socket.on('connect', () => {
       console.log('[Socket] Connected to relay server');
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('[Socket] Connection error:', err.message);
     });
   }
   return socket;
@@ -27,7 +31,7 @@ export async function initWaku() {
 export async function sendP2PMessage(targetId: string, encryptedPayload: string): Promise<boolean> {
   try {
     const s = await initWaku();
-    if (!s) return false;
+    if (!s || !s.connected) return false;
     
     s.emit('send_message', {
       targetId,
@@ -46,8 +50,14 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
   const s = await initWaku();
   if (!s) return null;
   
-  // Сообщаем серверу наш ID, чтобы он добавил нас в нашу комнату
-  s.emit('register', myId);
+  const register = () => {
+    console.log(`[Socket] Registering ID: ${myId}`);
+    s.emit('register', myId);
+  };
+
+  // Регистрируемся сразу и при каждом восстановлении связи
+  if (s.connected) register();
+  s.on('connect', register);
 
   const handler = (data: { payload: string }) => {
     onMessage(data.payload);
@@ -57,12 +67,8 @@ export async function subscribeToP2P(myId: string, onMessage: (payload: string) 
 
   return {
     unsubscribe: () => {
+      s.off('connect', register);
       s.off('receive_message', handler);
     }
   };
-}
-
-export async function getWakuHistory() {
-  // История подгружается автоматически из локальной IndexedDB или API
-  return;
 }

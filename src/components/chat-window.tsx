@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { encryptMessage, decryptMessage } from '@/lib/crypto-utils';
 import { getLocalMessages, saveLocalMessage, deleteLocalMessage, saveChat, getChat, type ChatSession } from '@/lib/db';
-import { sendP2PMessage, subscribeToP2P } from '@/lib/waku-service';
+import { sendP2PMessage, subscribeToP2P, initWaku } from '@/lib/waku-service';
 import { useToast } from '@/hooks/use-toast';
 import images from '@/app/lib/placeholder-images.json';
 
@@ -32,6 +32,82 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     activeChatRef.current = activeChat?.id;
   }, [activeChat?.id]);
 
+  // Функция обработки входящего сообщения (общая для сокетов и синхронизации)
+  const processIncomingMessage = async (payload: string) => {
+    try {
+      const decrypted = await decryptMessage(payload, currentUserId);
+      if (decrypted.startsWith('[Error')) return;
+      
+      const msgData = JSON.parse(decrypted);
+      const msgId = Number(msgData.timestamp);
+      const actualSenderId = msgData.sender; 
+      const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      await saveLocalMessage({
+        id: msgId,
+        chatId: actualSenderId,
+        payload: payload,
+        sender: 'other',
+        senderId: actualSenderId,
+        time
+      });
+
+      const existingChat = await getChat(actualSenderId);
+      const chatToSave: ChatSession = {
+        id: actualSenderId,
+        name: existingChat?.name || `User ${actualSenderId.slice(0, 8)}`,
+        customName: existingChat?.customName,
+        notes: existingChat?.notes,
+        type: existingChat?.type || 'private',
+        lastMsg: msgData.message,
+        time: time,
+        avatar: existingChat?.avatar || images[Math.floor(Math.random() * 3)].url
+      };
+      await saveChat(chatToSave);
+
+      if (activeChatRef.current === actualSenderId) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === msgId)) return prev;
+          return [...prev, { 
+            id: msgId, 
+            text: msgData.message, 
+            sender: 'other', 
+            senderId: actualSenderId, 
+            time,
+            status: 'sent' as const
+          }].sort((a, b) => a.id - b.id);
+        });
+      } else {
+        toast({ 
+          title: "New Message", 
+          description: `From ${chatToSave.customName || chatToSave.name}: ${msgData.message.slice(0, 30)}...` 
+        });
+      }
+    } catch (e) {
+      console.error("Payload processing error:", e);
+    }
+  };
+
+  // Синхронизация пропущенных сообщений с сервера
+  const syncMissedMessages = async () => {
+    if (!currentUserId) return;
+    try {
+      const lastLocalMsg = await getLocalMessages('__any__'); // Упрощенно, берем последние сообщения
+      const since = lastLocalMsg.length > 0 ? Math.max(...lastLocalMsg.map(m => m.id)) : 0;
+      
+      const res = await fetch(`/api/relay?targetId=${currentUserId}&since=${since}`);
+      const data = await res.json();
+      
+      if (data.messages && data.messages.length > 0) {
+        for (const msg of data.messages) {
+          await processIncomingMessage(msg.payload);
+        }
+      }
+    } catch (e) {
+      console.warn('Sync failed:', e);
+    }
+  };
+
   useEffect(() => {
     if (!currentUserId) return;
 
@@ -41,66 +117,15 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     async function setupNetwork() {
       try {
         setNetworkStatus('connecting');
+        const s = await initWaku();
         
-        const subResult = await subscribeToP2P(currentUserId, async (payload) => {
-          if (!isMounted) return;
-          try {
-            const decrypted = await decryptMessage(payload, currentUserId);
-            if (decrypted.startsWith('[Error')) return;
-            
-            const msgData = JSON.parse(decrypted);
-            const msgId = Number(msgData.timestamp);
-            const actualSenderId = msgData.sender; 
-            const time = new Date(msgId).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            await saveLocalMessage({
-              id: msgId,
-              chatId: actualSenderId,
-              payload: payload,
-              sender: 'other',
-              senderId: actualSenderId,
-              time
-            });
-
-            const existingChat = await getChat(actualSenderId);
-            const chatToSave: ChatSession = {
-              id: actualSenderId,
-              name: existingChat?.name || `User ${actualSenderId.slice(0, 8)}`,
-              customName: existingChat?.customName,
-              notes: existingChat?.notes,
-              type: existingChat?.type || 'private',
-              lastMsg: msgData.message,
-              time: time,
-              avatar: existingChat?.avatar || images[Math.floor(Math.random() * 3)].url
-            };
-            await saveChat(chatToSave);
-
-            if (activeChatRef.current === actualSenderId) {
-              setMessages(prev => {
-                if (prev.some(m => m.id === msgId)) return prev;
-                return [...prev, { 
-                  id: msgId, 
-                  text: msgData.message, 
-                  sender: 'other', 
-                  senderId: actualSenderId, 
-                  time,
-                  status: 'sent' as const
-                }].sort((a, b) => a.id - b.id);
-              });
-            } else {
-              toast({ 
-                title: "New Message", 
-                description: `From ${chatToSave.customName || chatToSave.name}: ${msgData.message.slice(0, 30)}${msgData.message.length > 30 ? '...' : ''}` 
-              });
-            }
-          } catch (e) {
-            console.error("Payload processing error:", e);
-          }
+        subscription = await subscribeToP2P(currentUserId, async (payload) => {
+          if (isMounted) await processIncomingMessage(payload);
         });
 
-        if (subResult && isMounted) {
-          subscription = subResult;
+        if (isMounted) {
           setNetworkStatus('online');
+          await syncMissedMessages();
         }
       } catch (e) {
         if (isMounted) setNetworkStatus('error');
@@ -111,11 +136,9 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
 
     return () => {
       isMounted = false;
-      if (subscription && typeof subscription.unsubscribe === 'function') {
-        subscription.unsubscribe();
-      }
+      if (subscription) subscription.unsubscribe();
     };
-  }, [currentUserId, toast]);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!activeChat || !currentUserId) return;
@@ -144,6 +167,7 @@ export function ChatWindow({ currentUserId, activeChat, onBack, isMobile }: { cu
     }
 
     loadHistory();
+    syncMissedMessages(); // Синхронизируем при открытии конкретного чата
   }, [activeChat?.id, currentUserId]);
 
   const handleSend = async () => {
