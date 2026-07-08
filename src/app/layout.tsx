@@ -10,20 +10,24 @@ export const metadata: Metadata = {
   description: "Secure and anonymous decentralized communication",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Web3 Chat",
   },
   formatDetection: {
     telephone: false,
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#b3f2c9",
+  themeColor: "#0d0d12",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -42,7 +46,7 @@ export default function RootLayout({
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(
                     function(registration) {
-                      console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                      console.log('ServiceWorker registration successful');
                     },
                     function(err) {
                       console.log('ServiceWorker registration failed: ', err);
