@@ -1,13 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // Мы НЕ используем standalone режим здесь, так как у нас сложный кастомный server.js
+  // и мы вручную управляем node_modules в Dockerfile для надежности.
   reactStrictMode: true,
   serverExternalPackages: ['pg'],
   images: {
     unoptimized: true,
   },
   experimental: {
-    // Удален turbopack отсюда, так как в v16 он настраивается иначе или через CLI
+    // Настройки для Next.js 16+
   }
 };
 
