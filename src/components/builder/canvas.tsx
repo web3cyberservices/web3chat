@@ -116,7 +116,7 @@ export function BuilderCanvas() {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         className={`group relative border-b last:border-b-0 border-slate-200 dark:border-slate-800 ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary' : ''}`}
-                        style={provided.draggableProps.style}
+                        style={provided.draggableProps.style as React.CSSProperties}
                       >
                         {/* Block Toolbar */}
                         <div className="absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
