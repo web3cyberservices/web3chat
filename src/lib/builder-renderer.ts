@@ -54,11 +54,13 @@ function renderBlock(block: PageBlock): string {
   const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor};`;
 
   const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black/40"></div>` : '';
+  
+  const transformStyle = `transform: translate(${styles.translateX || 0}px, ${styles.translateY || 0}px);`;
 
   switch (type) {
     case 'header':
       return `
-        <header class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}">
+        <header class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}; ${transformStyle}">
           <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10">
             <div class="text-2xl font-black tracking-tighter">${safeTitle}</div>
             <nav class="hidden md:flex items-center gap-8">
@@ -69,7 +71,7 @@ function renderBlock(block: PageBlock): string {
       `;
     case 'hero':
       return `
-        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}">
+        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}; ${transformStyle}">
           ${overlay}
           <div class="relative max-w-4xl mx-auto px-6 text-center z-10">
             <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight">${safeTitle}</h1>
@@ -80,7 +82,7 @@ function renderBlock(block: PageBlock): string {
       `;
     case 'features':
       return `
-        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}">
+        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}; ${transformStyle}">
           ${overlay}
           <div class="relative max-w-6xl mx-auto px-6 z-10">
             <h2 class="text-4xl font-bold text-center mb-16">${safeTitle}</h2>
@@ -104,7 +106,7 @@ function renderBlock(block: PageBlock): string {
       `;
     case 'footer':
       return `
-        <footer class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}">
+        <footer class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}; ${transformStyle}">
           <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10">
             <div>
               <div class="text-xl font-bold mb-4">${safeTitle}</div>
@@ -134,7 +136,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
         .font-serif { font-family: 'Playfair Display', serif; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
     </style>

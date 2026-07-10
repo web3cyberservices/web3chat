@@ -1,19 +1,62 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockStyles, BlockLink } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Code, Terminal, BrainCircuit, Type, Maximize2, Palette, Image as ImageIcon, X, Plus, Link as LinkIcon, MousePointer2 } from 'lucide-react';
+import { Trash2, GripVertical, Settings2, Code, Terminal, BrainCircuit, Type, Maximize2, Palette, Image as ImageIcon, X, Plus, Link as LinkIcon, MousePointer2, Move, RotateCcw } from 'lucide-react';
 import images from '@/app/lib/placeholder-images.json';
 
 export function BuilderCanvas() {
   const { blocks, mode, reorderBlocks, removeBlock, updateBlock } = useBuilderStore();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [draggingBlock, setDraggingBlock] = useState<{ id: string; startX: number; startY: number; initialX: number; initialY: number } | null>(null);
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     reorderBlocks(result.source.index, result.destination.index);
   };
+
+  const startPositionDrag = (e: React.MouseEvent, block: PageBlock) => {
+    e.preventDefault();
+    setDraggingBlock({
+      id: block.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: block.styles.translateX || 0,
+      initialY: block.styles.translateY || 0
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!draggingBlock) return;
+
+      const dx = e.clientX - draggingBlock.startX;
+      const dy = e.clientY - draggingBlock.startY;
+
+      updateBlock(draggingBlock.id, {
+        styles: {
+          ...blocks.find(b => b.id === draggingBlock.id)!.styles,
+          translateX: draggingBlock.initialX + dx,
+          translateY: draggingBlock.initialY + dy
+        }
+      });
+    };
+
+    const handleMouseUp = () => {
+      setDraggingBlock(null);
+    };
+
+    if (draggingBlock) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingBlock, blocks, updateBlock]);
 
   return (
     <div className="flex-1 bg-muted/30 overflow-y-auto p-6 md:p-12 relative">
@@ -41,19 +84,31 @@ export function BuilderCanvas() {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         className={`group relative border-b last:border-b-0 border-slate-200 dark:border-slate-800 ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary' : ''}`}
+                        style={{
+                          ...provided.draggableProps.style,
+                          transform: `${provided.draggableProps.style?.transform || ''} translate(${block.styles.translateX}px, ${block.styles.translateY}px)`
+                        }}
                       >
                         {/* Block Toolbar */}
                         <div className="absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                           <button 
+                            onMouseDown={(e) => startPositionDrag(e, block)}
+                            className="p-2 bg-card shadow-md border rounded-lg cursor-move hover:text-primary"
+                            title="Shift Position"
+                          >
+                            <Move className="w-4 h-4" />
+                          </button>
+                          <button 
                             onClick={() => setEditingId(editingId === block.id ? null : block.id)}
                             className={`p-2 bg-card shadow-md border rounded-lg hover:text-primary ${editingId === block.id ? 'text-primary' : ''}`}
+                            title="Settings"
                           >
                             <Settings2 className="w-4 h-4" />
                           </button>
-                          <div {...provided.dragHandleProps} className="p-2 bg-card shadow-md border rounded-lg cursor-grab active:cursor-grabbing">
+                          <div {...provided.dragHandleProps} className="p-2 bg-card shadow-md border rounded-lg cursor-grab active:cursor-grabbing" title="Reorder">
                             <GripVertical className="w-4 h-4 text-muted-foreground" />
                           </div>
-                          <button onClick={() => removeBlock(block.id)} className="p-2 bg-card shadow-md border rounded-lg hover:text-destructive">
+                          <button onClick={() => removeBlock(block.id)} className="p-2 bg-card shadow-md border rounded-lg hover:text-destructive" title="Delete">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -69,8 +124,22 @@ export function BuilderCanvas() {
                             </div>
                             
                             <div className="space-y-6">
-                              {/* Background */}
+                              {/* Position Reset */}
                               <div className="space-y-3">
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground block">Position</label>
+                                <div className="flex items-center justify-between bg-secondary/50 p-2 rounded-lg border">
+                                  <span className="text-[10px] text-muted-foreground">X: {block.styles.translateX}px | Y: {block.styles.translateY}px</span>
+                                  <button 
+                                    onClick={() => updateBlock(block.id, { styles: { ...block.styles, translateX: 0, translateY: 0 } })}
+                                    className="p-1 hover:bg-background rounded flex items-center gap-1 text-[10px] text-primary font-bold"
+                                  >
+                                    <RotateCcw className="w-3 h-3" /> Reset
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Background */}
+                              <div className="space-y-3 pt-4 border-t">
                                 <label className="text-[10px] uppercase font-bold text-muted-foreground block">Visuals</label>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
@@ -279,10 +348,12 @@ export function BuilderCanvas() {
                         )}
 
                         {/* Block Content */}
-                        <BlockContentComponent 
-                          block={block} 
-                          onUpdate={(content) => updateBlock(block.id, { content })} 
-                        />
+                        <div style={{ transition: draggingBlock?.id === block.id ? 'none' : 'transform 0.2s ease-out' }}>
+                           <BlockContentComponent 
+                            block={block} 
+                            onUpdate={(content) => updateBlock(block.id, { content })} 
+                          />
+                        </div>
                       </div>
                     )}
                   </Draggable>

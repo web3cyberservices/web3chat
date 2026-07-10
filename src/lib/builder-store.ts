@@ -15,6 +15,9 @@ export interface BlockStyles {
   fontFamily: 'sans' | 'serif' | 'mono';
   fontSize: 'normal' | 'large' | 'huge';
   overlayOpacity?: number;
+  // Positioning
+  translateX: number;
+  translateY: number;
   // Button specific styles
   buttonRadius: 'none' | 'md' | 'full';
   buttonFontFamily: 'sans' | 'serif' | 'mono';
@@ -72,6 +75,8 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         fontFamily: 'sans',
         fontSize: 'normal',
         overlayOpacity: 0,
+        translateX: 0,
+        translateY: 0,
         buttonRadius: 'full',
         buttonFontFamily: 'sans',
         buttonBgColor: '#22c55e', // Emerald 500
