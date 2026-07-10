@@ -12,6 +12,10 @@ export interface BlockStyles {
   backgroundColor: string;
   textColor: string;
   padding: string;
+  backgroundImage?: string;
+  fontFamily: 'sans' | 'serif' | 'mono';
+  fontSize: 'normal' | 'large' | 'huge';
+  overlayOpacity?: number;
 }
 
 export interface BlockContent {
@@ -20,7 +24,7 @@ export interface BlockContent {
   buttonText?: string;
   items?: string[];
   imageUrl?: string;
-  code?: string; // For technical configurations
+  code?: string;
 }
 
 export interface PageBlock {
@@ -53,12 +57,15 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       styles: {
         backgroundColor: state.mode === 'landing' ? '#ffffff' : '#1a1a24',
         textColor: state.mode === 'landing' ? '#000000' : '#ffffff',
-        padding: 'py-12'
+        padding: 'py-20',
+        fontFamily: 'sans',
+        fontSize: 'normal',
+        overlayOpacity: 0
       },
       content: {
         title: getDefaultTitle(type),
         description: getDefaultDescription(type),
-        buttonText: state.mode === 'landing' ? 'Action' : undefined
+        buttonText: state.mode === 'landing' ? 'Get Started' : undefined
       }
     };
     return { blocks: [...state.blocks, newBlock] };
@@ -79,21 +86,19 @@ export const useBuilderStore = create<BuilderState>((set) => ({
 
 function getDefaultTitle(type: BlockType) {
   switch (type) {
+    case 'hero': return 'Design Your Future';
+    case 'features': return 'Why Choose Us';
+    case 'pricing': return 'Simple Pricing';
     case 'system-prompt': return 'System Personality';
-    case 'knowledge': return 'Knowledge Base (PDF/Doc)';
-    case 'tools': return 'Connected APIs';
-    case 'command': return '/start Command';
-    case 'menu': return 'Main Menu Buttons';
-    case 'reply': return 'Auto-Response Logic';
+    case 'knowledge': return 'Knowledge Base';
     default: return `New ${type.charAt(0).toUpperCase() + type.slice(1)}`;
   }
 }
 
 function getDefaultDescription(type: BlockType) {
   switch (type) {
-    case 'system-prompt': return 'Describe how the AI should behave and its core constraints.';
-    case 'knowledge': return 'Upload documents that the agent will use as a reference.';
-    case 'command': return 'Configure what happens when a user starts the bot.';
+    case 'hero': return 'Build beautiful high-converting landing pages in minutes with our no-code interface.';
+    case 'features': return 'Describe the core benefits of your product and why users should love it.';
     default: return 'Configure the logic and content for this element.';
   }
 }
