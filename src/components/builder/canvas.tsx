@@ -6,48 +6,80 @@ import { useBuilderStore, PageBlock, BlockStyles, BlockLink } from '@/lib/builde
 import { Trash2, GripVertical, Settings2, Code, Terminal, BrainCircuit, Type, Maximize2, Palette, Image as ImageIcon, X, Plus, Link as LinkIcon, MousePointer2, Move, RotateCcw } from 'lucide-react';
 import images from '@/app/lib/placeholder-images.json';
 
+type ElementType = 'title' | 'desc' | 'btn' | 'block';
+
 export function BuilderCanvas() {
   const { blocks, mode, reorderBlocks, removeBlock, updateBlock } = useBuilderStore();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draggingBlock, setDraggingBlock] = useState<{ id: string; startX: number; startY: number; initialX: number; initialY: number } | null>(null);
+  const [dragging, setDragging] = useState<{ 
+    id: string; 
+    type: ElementType;
+    startX: number; 
+    startY: number; 
+    initialX: number; 
+    initialY: number;
+  } | null>(null);
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     reorderBlocks(result.source.index, result.destination.index);
   };
 
-  const startPositionDrag = (e: React.MouseEvent, block: PageBlock) => {
+  const startPositionDrag = (e: React.MouseEvent, block: PageBlock, type: ElementType) => {
     e.preventDefault();
-    setDraggingBlock({
+    e.stopPropagation();
+    
+    let initialX = 0;
+    let initialY = 0;
+
+    if (type === 'title') { initialX = block.styles.titleX || 0; initialY = block.styles.titleY || 0; }
+    else if (type === 'desc') { initialX = block.styles.descX || 0; initialY = block.styles.descY || 0; }
+    else if (type === 'btn') { initialX = block.styles.btnX || 0; initialY = block.styles.btnY || 0; }
+    else { initialX = block.styles.translateX || 0; initialY = block.styles.translateY || 0; }
+
+    setDragging({
       id: block.id,
+      type,
       startX: e.clientX,
       startY: e.clientY,
-      initialX: block.styles.translateX || 0,
-      initialY: block.styles.translateY || 0
+      initialX,
+      initialY
     });
   };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!draggingBlock) return;
+      if (!dragging) return;
 
-      const dx = e.clientX - draggingBlock.startX;
-      const dy = e.clientY - draggingBlock.startY;
+      const dx = e.clientX - dragging.startX;
+      const dy = e.clientY - dragging.startY;
+      const currentBlock = blocks.find(b => b.id === dragging.id);
+      if (!currentBlock) return;
 
-      updateBlock(draggingBlock.id, {
-        styles: {
-          ...blocks.find(b => b.id === draggingBlock.id)!.styles,
-          translateX: draggingBlock.initialX + dx,
-          translateY: draggingBlock.initialY + dy
-        }
-      });
+      const updates: any = { styles: { ...currentBlock.styles } };
+      
+      if (dragging.type === 'title') {
+        updates.styles.titleX = dragging.initialX + dx;
+        updates.styles.titleY = dragging.initialY + dy;
+      } else if (dragging.type === 'desc') {
+        updates.styles.descX = dragging.initialX + dx;
+        updates.styles.descY = dragging.initialY + dy;
+      } else if (dragging.type === 'btn') {
+        updates.styles.btnX = dragging.initialX + dx;
+        updates.styles.btnY = dragging.initialY + dy;
+      } else {
+        updates.styles.translateX = dragging.initialX + dx;
+        updates.styles.translateY = dragging.initialY + dy;
+      }
+
+      updateBlock(dragging.id, updates);
     };
 
     const handleMouseUp = () => {
-      setDraggingBlock(null);
+      setDragging(null);
     };
 
-    if (draggingBlock) {
+    if (dragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -56,7 +88,7 @@ export function BuilderCanvas() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [draggingBlock, blocks, updateBlock]);
+  }, [dragging, blocks, updateBlock]);
 
   return (
     <div className="flex-1 bg-muted/30 overflow-y-auto p-6 md:p-12 relative">
@@ -89,9 +121,9 @@ export function BuilderCanvas() {
                         {/* Block Toolbar */}
                         <div className="absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                           <button 
-                            onMouseDown={(e) => startPositionDrag(e, block)}
+                            onMouseDown={(e) => startPositionDrag(e, block, 'block')}
                             className="p-2 bg-card shadow-md border rounded-lg cursor-move hover:text-primary"
-                            title="Shift Content Position"
+                            title="Shift Entire Block Content"
                           >
                             <Move className="w-4 h-4" />
                           </button>
@@ -121,16 +153,37 @@ export function BuilderCanvas() {
                             </div>
                             
                             <div className="space-y-6">
-                              {/* Content Offset Reset */}
-                              <div className="space-y-3">
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground block">Content Offset</label>
-                                <div className="flex items-center justify-between bg-secondary/50 p-2 rounded-lg border">
-                                  <span className="text-[10px] text-muted-foreground">X: {block.styles.translateX}px | Y: {block.styles.translateY}px</span>
+                              {/* Element Positioning Resets */}
+                              <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground block">Position Resets</label>
+                                <div className="grid grid-cols-1 gap-1">
                                   <button 
-                                    onClick={() => updateBlock(block.id, { styles: { ...block.styles, translateX: 0, translateY: 0 } })}
-                                    className="p-1 hover:bg-background rounded flex items-center gap-1 text-[10px] text-primary font-bold"
+                                    onClick={() => updateBlock(block.id, { styles: { ...block.styles, titleX: 0, titleY: 0 } })}
+                                    className="flex items-center justify-between bg-secondary/30 p-2 rounded text-[9px] hover:bg-secondary/50"
                                   >
-                                    <RotateCcw className="w-3 h-3" /> Reset
+                                    <span>Title Position</span>
+                                    <RotateCcw className="w-3 h-3" />
+                                  </button>
+                                  <button 
+                                    onClick={() => updateBlock(block.id, { styles: { ...block.styles, descX: 0, descY: 0 } })}
+                                    className="flex items-center justify-between bg-secondary/30 p-2 rounded text-[9px] hover:bg-secondary/50"
+                                  >
+                                    <span>Description Position</span>
+                                    <RotateCcw className="w-3 h-3" />
+                                  </button>
+                                  <button 
+                                    onClick={() => updateBlock(block.id, { styles: { ...block.styles, btnX: 0, btnY: 0 } })}
+                                    className="flex items-center justify-between bg-secondary/30 p-2 rounded text-[9px] hover:bg-secondary/50"
+                                  >
+                                    <span>Button Position</span>
+                                    <RotateCcw className="w-3 h-3" />
+                                  </button>
+                                  <button 
+                                    onClick={() => updateBlock(block.id, { styles: { ...block.styles, translateX: 0, translateY: 0, titleX: 0, titleY: 0, descX: 0, descY: 0, btnX: 0, btnY: 0 } })}
+                                    className="flex items-center justify-between bg-primary/10 p-2 rounded text-[9px] hover:bg-primary/20 text-primary font-bold mt-2"
+                                  >
+                                    <span>Reset All Alignment</span>
+                                    <Maximize2 className="w-3 h-3" />
                                   </button>
                                 </div>
                               </div>
@@ -264,64 +317,6 @@ export function BuilderCanvas() {
                                       />
                                     </div>
                                   </div>
-                                  <div>
-                                    <span className="text-[9px] text-muted-foreground mb-1 block">Action URL</span>
-                                    <input 
-                                      value={block.content.buttonUrl}
-                                      onChange={(e) => updateBlock(block.id, { content: { ...block.content, buttonUrl: e.target.value } })}
-                                      className="w-full bg-secondary text-[10px] p-2 rounded border outline-none"
-                                      placeholder="https://..."
-                                    />
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Navigation Links Manager */}
-                              {block.content.links && (
-                                <div className="space-y-3 pt-4 border-t">
-                                  <label className="text-[10px] uppercase font-bold text-muted-foreground block">Navigation Links</label>
-                                  {block.content.links.map((link, idx) => (
-                                    <div key={idx} className="flex gap-2 items-center bg-secondary/30 p-2 rounded-lg border border-border/40">
-                                      <input 
-                                        value={link.label}
-                                        onChange={(e) => {
-                                          const newLinks = [...(block.content.links || [])];
-                                          newLinks[idx].label = e.target.value;
-                                          updateBlock(block.id, { content: { ...block.content, links: newLinks } });
-                                        }}
-                                        className="bg-transparent border-none text-[10px] w-20 outline-none"
-                                        placeholder="Label"
-                                      />
-                                      <input 
-                                        value={link.url}
-                                        onChange={(e) => {
-                                          const newLinks = [...(block.content.links || [])];
-                                          newLinks[idx].url = e.target.value;
-                                          updateBlock(block.id, { content: { ...block.content, links: newLinks } });
-                                        }}
-                                        className="bg-transparent border-none text-[10px] flex-1 outline-none"
-                                        placeholder="URL"
-                                      />
-                                      <button 
-                                        onClick={() => {
-                                          const newLinks = block.content.links?.filter((_, i) => i !== idx);
-                                          updateBlock(block.id, { content: { ...block.content, links: newLinks } });
-                                        }}
-                                        className="text-destructive hover:scale-110 transition-transform"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  ))}
-                                  <button 
-                                    onClick={() => {
-                                      const newLinks = [...(block.content.links || []), { label: 'New Link', url: '#' }];
-                                      updateBlock(block.id, { content: { ...block.content, links: newLinks } });
-                                    }}
-                                    className="w-full py-2 bg-primary/10 text-primary text-[10px] font-bold rounded-lg hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
-                                  >
-                                    <Plus className="w-3 h-3" /> Add Link
-                                  </button>
                                 </div>
                               )}
 
@@ -348,7 +343,8 @@ export function BuilderCanvas() {
                         <BlockContentComponent 
                           block={block} 
                           onUpdate={(content) => updateBlock(block.id, { content })} 
-                          draggingId={draggingBlock?.id}
+                          onStartDrag={startPositionDrag}
+                          isDraggingAny={!!dragging}
                         />
                       </div>
                     )}
@@ -364,7 +360,14 @@ export function BuilderCanvas() {
   );
 }
 
-function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlock; onUpdate: (content: any) => void; draggingId?: string }) {
+interface BlockContentProps {
+  block: PageBlock;
+  onUpdate: (content: any) => void;
+  onStartDrag: (e: React.MouseEvent, block: PageBlock, type: ElementType) => void;
+  isDraggingAny: boolean;
+}
+
+function BlockContentComponent({ block, onUpdate, onStartDrag, isDraggingAny }: BlockContentProps) {
   const { type, content, styles } = block;
 
   const fontClasses = {
@@ -393,9 +396,24 @@ function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlo
     backgroundPosition: 'center'
   };
 
-  const contentTransformStyle = {
+  const globalTransform = {
     transform: `translate(${styles.translateX || 0}px, ${styles.translateY || 0}px)`,
-    transition: draggingId === block.id ? 'none' : 'transform 0.2s ease-out'
+    transition: isDraggingAny ? 'none' : 'transform 0.2s ease-out'
+  };
+
+  const titleTransform = {
+    transform: `translate(${styles.titleX || 0}px, ${styles.titleY || 0}px)`,
+    transition: isDraggingAny ? 'none' : 'transform 0.2s ease-out'
+  };
+
+  const descTransform = {
+    transform: `translate(${styles.descX || 0}px, ${styles.descY || 0}px)`,
+    transition: isDraggingAny ? 'none' : 'transform 0.2s ease-out'
+  };
+
+  const btnTransform = {
+    transform: `translate(${styles.btnX || 0}px, ${styles.btnY || 0}px)`,
+    transition: isDraggingAny ? 'none' : 'transform 0.2s ease-out'
   };
 
   const buttonStyle = {
@@ -410,12 +428,14 @@ function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlo
         className={`w-full ${styles.padding} ${fontClasses[styles.fontFamily]} relative`} 
         style={blockBgStyles}
       >
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between z-10 relative" style={contentTransformStyle}>
-          <input
-            value={content.title}
-            onChange={(e) => onUpdate({ ...content, title: e.target.value })}
-            className="bg-transparent border-none text-xl font-black focus:outline-none focus:ring-1 focus:ring-primary/40 rounded px-2"
-          />
+        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between z-10 relative" style={globalTransform}>
+          <div className="relative group/el">
+             <input
+              value={content.title}
+              onChange={(e) => onUpdate({ ...content, title: e.target.value })}
+              className="bg-transparent border-none text-xl font-black focus:outline-none focus:ring-1 focus:ring-primary/40 rounded px-2"
+            />
+          </div>
           <nav className="hidden md:flex items-center gap-6">
             {content.links?.map((link, idx) => (
               <span key={idx} className="text-sm font-medium opacity-80 cursor-default">{link.label}</span>
@@ -432,8 +452,8 @@ function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlo
         className={`w-full ${styles.padding} ${fontClasses[styles.fontFamily]} relative`} 
         style={blockBgStyles}
       >
-        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 z-10 relative" style={contentTransformStyle}>
-          <div>
+        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 z-10 relative" style={globalTransform}>
+          <div className="space-y-2">
             <input
               value={content.title}
               onChange={(e) => onUpdate({ ...content, title: e.target.value })}
@@ -442,7 +462,7 @@ function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlo
             <textarea
               value={content.description}
               onChange={(e) => onUpdate({ ...content, description: e.target.value })}
-              className="w-full bg-transparent border-none mt-2 text-sm opacity-60 focus:ring-1 focus:ring-primary/40 outline-none resize-none"
+              className="w-full bg-transparent border-none text-sm opacity-60 focus:ring-1 focus:ring-primary/40 outline-none resize-none"
               rows={2}
             />
           </div>
@@ -462,32 +482,57 @@ function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlo
         className={`relative w-full transition-all duration-300 ${styles.padding} ${fontClasses[styles.fontFamily]}`} 
         style={blockBgStyles}
       >
-        {/* Overlay for readability if image is present */}
         {styles.backgroundImage && (
           <div className="absolute inset-0 bg-black/30 pointer-events-none" />
         )}
 
-        <div className="relative max-w-3xl mx-auto text-center px-6 z-10" style={contentTransformStyle}>
-          <input
-            value={content.title}
-            onChange={(e) => onUpdate({ ...content, title: e.target.value })}
-            className={`w-full bg-transparent border-none text-center focus:ring-2 focus:ring-primary/40 outline-none font-extrabold tracking-tight ${type === 'hero' ? sizeClasses[styles.fontSize] : 'text-3xl'}`}
-          />
-          <textarea
-            value={content.description}
-            onChange={(e) => onUpdate({ ...content, description: e.target.value })}
-            className="w-full bg-transparent border-none text-center focus:ring-2 focus:ring-primary/40 outline-none mt-6 text-lg opacity-90 resize-none leading-relaxed"
-            rows={3}
-          />
+        <div className="relative max-w-4xl mx-auto text-center px-6 z-10 space-y-8" style={globalTransform}>
+          
+          <div className="relative group/el" style={titleTransform}>
+             <button 
+                onMouseDown={(e) => onStartDrag(e, block, 'title')}
+                className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-primary-foreground rounded-full opacity-0 group-hover/el:opacity-100 transition-opacity z-30 cursor-move"
+              >
+                <Move className="w-3 h-3" />
+              </button>
+            <input
+              value={content.title}
+              onChange={(e) => onUpdate({ ...content, title: e.target.value })}
+              className={`w-full bg-transparent border-none text-center focus:ring-2 focus:ring-primary/40 outline-none font-extrabold tracking-tight ${type === 'hero' ? sizeClasses[styles.fontSize] : 'text-3xl'}`}
+            />
+          </div>
+
+          <div className="relative group/el" style={descTransform}>
+             <button 
+                onMouseDown={(e) => onStartDrag(e, block, 'desc')}
+                className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-primary-foreground rounded-full opacity-0 group-hover/el:opacity-100 transition-opacity z-30 cursor-move"
+              >
+                <Move className="w-3 h-3" />
+              </button>
+            <textarea
+              value={content.description}
+              onChange={(e) => onUpdate({ ...content, description: e.target.value })}
+              className="w-full bg-transparent border-none text-center focus:ring-2 focus:ring-primary/40 outline-none text-lg opacity-90 resize-none leading-relaxed"
+              rows={3}
+            />
+          </div>
+
           {content.buttonText !== undefined && (
-            <div className="mt-10 flex flex-col items-center gap-4">
-              <input
-                value={content.buttonText}
-                onChange={(e) => onUpdate({ ...content, buttonText: e.target.value })}
-                className={`px-10 py-4 text-center font-bold shadow-2xl transition-all hover:scale-105 border-none outline-none ${radiusClasses[styles.buttonRadius || 'full']} ${fontClasses[styles.buttonFontFamily || 'sans']}`}
-                style={buttonStyle}
-              />
-              <span className="text-[9px] opacity-40 font-mono tracking-tighter">↑ Edit Button Text</span>
+            <div className="relative group/el inline-block mx-auto" style={btnTransform}>
+              <button 
+                onMouseDown={(e) => onStartDrag(e, block, 'btn')}
+                className="absolute -left-10 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-primary-foreground rounded-full opacity-0 group-hover/el:opacity-100 transition-opacity z-30 cursor-move"
+              >
+                <Move className="w-3 h-3" />
+              </button>
+              <div className="flex flex-col items-center gap-2">
+                <input
+                  value={content.buttonText}
+                  onChange={(e) => onUpdate({ ...content, buttonText: e.target.value })}
+                  className={`px-10 py-4 text-center font-bold shadow-2xl transition-all hover:scale-105 border-none outline-none ${radiusClasses[styles.buttonRadius || 'full']} ${fontClasses[styles.buttonFontFamily || 'sans']}`}
+                  style={buttonStyle}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -495,10 +540,10 @@ function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlo
     );
   }
 
-  // AI Agent or Bot Logic Blocks
+  // AI Logic Blocks
   return (
-    <div className="p-8 bg-slate-900 text-white font-mono">
-      <div className="flex items-center gap-4 mb-4" style={contentTransformStyle}>
+    <div className="p-8 bg-slate-900 text-white font-mono" style={globalTransform}>
+      <div className="flex items-center gap-4 mb-4">
         <div className="p-2 bg-primary/10 rounded-lg">
           {type.includes('prompt') ? <Terminal className="w-5 h-5 text-primary" /> : <Code className="w-5 h-5 text-accent" />}
         </div>
@@ -513,7 +558,6 @@ function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlo
         onChange={(e) => onUpdate({ ...content, description: e.target.value })}
         className="w-full bg-slate-800 rounded-xl p-4 text-sm font-mono focus:ring-2 focus:ring-primary outline-none border border-slate-700 min-h-[120px]"
         placeholder="Configure logic here..."
-        style={contentTransformStyle}
       />
     </div>
   );

@@ -15,14 +15,21 @@ export interface BlockStyles {
   fontFamily: 'sans' | 'serif' | 'mono';
   fontSize: 'normal' | 'large' | 'huge';
   overlayOpacity?: number;
-  // Positioning
-  translateX: number;
-  translateY: number;
+  // Positioning for elements
+  titleX: number;
+  titleY: number;
+  descX: number;
+  descY: number;
+  btnX: number;
+  btnY: number;
   // Button specific styles
   buttonRadius: 'none' | 'md' | 'full';
   buttonFontFamily: 'sans' | 'serif' | 'mono';
   buttonBgColor: string;
   buttonTextColor: string;
+  // Legacy
+  translateX: number;
+  translateY: number;
 }
 
 export interface BlockLink {
@@ -75,6 +82,9 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         fontFamily: 'sans',
         fontSize: 'normal',
         overlayOpacity: 0,
+        titleX: 0, titleY: 0,
+        descX: 0, descY: 0,
+        btnX: 0, btnY: 0,
         translateX: 0,
         translateY: 0,
         buttonRadius: 'full',

@@ -30,9 +30,9 @@ function renderBlock(block: PageBlock): string {
   }[styles.fontFamily || 'sans'];
 
   const sizeClass = {
-    normal: 'text-5xl',
-    large: 'text-6xl',
-    huge: 'text-8xl'
+    normal: 'text-4xl md:text-5xl',
+    large: 'text-5xl md:text-6xl',
+    huge: 'text-7xl md:text-8xl'
   }[styles.fontSize || 'normal'];
 
   const btnRadiusClass = {
@@ -51,17 +51,19 @@ function renderBlock(block: PageBlock): string {
     ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center;`
     : `background-color: ${styles.backgroundColor};`;
 
-  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor};`;
+  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px);`;
+  const titleStyle = `color: ${styles.textColor}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px);`;
+  const descStyle = `color: ${styles.textColor}; opacity: 0.9; transform: translate(${styles.descX || 0}px, ${styles.descY || 0}px);`;
 
   const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black/40"></div>` : '';
   
-  const contentTransformStyle = `transform: translate(${styles.translateX || 0}px, ${styles.translateY || 0}px);`;
+  const contentGroupStyle = `transform: translate(${styles.translateX || 0}px, ${styles.translateY || 0}px);`;
 
   switch (type) {
     case 'header':
       return `
         <header class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
-          <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10" style="${contentTransformStyle}">
+          <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10" style="${contentGroupStyle}">
             <div class="text-2xl font-black tracking-tighter">${safeTitle}</div>
             <nav class="hidden md:flex items-center gap-8">
               ${content.links?.map(l => `<a href="${l.url}" class="text-sm font-medium hover:opacity-70 transition-opacity">${escapeHTML(l.label)}</a>`).join('')}
@@ -71,43 +73,43 @@ function renderBlock(block: PageBlock): string {
       `;
     case 'hero':
       return `
-        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
+        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} overflow: hidden;">
           ${overlay}
-          <div class="relative max-w-4xl mx-auto px-6 text-center z-10" style="${contentTransformStyle}">
-            <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight">${safeTitle}</h1>
-            <p class="mt-8 text-xl opacity-90 leading-relaxed max-w-2xl mx-auto">${safeDesc}</p>
-            ${safeBtn ? `<div class="mt-12"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} ${btnFontClass} font-bold shadow-2xl hover:scale-105 transition-all" style="${btnStyle}">${safeBtn}</a></div>` : ''}
+          <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col gap-8" style="${contentGroupStyle}">
+            <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight transition-transform" style="${titleStyle}">${safeTitle}</h1>
+            <p class="text-xl leading-relaxed max-w-2xl mx-auto transition-transform" style="${descStyle}">${safeDesc}</p>
+            ${safeBtn ? `<div class="mt-4"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} ${btnFontClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
       `;
     case 'features':
       return `
-        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
+        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} overflow: hidden;">
           ${overlay}
-          <div class="relative max-w-6xl mx-auto px-6 z-10" style="${contentTransformStyle}">
-            <h2 class="text-4xl font-bold text-center mb-16">${safeTitle}</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+          <div class="relative max-w-6xl mx-auto px-6 z-10 text-center" style="${contentGroupStyle}">
+            <h2 class="text-4xl font-bold mb-16 transition-transform" style="${titleStyle}">${safeTitle}</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10 transition-transform" style="${descStyle}">
               <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
                 <h3 class="font-bold text-2xl mb-4">Innovation</h3>
-                <p class="opacity-80 leading-relaxed">Next generation technology built for scale and security in the modern web era.</p>
+                <p class="opacity-80 leading-relaxed">Next generation technology built for scale and security.</p>
               </div>
               <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
                 <h3 class="font-bold text-2xl mb-4">Privacy</h3>
-                <p class="opacity-80 leading-relaxed">Your data remains yours. We use advanced end-to-end encryption protocols.</p>
+                <p class="opacity-80 leading-relaxed">Your data remains yours with end-to-end encryption.</p>
               </div>
               <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
                 <h3 class="font-bold text-2xl mb-4">Speed</h3>
-                <p class="opacity-80 leading-relaxed">Optimized performance guarantees lightning-fast user experiences globally.</p>
+                <p class="opacity-80 leading-relaxed">Lightning-fast user experiences globally.</p>
               </div>
             </div>
-            ${safeBtn ? `<div class="mt-12 text-center"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} ${btnFontClass} font-bold shadow-2xl hover:scale-105 transition-all" style="${btnStyle}">${safeBtn}</a></div>` : ''}
+            ${safeBtn ? `<div class="mt-12"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} ${btnFontClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
       `;
     case 'footer':
       return `
         <footer class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
-          <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10" style="${contentTransformStyle}">
+          <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10" style="${contentGroupStyle}">
             <div>
               <div class="text-xl font-bold mb-4">${safeTitle}</div>
               <p class="opacity-60 text-sm max-w-xs">${safeDesc}</p>
@@ -119,7 +121,7 @@ function renderBlock(block: PageBlock): string {
         </footer>
       `;
     default:
-      return `<!-- Block ${type} rendered as empty container -->`;
+      return `<!-- Block ${type} -->`;
   }
 }
 
@@ -139,6 +141,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
         body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
         .font-serif { font-family: 'Playfair Display', serif; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
+        section, header, footer { position: relative; }
     </style>
 </head>
 <body class="antialiased">
