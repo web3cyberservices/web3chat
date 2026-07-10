@@ -3,8 +3,8 @@
 
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { useBuilderStore, PageBlock, BlockStyles } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Code, Terminal, BrainCircuit, Type, Maximize2, Palette, Image as ImageIcon, X } from 'lucide-react';
+import { useBuilderStore, PageBlock, BlockStyles, BlockLink } from '@/lib/builder-store';
+import { Trash2, GripVertical, Settings2, Code, Terminal, BrainCircuit, Type, Maximize2, Palette, Image as ImageIcon, X, Plus, Link as LinkIcon } from 'lucide-react';
 import images from '@/app/lib/placeholder-images.json';
 
 export function BuilderCanvas() {
@@ -61,7 +61,7 @@ export function BuilderCanvas() {
 
                         {/* Settings Panel */}
                         {editingId === block.id && (
-                          <div className="absolute right-4 top-16 w-64 bg-card border rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in zoom-in duration-200">
+                          <div className="absolute right-4 top-16 w-80 bg-card border rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in zoom-in duration-200 max-h-[70vh] overflow-y-auto">
                             <div className="flex items-center justify-between mb-4 pb-2 border-b">
                               <h4 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                                 <Palette className="w-3 h-3" /> Block Settings
@@ -140,6 +140,55 @@ export function BuilderCanvas() {
                                 </div>
                               </div>
 
+                              {/* Navigation Links Manager */}
+                              {block.content.links && (
+                                <div className="space-y-3 pt-2 border-t">
+                                  <label className="text-[10px] uppercase font-bold text-muted-foreground block">Navigation Links</label>
+                                  {block.content.links.map((link, idx) => (
+                                    <div key={idx} className="flex gap-2 items-center bg-secondary/30 p-2 rounded-lg border border-border/40">
+                                      <input 
+                                        value={link.label}
+                                        onChange={(e) => {
+                                          const newLinks = [...(block.content.links || [])];
+                                          newLinks[idx].label = e.target.value;
+                                          updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                        }}
+                                        className="bg-transparent border-none text-[10px] w-20 outline-none"
+                                        placeholder="Label"
+                                      />
+                                      <input 
+                                        value={link.url}
+                                        onChange={(e) => {
+                                          const newLinks = [...(block.content.links || [])];
+                                          newLinks[idx].url = e.target.value;
+                                          updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                        }}
+                                        className="bg-transparent border-none text-[10px] flex-1 outline-none"
+                                        placeholder="URL"
+                                      />
+                                      <button 
+                                        onClick={() => {
+                                          const newLinks = block.content.links?.filter((_, i) => i !== idx);
+                                          updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                        }}
+                                        className="text-destructive hover:scale-110 transition-transform"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button 
+                                    onClick={() => {
+                                      const newLinks = [...(block.content.links || []), { label: 'New Link', url: '#' }];
+                                      updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                    }}
+                                    className="w-full py-2 bg-primary/10 text-primary text-[10px] font-bold rounded-lg hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
+                                  >
+                                    <Plus className="w-3 h-3" /> Add Link
+                                  </button>
+                                </div>
+                              )}
+
                               {/* Layout */}
                               <div>
                                 <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1 flex justify-between">
@@ -147,9 +196,9 @@ export function BuilderCanvas() {
                                 </label>
                                 <input 
                                   type="range" 
-                                  min="20" 
+                                  min="4" 
                                   max="160" 
-                                  step="20"
+                                  step="4"
                                   value={parseInt(block.styles.padding.replace('py-', ''))}
                                   onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, padding: `py-${e.target.value}` } })}
                                   className="w-full accent-primary"
@@ -193,17 +242,71 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
     huge: 'text-7xl'
   };
 
+  const blockStyles = { 
+    backgroundColor: styles.backgroundColor, 
+    color: styles.textColor,
+    backgroundImage: styles.backgroundImage ? `url(${styles.backgroundImage})` : 'none',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center'
+  };
+
+  if (type === 'header') {
+    return (
+      <header 
+        className={`w-full ${styles.padding} ${fontClasses[styles.fontFamily]} relative`} 
+        style={blockStyles}
+      >
+        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between z-10 relative">
+          <input
+            value={content.title}
+            onChange={(e) => onUpdate({ ...content, title: e.target.value })}
+            className="bg-transparent border-none text-xl font-black focus:outline-none focus:ring-1 focus:ring-primary/40 rounded px-2"
+          />
+          <nav className="hidden md:flex items-center gap-6">
+            {content.links?.map((link, idx) => (
+              <span key={idx} className="text-sm font-medium opacity-80 cursor-default">{link.label}</span>
+            ))}
+          </nav>
+        </div>
+      </header>
+    );
+  }
+
+  if (type === 'footer') {
+    return (
+      <footer 
+        className={`w-full ${styles.padding} ${fontClasses[styles.fontFamily]} relative`} 
+        style={blockStyles}
+      >
+        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 z-10 relative">
+          <div>
+            <input
+              value={content.title}
+              onChange={(e) => onUpdate({ ...content, title: e.target.value })}
+              className="bg-transparent border-none text-lg font-bold focus:outline-none focus:ring-1 focus:ring-primary/40 rounded px-2"
+            />
+            <textarea
+              value={content.description}
+              onChange={(e) => onUpdate({ ...content, description: e.target.value })}
+              className="w-full bg-transparent border-none mt-2 text-sm opacity-60 focus:ring-1 focus:ring-primary/40 outline-none resize-none"
+              rows={2}
+            />
+          </div>
+          <div className="flex flex-wrap gap-x-8 gap-y-2 md:justify-end items-center">
+            {content.links?.map((link, idx) => (
+              <span key={idx} className="text-sm opacity-80 cursor-default">{link.label}</span>
+            ))}
+          </div>
+        </div>
+      </footer>
+    );
+  }
+
   if (['hero', 'features', 'pricing', 'contacts'].includes(type)) {
     return (
       <div 
         className={`relative w-full transition-all duration-300 ${styles.padding} ${fontClasses[styles.fontFamily]}`} 
-        style={{ 
-          backgroundColor: styles.backgroundColor, 
-          color: styles.textColor,
-          backgroundImage: styles.backgroundImage ? `url(${styles.backgroundImage})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
-        }}
+        style={blockStyles}
       >
         {/* Overlay for readability if image is present */}
         {styles.backgroundImage && (
@@ -234,7 +337,7 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
     );
   }
 
-  // AI Agent or Bot Logic Blocks (Simplified for settings context)
+  // AI Agent or Bot Logic Blocks
   return (
     <div className="p-8 bg-slate-900 text-white font-mono">
       <div className="flex items-center gap-4 mb-4">

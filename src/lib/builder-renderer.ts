@@ -42,6 +42,17 @@ function renderBlock(block: PageBlock): string {
   const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black/40"></div>` : '';
 
   switch (type) {
+    case 'header':
+      return `
+        <header class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}">
+          <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10">
+            <div class="text-2xl font-black tracking-tighter">${safeTitle}</div>
+            <nav class="hidden md:flex items-center gap-8">
+              ${content.links?.map(l => `<a href="${l.url}" class="text-sm font-medium hover:opacity-70 transition-opacity">${escapeHTML(l.label)}</a>`).join('')}
+            </nav>
+          </div>
+        </header>
+      `;
     case 'hero':
       return `
         <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}">
@@ -76,6 +87,20 @@ function renderBlock(block: PageBlock): string {
           </div>
         </section>
       `;
+    case 'footer':
+      return `
+        <footer class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor}">
+          <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10">
+            <div>
+              <div class="text-xl font-bold mb-4">${safeTitle}</div>
+              <p class="opacity-60 text-sm max-w-xs">${safeDesc}</p>
+            </div>
+            <div class="flex flex-wrap gap-x-10 gap-y-4 md:justify-end">
+               ${content.links?.map(l => `<a href="${l.url}" class="text-sm opacity-80 hover:opacity-100 transition-opacity">${escapeHTML(l.label)}</a>`).join('')}
+            </div>
+          </div>
+        </footer>
+      `;
     default:
       return `<!-- Block ${type} rendered as empty container -->`;
   }
@@ -92,7 +117,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web3 Builder Export</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=Playfair+Display:wght@700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
         .font-serif { font-family: 'Playfair Display', serif; }

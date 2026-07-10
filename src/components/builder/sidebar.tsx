@@ -5,16 +5,18 @@ import React from 'react';
 import { 
   Layout, Type, CreditCard, Mail, Plus, 
   Terminal, Database, Wrench, 
-  Hash, List, Zap 
+  Hash, List, Zap, PanelTop, PanelBottom 
 } from 'lucide-react';
 import { useBuilderStore, BlockType, BuilderMode } from '@/lib/builder-store';
 
 const TEMPLATES: Record<NonNullable<BuilderMode>, { type: BlockType; label: string; icon: any }[]> = {
   'landing': [
+    { type: 'header', label: 'Header', icon: PanelTop },
     { type: 'hero', label: 'Hero Section', icon: Layout },
     { type: 'features', label: 'Features', icon: Type },
     { type: 'pricing', label: 'Pricing Table', icon: CreditCard },
     { type: 'contacts', label: 'Contact Us', icon: Mail },
+    { type: 'footer', label: 'Footer', icon: PanelBottom },
   ],
   'ai-agent': [
     { type: 'system-prompt', label: 'System Prompt', icon: Terminal },
@@ -40,7 +42,7 @@ export function BuilderSidebar() {
         <h2 className="font-bold text-lg">Blocks</h2>
         <p className="text-xs text-muted-foreground">Context: {mode.toUpperCase()}</p>
       </div>
-      <div className="p-4 grid grid-cols-1 gap-3">
+      <div className="p-4 grid grid-cols-1 gap-3 overflow-y-auto">
         {currentTemplates.map((block) => (
           <button
             key={block.type}
