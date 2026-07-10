@@ -1,10 +1,10 @@
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
  * @fileOverview Middleware для мульти-доменной маршрутизации.
- * build.web3cyberservices.xyz -> открывает конструктор (/builder)
- * chat.web3cyberservices.xyz -> открывает чат (/)
+ * Безопасно обрабатывает поддомены, не блокируя локальную разработку и статику.
  */
 
 export function middleware(req: NextRequest) {
@@ -12,23 +12,30 @@ export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const { pathname } = url;
 
-  // Логика для поддомена конструктора
-  if (hostname.includes('build.web3cyberservices.xyz')) {
-    // Если пользователь заходит на корень поддомена build, показываем конструктор
+  // Исключаем внутренние запросы Next.js и статику из обработки
+  if (
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/api') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
+
+  // Логика для поддомена конструктора (только для внешних хостов)
+  if (hostname.startsWith('build.')) {
     if (pathname === '/') {
       url.pathname = '/builder';
       return NextResponse.rewrite(url);
     }
   }
 
-  // Для остальных случаев (включая chat.*) отдаем стандартный маршрут
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
     /*
-     * Исключаем служебные пути и статику, чтобы не замедлять работу
+     * Обрабатываем все пути, кроме статических файлов и API
      */
     '/((?!api|_next/static|_next/image|favicon.ico|sw.js).*)',
   ],
