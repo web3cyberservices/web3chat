@@ -84,17 +84,14 @@ export function BuilderCanvas() {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         className={`group relative border-b last:border-b-0 border-slate-200 dark:border-slate-800 ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary' : ''}`}
-                        style={{
-                          ...provided.draggableProps.style,
-                          transform: `${provided.draggableProps.style?.transform || ''} translate(${block.styles.translateX}px, ${block.styles.translateY}px)`
-                        }}
+                        style={provided.draggableProps.style}
                       >
                         {/* Block Toolbar */}
                         <div className="absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                           <button 
                             onMouseDown={(e) => startPositionDrag(e, block)}
                             className="p-2 bg-card shadow-md border rounded-lg cursor-move hover:text-primary"
-                            title="Shift Position"
+                            title="Shift Content Position"
                           >
                             <Move className="w-4 h-4" />
                           </button>
@@ -105,7 +102,7 @@ export function BuilderCanvas() {
                           >
                             <Settings2 className="w-4 h-4" />
                           </button>
-                          <div {...provided.dragHandleProps} className="p-2 bg-card shadow-md border rounded-lg cursor-grab active:cursor-grabbing" title="Reorder">
+                          <div {...provided.dragHandleProps} className="p-2 bg-card shadow-md border rounded-lg cursor-grab active:cursor-grabbing" title="Reorder Section">
                             <GripVertical className="w-4 h-4 text-muted-foreground" />
                           </div>
                           <button onClick={() => removeBlock(block.id)} className="p-2 bg-card shadow-md border rounded-lg hover:text-destructive" title="Delete">
@@ -124,9 +121,9 @@ export function BuilderCanvas() {
                             </div>
                             
                             <div className="space-y-6">
-                              {/* Position Reset */}
+                              {/* Content Offset Reset */}
                               <div className="space-y-3">
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground block">Position</label>
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground block">Content Offset</label>
                                 <div className="flex items-center justify-between bg-secondary/50 p-2 rounded-lg border">
                                   <span className="text-[10px] text-muted-foreground">X: {block.styles.translateX}px | Y: {block.styles.translateY}px</span>
                                   <button 
@@ -348,12 +345,11 @@ export function BuilderCanvas() {
                         )}
 
                         {/* Block Content */}
-                        <div style={{ transition: draggingBlock?.id === block.id ? 'none' : 'transform 0.2s ease-out' }}>
-                           <BlockContentComponent 
-                            block={block} 
-                            onUpdate={(content) => updateBlock(block.id, { content })} 
-                          />
-                        </div>
+                        <BlockContentComponent 
+                          block={block} 
+                          onUpdate={(content) => updateBlock(block.id, { content })} 
+                          draggingId={draggingBlock?.id}
+                        />
                       </div>
                     )}
                   </Draggable>
@@ -368,7 +364,7 @@ export function BuilderCanvas() {
   );
 }
 
-function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate: (content: any) => void }) {
+function BlockContentComponent({ block, onUpdate, draggingId }: { block: PageBlock; onUpdate: (content: any) => void; draggingId?: string }) {
   const { type, content, styles } = block;
 
   const fontClasses = {
@@ -389,12 +385,17 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
     full: 'rounded-full'
   };
 
-  const blockStyles = { 
+  const blockBgStyles = { 
     backgroundColor: styles.backgroundColor, 
     color: styles.textColor,
     backgroundImage: styles.backgroundImage ? `url(${styles.backgroundImage})` : 'none',
     backgroundSize: 'cover',
     backgroundPosition: 'center'
+  };
+
+  const contentTransformStyle = {
+    transform: `translate(${styles.translateX || 0}px, ${styles.translateY || 0}px)`,
+    transition: draggingId === block.id ? 'none' : 'transform 0.2s ease-out'
   };
 
   const buttonStyle = {
@@ -407,9 +408,9 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
     return (
       <header 
         className={`w-full ${styles.padding} ${fontClasses[styles.fontFamily]} relative`} 
-        style={blockStyles}
+        style={blockBgStyles}
       >
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between z-10 relative">
+        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between z-10 relative" style={contentTransformStyle}>
           <input
             value={content.title}
             onChange={(e) => onUpdate({ ...content, title: e.target.value })}
@@ -429,9 +430,9 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
     return (
       <footer 
         className={`w-full ${styles.padding} ${fontClasses[styles.fontFamily]} relative`} 
-        style={blockStyles}
+        style={blockBgStyles}
       >
-        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 z-10 relative">
+        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 z-10 relative" style={contentTransformStyle}>
           <div>
             <input
               value={content.title}
@@ -459,14 +460,14 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
     return (
       <div 
         className={`relative w-full transition-all duration-300 ${styles.padding} ${fontClasses[styles.fontFamily]}`} 
-        style={blockStyles}
+        style={blockBgStyles}
       >
         {/* Overlay for readability if image is present */}
         {styles.backgroundImage && (
           <div className="absolute inset-0 bg-black/30 pointer-events-none" />
         )}
 
-        <div className="relative max-w-3xl mx-auto text-center px-6 z-10">
+        <div className="relative max-w-3xl mx-auto text-center px-6 z-10" style={contentTransformStyle}>
           <input
             value={content.title}
             onChange={(e) => onUpdate({ ...content, title: e.target.value })}
@@ -497,7 +498,7 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
   // AI Agent or Bot Logic Blocks
   return (
     <div className="p-8 bg-slate-900 text-white font-mono">
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center gap-4 mb-4" style={contentTransformStyle}>
         <div className="p-2 bg-primary/10 rounded-lg">
           {type.includes('prompt') ? <Terminal className="w-5 h-5 text-primary" /> : <Code className="w-5 h-5 text-accent" />}
         </div>
@@ -512,6 +513,7 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
         onChange={(e) => onUpdate({ ...content, description: e.target.value })}
         className="w-full bg-slate-800 rounded-xl p-4 text-sm font-mono focus:ring-2 focus:ring-primary outline-none border border-slate-700 min-h-[120px]"
         placeholder="Configure logic here..."
+        style={contentTransformStyle}
       />
     </div>
   );
