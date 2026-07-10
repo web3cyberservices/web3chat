@@ -1,4 +1,3 @@
-
 import { PageBlock } from './builder-store';
 
 /**
@@ -22,6 +21,7 @@ function renderBlock(block: PageBlock): string {
   const safeTitle = escapeHTML(content.title || '');
   const safeDesc = escapeHTML(content.description || '');
   const safeBtn = escapeHTML(content.buttonText || '');
+  const safeBtnUrl = escapeHTML(content.buttonUrl || '#');
 
   const fontClass = {
     sans: 'font-sans',
@@ -35,9 +35,23 @@ function renderBlock(block: PageBlock): string {
     huge: 'text-8xl'
   }[styles.fontSize || 'normal'];
 
+  const btnRadiusClass = {
+    none: 'rounded-none',
+    md: 'rounded-xl',
+    full: 'rounded-full'
+  }[styles.buttonRadius || 'full'];
+
+  const btnFontClass = {
+    sans: 'font-sans',
+    serif: 'font-serif',
+    mono: 'font-mono'
+  }[styles.buttonFontFamily || 'sans'];
+
   const bgStyle = styles.backgroundImage 
     ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center;`
     : `background-color: ${styles.backgroundColor};`;
+
+  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor};`;
 
   const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black/40"></div>` : '';
 
@@ -60,7 +74,7 @@ function renderBlock(block: PageBlock): string {
           <div class="relative max-w-4xl mx-auto px-6 text-center z-10">
             <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight">${safeTitle}</h1>
             <p class="mt-8 text-xl opacity-90 leading-relaxed max-w-2xl mx-auto">${safeDesc}</p>
-            ${safeBtn ? `<div class="mt-12"><a href="#" class="inline-block px-12 py-5 bg-blue-600 text-white font-bold rounded-full shadow-2xl hover:scale-105 transition-all">${safeBtn}</a></div>` : ''}
+            ${safeBtn ? `<div class="mt-12"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} ${btnFontClass} font-bold shadow-2xl hover:scale-105 transition-all" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
       `;
@@ -84,6 +98,7 @@ function renderBlock(block: PageBlock): string {
                 <p class="opacity-80 leading-relaxed">Optimized performance guarantees lightning-fast user experiences globally.</p>
               </div>
             </div>
+            ${safeBtn ? `<div class="mt-12 text-center"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} ${btnFontClass} font-bold shadow-2xl hover:scale-105 transition-all" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
       `;

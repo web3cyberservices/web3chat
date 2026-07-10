@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockStyles, BlockLink } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Code, Terminal, BrainCircuit, Type, Maximize2, Palette, Image as ImageIcon, X, Plus, Link as LinkIcon } from 'lucide-react';
+import { Trash2, GripVertical, Settings2, Code, Terminal, BrainCircuit, Type, Maximize2, Palette, Image as ImageIcon, X, Plus, Link as LinkIcon, MousePointer2 } from 'lucide-react';
 import images from '@/app/lib/placeholder-images.json';
 
 export function BuilderCanvas() {
@@ -69,80 +68,151 @@ export function BuilderCanvas() {
                               <X className="w-3 h-3 cursor-pointer" onClick={() => setEditingId(null)} />
                             </div>
                             
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                               {/* Background */}
-                              <div>
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Background Color</label>
-                                <input 
-                                  type="color" 
-                                  value={block.styles.backgroundColor}
-                                  onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })}
-                                  className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none"
-                                />
-                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground block">Visuals</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <span className="text-[9px] text-muted-foreground mb-1 block">Bg Color</span>
+                                    <input 
+                                      type="color" 
+                                      value={block.styles.backgroundColor}
+                                      onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })}
+                                      className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <span className="text-[9px] text-muted-foreground mb-1 block">Text Color</span>
+                                    <input 
+                                      type="color" 
+                                      value={block.styles.textColor}
+                                      onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })}
+                                      className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none"
+                                    />
+                                  </div>
+                                </div>
 
-                              <div>
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Background Image</label>
-                                <div className="grid grid-cols-4 gap-1">
-                                  <button 
-                                    onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: '' } })}
-                                    className={`h-8 border rounded flex items-center justify-center ${!block.styles.backgroundImage ? 'border-primary' : ''}`}
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                  {images.slice(0, 7).map(img => (
+                                <div>
+                                  <span className="text-[9px] text-muted-foreground mb-1 block">Bg Image</span>
+                                  <div className="grid grid-cols-4 gap-1">
                                     <button 
-                                      key={img.id}
-                                      onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: img.url } })}
-                                      className={`h-8 border rounded overflow-hidden ${block.styles.backgroundImage === img.url ? 'border-primary ring-1 ring-primary' : ''}`}
+                                      onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: '' } })}
+                                      className={`h-8 border rounded flex items-center justify-center ${!block.styles.backgroundImage ? 'border-primary' : ''}`}
                                     >
-                                      <img src={img.url} className="w-full h-full object-cover" />
+                                      <X className="w-3 h-3" />
                                     </button>
-                                  ))}
+                                    {images.slice(0, 7).map(img => (
+                                      <button 
+                                        key={img.id}
+                                        onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: img.url } })}
+                                        className={`h-8 border rounded overflow-hidden ${block.styles.backgroundImage === img.url ? 'border-primary ring-1 ring-primary' : ''}`}
+                                      >
+                                        <img src={img.url} className="w-full h-full object-cover" />
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
 
                               {/* Typography */}
-                              <div>
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Text Color</label>
-                                <input 
-                                  type="color" 
-                                  value={block.styles.textColor}
-                                  onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })}
-                                  className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none"
-                                />
+                              <div className="space-y-3 pt-4 border-t">
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground block">Typography</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <span className="text-[9px] text-muted-foreground mb-1 block">Font</span>
+                                    <select 
+                                      value={block.styles.fontFamily}
+                                      onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, fontFamily: e.target.value as any } })}
+                                      className="w-full bg-secondary text-[10px] p-1.5 rounded border outline-none"
+                                    >
+                                      <option value="sans">Sans</option>
+                                      <option value="serif">Serif</option>
+                                      <option value="mono">Mono</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <span className="text-[9px] text-muted-foreground mb-1 block">Size</span>
+                                    <select 
+                                      value={block.styles.fontSize}
+                                      onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, fontSize: e.target.value as any } })}
+                                      className="w-full bg-secondary text-[10px] p-1.5 rounded border outline-none"
+                                    >
+                                      <option value="normal">Normal</option>
+                                      <option value="large">Large</option>
+                                      <option value="huge">Huge</option>
+                                    </select>
+                                  </div>
+                                </div>
                               </div>
 
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Font</label>
-                                  <select 
-                                    value={block.styles.fontFamily}
-                                    onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, fontFamily: e.target.value as any } })}
-                                    className="w-full bg-secondary text-[10px] p-1 rounded border outline-none"
-                                  >
-                                    <option value="sans">Sans</option>
-                                    <option value="serif">Serif</option>
-                                    <option value="mono">Mono</option>
-                                  </select>
+                              {/* Button Settings */}
+                              {block.content.buttonText !== undefined && (
+                                <div className="space-y-3 pt-4 border-t">
+                                  <label className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-2">
+                                    <MousePointer2 className="w-3 h-3" /> Button Style
+                                  </label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <span className="text-[9px] text-muted-foreground mb-1 block">Shape</span>
+                                      <select 
+                                        value={block.styles.buttonRadius}
+                                        onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonRadius: e.target.value as any } })}
+                                        className="w-full bg-secondary text-[10px] p-1.5 rounded border outline-none"
+                                      >
+                                        <option value="none">Square</option>
+                                        <option value="md">Rounded</option>
+                                        <option value="full">Pill</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <span className="text-[9px] text-muted-foreground mb-1 block">Font</span>
+                                      <select 
+                                        value={block.styles.buttonFontFamily}
+                                        onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonFontFamily: e.target.value as any } })}
+                                        className="w-full bg-secondary text-[10px] p-1.5 rounded border outline-none"
+                                      >
+                                        <option value="sans">Sans</option>
+                                        <option value="serif">Serif</option>
+                                        <option value="mono">Mono</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <span className="text-[9px] text-muted-foreground mb-1 block">Color</span>
+                                      <input 
+                                        type="color" 
+                                        value={block.styles.buttonBgColor}
+                                        onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonBgColor: e.target.value } })}
+                                        className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none"
+                                      />
+                                    </div>
+                                    <div>
+                                      <span className="text-[9px] text-muted-foreground mb-1 block">Label</span>
+                                      <input 
+                                        type="color" 
+                                        value={block.styles.buttonTextColor}
+                                        onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonTextColor: e.target.value } })}
+                                        className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-[9px] text-muted-foreground mb-1 block">Action URL</span>
+                                    <input 
+                                      value={block.content.buttonUrl}
+                                      onChange={(e) => updateBlock(block.id, { content: { ...block.content, buttonUrl: e.target.value } })}
+                                      className="w-full bg-secondary text-[10px] p-2 rounded border outline-none"
+                                      placeholder="https://..."
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Size</label>
-                                  <select 
-                                    value={block.styles.fontSize}
-                                    onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, fontSize: e.target.value as any } })}
-                                    className="w-full bg-secondary text-[10px] p-1 rounded border outline-none"
-                                  >
-                                    <option value="normal">Normal</option>
-                                    <option value="large">Large</option>
-                                    <option value="huge">Huge</option>
-                                  </select>
-                                </div>
-                              </div>
+                              )}
 
                               {/* Navigation Links Manager */}
                               {block.content.links && (
-                                <div className="space-y-3 pt-2 border-t">
+                                <div className="space-y-3 pt-4 border-t">
                                   <label className="text-[10px] uppercase font-bold text-muted-foreground block">Navigation Links</label>
                                   {block.content.links.map((link, idx) => (
                                     <div key={idx} className="flex gap-2 items-center bg-secondary/30 p-2 rounded-lg border border-border/40">
@@ -190,9 +260,9 @@ export function BuilderCanvas() {
                               )}
 
                               {/* Layout */}
-                              <div>
+                              <div className="pt-4 border-t">
                                 <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1 flex justify-between">
-                                  Padding <span>{block.styles.padding.replace('py-', '')}px</span>
+                                  Section Spacing <span>{block.styles.padding.replace('py-', '')}px</span>
                                 </label>
                                 <input 
                                   type="range" 
@@ -242,12 +312,24 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
     huge: 'text-7xl'
   };
 
+  const radiusClasses = {
+    none: 'rounded-none',
+    md: 'rounded-xl',
+    full: 'rounded-full'
+  };
+
   const blockStyles = { 
     backgroundColor: styles.backgroundColor, 
     color: styles.textColor,
     backgroundImage: styles.backgroundImage ? `url(${styles.backgroundImage})` : 'none',
     backgroundSize: 'cover',
     backgroundPosition: 'center'
+  };
+
+  const buttonStyle = {
+    backgroundColor: styles.buttonBgColor,
+    color: styles.buttonTextColor,
+    fontFamily: fontClasses[styles.buttonFontFamily || 'sans']
   };
 
   if (type === 'header') {
@@ -325,11 +407,15 @@ function BlockContentComponent({ block, onUpdate }: { block: PageBlock; onUpdate
             className="w-full bg-transparent border-none text-center focus:ring-2 focus:ring-primary/40 outline-none mt-6 text-lg opacity-90 resize-none leading-relaxed"
             rows={3}
           />
-          {content.buttonText && (
-            <div className="mt-10">
-              <button className="px-10 py-4 bg-primary text-primary-foreground rounded-full font-bold shadow-2xl hover:scale-105 transition-transform">
-                {content.buttonText}
-              </button>
+          {content.buttonText !== undefined && (
+            <div className="mt-10 flex flex-col items-center gap-4">
+              <input
+                value={content.buttonText}
+                onChange={(e) => onUpdate({ ...content, buttonText: e.target.value })}
+                className={`px-10 py-4 text-center font-bold shadow-2xl transition-all hover:scale-105 border-none outline-none ${radiusClasses[styles.buttonRadius || 'full']} ${fontClasses[styles.buttonFontFamily || 'sans']}`}
+                style={buttonStyle}
+              />
+              <span className="text-[9px] opacity-40 font-mono tracking-tighter">↑ Edit Button Text</span>
             </div>
           )}
         </div>

@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 
 export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | null;
@@ -16,6 +15,11 @@ export interface BlockStyles {
   fontFamily: 'sans' | 'serif' | 'mono';
   fontSize: 'normal' | 'large' | 'huge';
   overlayOpacity?: number;
+  // Button specific styles
+  buttonRadius: 'none' | 'md' | 'full';
+  buttonFontFamily: 'sans' | 'serif' | 'mono';
+  buttonBgColor: string;
+  buttonTextColor: string;
 }
 
 export interface BlockLink {
@@ -27,6 +31,7 @@ export interface BlockContent {
   title?: string;
   description?: string;
   buttonText?: string;
+  buttonUrl?: string;
   items?: string[];
   imageUrl?: string;
   code?: string;
@@ -66,12 +71,17 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         padding: (type === 'header' || type === 'footer') ? 'py-4' : 'py-20',
         fontFamily: 'sans',
         fontSize: 'normal',
-        overlayOpacity: 0
+        overlayOpacity: 0,
+        buttonRadius: 'full',
+        buttonFontFamily: 'sans',
+        buttonBgColor: '#22c55e', // Emerald 500
+        buttonTextColor: '#ffffff'
       },
       content: {
         title: getDefaultTitle(type),
         description: getDefaultDescription(type),
-        buttonText: state.mode === 'landing' && !['header', 'footer'].includes(type) ? 'Get Started' : undefined,
+        buttonText: state.mode === 'landing' && !['header', 'footer', 'contacts'].includes(type) ? 'Get Started' : undefined,
+        buttonUrl: '#',
         links: (type === 'header' || type === 'footer') ? [
           { label: 'Home', url: '#' },
           { label: 'About', url: '#' },
