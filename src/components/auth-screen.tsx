@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ArrowRight, Key, History, QrCode, ShieldAlert, Check, Copy } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Key, History, QrCode, ShieldAlert, Check, Copy, MessageSquare, Hammer, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { generateMnemonic, mnemonicToId } from '@/lib/crypto-utils';
 import { QRScanner } from '@/components/qr-scanner';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 interface AuthScreenProps {
   onIdentityCreated: (id: string) => void;
@@ -111,12 +112,12 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
   };
 
   return (
-    <div className="h-screen w-full bg-background flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="h-screen w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 blur-[120px] rounded-full -z-10" />
       
       {mode === 'scan' && <QRScanner onScan={handleQRScan} onClose={() => setMode('welcome')} />}
 
-      <div className="max-w-md w-full space-y-8 text-center">
+      <div className="max-w-md w-full space-y-8 text-center mb-24">
         <div className="flex flex-col items-center gap-4">
           <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center border border-primary/30 shadow-2xl shadow-primary/20">
             <ShieldCheck className="w-10 h-10 text-primary" />
@@ -204,6 +205,28 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
           )}
         </div>
       </div>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-xl border border-border/50 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-40">
+        <Link href="/" className="flex flex-col items-center gap-1 group">
+          <div className="p-2 bg-primary/10 rounded-full group-hover:bg-primary/20 transition-all">
+            <MessageSquare className="w-5 h-5 text-primary" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Chat</span>
+        </Link>
+        <Link href="/builder" className="flex flex-col items-center gap-1 group">
+          <div className="p-2 bg-secondary rounded-full group-hover:bg-secondary/80 transition-all">
+            <Hammer className="w-5 h-5 text-muted-foreground group-hover:text-foreground" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground">Build</span>
+        </Link>
+        <Link href="/protect" className="flex flex-col items-center gap-1 group">
+          <div className="p-2 bg-secondary rounded-full group-hover:bg-secondary/80 transition-all">
+            <Shield className="w-5 h-5 text-muted-foreground group-hover:text-foreground" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground">Protect</span>
+        </Link>
+      </nav>
     </div>
   );
 }
