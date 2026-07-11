@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -25,8 +26,14 @@ export default function ProtectPage() {
     try {
       const result = await analyzeSite({ url: domain });
       setReport(result);
-    } catch (e) {
-      toast({ title: "Сбой сканирования", description: "Не удалось подключиться к анализатору", variant: "destructive" });
+      toast({ title: "Успех", description: "Аудит завершен успешно" });
+    } catch (e: any) {
+      console.error("Scan error:", e);
+      toast({ 
+        title: "Сбой сканирования", 
+        description: e.message || "Не удалось подключиться к ИИ-модели. Проверьте API ключ.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsAnalyzing(false);
     }
