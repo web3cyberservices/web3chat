@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 
 /**
  * @fileOverview Middleware для мульти-доменной маршрутизации.
- * Безопасно обрабатывает поддомены, не блокируя локальную разработку и статику.
+ * Безопасно обрабатывает поддомены build.* и chat.*
  */
 
 export function middleware(req: NextRequest) {
@@ -21,10 +21,18 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Логика для поддомена конструктора (только для внешних хостов)
+  // Маршрутизация для поддомена конструктора
   if (hostname.startsWith('build.')) {
     if (pathname === '/') {
       url.pathname = '/builder';
+      return NextResponse.rewrite(url);
+    }
+  }
+
+  // Маршрутизация для поддомена чата
+  if (hostname.startsWith('chat.')) {
+    if (pathname === '/') {
+      url.pathname = '/chat';
       return NextResponse.rewrite(url);
     }
   }
@@ -34,9 +42,6 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Обрабатываем все пути, кроме статических файлов и API
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|sw.js).*)',
   ],
 };
