@@ -74,9 +74,8 @@ export default function Home() {
     setHasMounted(true);
   }, []);
 
-  // Дождаться монтажа компонента на клиенте, чтобы избежать ошибок гидратации
   if (!hasMounted) {
-    return <div className="min-h-screen bg-background" />;
+    return <div className="min-h-screen bg-[#0d0d12]" />;
   }
 
   const t = translations[lang];
@@ -120,16 +119,16 @@ export default function Home() {
 
       <main className="flex-1">
         <section className="py-24 md:py-40 px-6 text-center max-w-5xl mx-auto space-y-8">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-widest animate-in fade-in slide-in-from-bottom-2 duration-700">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-widest">
             <Zap className="w-3 h-3" /> {t.heroBadge}
           </div>
-          <h1 className="text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <h1 className="text-5xl md:text-8xl font-black tracking-tighter leading-[0.9]">
             {t.heroTitle1} <span className="text-primary">{t.heroTitle2}</span>.
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             {t.heroDesc}
           </p>
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-8">
             <Link href="/chat">
               <Button size="lg" className="h-16 px-10 rounded-2xl text-lg font-bold shadow-2xl shadow-primary/20 group">
                 {t.openMessenger} <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -181,41 +180,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        <section id="security" className="py-32 px-6">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
-            <div className="space-y-6">
-              <h2 className="text-4xl md:text-5xl font-black tracking-tight">{t.securityTitle}</h2>
-              <p className="text-muted-foreground text-lg leading-relaxed">
-                {t.securityDesc}
-              </p>
-              <div className="grid grid-cols-2 gap-6 pt-6">
-                <div className="space-y-2">
-                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
-                    <Globe className="w-5 h-5 text-primary" />
-                  </div>
-                  <h3 className="font-bold">{t.decentralized}</h3>
-                  <p className="text-xs text-muted-foreground">{t.decentralizedDesc}</p>
-                </div>
-                <div className="space-y-2">
-                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
-                    <Cpu className="w-5 h-5 text-accent" />
-                  </div>
-                  <h3 className="font-bold">{t.encrypted}</h3>
-                  <p className="text-xs text-muted-foreground">{t.encryptedDesc}</p>
-                </div>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/20 blur-[120px] rounded-full" />
-              <div className="relative bg-card border border-white/10 rounded-[3rem] p-8 aspect-square flex flex-col items-center justify-center text-center space-y-4">
-                 <Shield className="w-24 h-24 text-primary animate-pulse" />
-                 <h4 className="text-2xl font-bold">{t.anonymous}</h4>
-                 <p className="text-sm text-muted-foreground max-w-[200px]">{t.anonymousDesc}</p>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
 
       <footer className="py-12 border-t border-white/5 px-6">
@@ -223,11 +187,6 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
             <span className="font-bold text-sm tracking-widest uppercase">Web3CyberServices</span>
-          </div>
-          <div className="flex gap-8 text-[10px] uppercase tracking-[0.2em] font-bold opacity-40">
-            <Link href="/chat" className="hover:opacity-100">{t.p2pTitle}</Link>
-            <Link href="/builder" className="hover:opacity-100">{t.builderTitle}</Link>
-            <Link href="/protect" className="hover:opacity-100">{t.protectTitle}</Link>
           </div>
           <p className="text-[10px] opacity-40 uppercase tracking-widest font-mono">
             &copy; 2026 Web3 Cyber Services
