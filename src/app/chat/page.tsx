@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -25,23 +24,21 @@ export default function ChatPage() {
   const [activeChat, setActiveChat] = useState<ChatSession | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    setHasMounted(true);
     
-    setIsMobile(window.innerWidth < 768);
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
     
     async function loadIdentity() {
       try {
-        const identityPromise = getIdentity();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
-        
-        const savedId = await Promise.race([identityPromise, timeoutPromise]) as string | null;
+        const savedId = await getIdentity();
         if (savedId) setIdentity(savedId);
       } catch (e) {
-        console.warn('Identity load failed or timed out');
+        console.warn('Identity load failed');
       } finally {
         setIsInitializing(false);
       }
@@ -49,10 +46,11 @@ export default function ChatPage() {
     
     loadIdentity();
 
-    return () => window.removeEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  if (isInitializing) {
+  // Предотвращаем гидратационный диссонанс, гарантируя одинаковый первый рендер
+  if (!hasMounted || isInitializing) {
     return (
       <div className="h-screen w-full bg-background flex flex-col items-center justify-center">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />

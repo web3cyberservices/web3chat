@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Zap, Layout, ArrowRight, MessageSquare, Globe, Cpu, Lock, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -67,9 +66,16 @@ const translations = {
   }
 };
 
-export default function LandingPage() {
+export default function Home() {
   const [lang, setLang] = useState<'en' | 'ru'>('en');
+  const [hasMounted, setHasMounted] = useState(false);
   const t = translations[lang];
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  if (!hasMounted) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
