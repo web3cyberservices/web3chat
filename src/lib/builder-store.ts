@@ -15,6 +15,7 @@ export interface BlockStyles {
   fontFamily: 'sans' | 'serif' | 'mono';
   fontSize: 'normal' | 'large' | 'huge';
   overlayOpacity?: number;
+  minHeight: string; // Новое свойство: 'auto', '50vh', '75vh', '100vh'
   // Positioning for elements
   titleX: number;
   titleY: number;
@@ -79,6 +80,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         backgroundColor: (type === 'header' || type === 'footer') ? '#1a1a24' : (state.mode === 'landing' ? '#ffffff' : '#1a1a24'),
         textColor: (type === 'header' || type === 'footer') ? '#ffffff' : (state.mode === 'landing' ? '#000000' : '#ffffff'),
         padding: (type === 'header' || type === 'footer') ? 'py-4' : 'py-20',
+        minHeight: 'auto',
         fontFamily: 'sans',
         fontSize: 'normal',
         overlayOpacity: 0,

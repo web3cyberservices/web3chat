@@ -48,8 +48,8 @@ function renderBlock(block: PageBlock): string {
   }[styles.buttonFontFamily || 'sans'];
 
   const bgStyle = styles.backgroundImage 
-    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center;`
-    : `background-color: ${styles.backgroundColor};`;
+    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; min-height: ${styles.minHeight || 'auto'};`
+    : `background-color: ${styles.backgroundColor}; min-height: ${styles.minHeight || 'auto'};`;
 
   const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px);`;
   const titleStyle = `color: ${styles.textColor}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px);`;
@@ -62,7 +62,7 @@ function renderBlock(block: PageBlock): string {
   switch (type) {
     case 'header':
       return `
-        <header class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
+        <header class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
           <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10" style="${contentGroupStyle}">
             <div class="text-2xl font-black tracking-tighter">${safeTitle}</div>
             <nav class="hidden md:flex items-center gap-8">
@@ -73,7 +73,7 @@ function renderBlock(block: PageBlock): string {
       `;
     case 'hero':
       return `
-        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} overflow: hidden;">
+        <section class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} overflow: hidden;">
           ${overlay}
           <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col gap-8" style="${contentGroupStyle}">
             <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight transition-transform" style="${titleStyle}">${safeTitle}</h1>
@@ -84,7 +84,7 @@ function renderBlock(block: PageBlock): string {
       `;
     case 'features':
       return `
-        <section class="relative ${styles.padding} ${fontClass}" style="${bgStyle} overflow: hidden;">
+        <section class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} overflow: hidden;">
           ${overlay}
           <div class="relative max-w-6xl mx-auto px-6 z-10 text-center" style="${contentGroupStyle}">
             <h2 class="text-4xl font-bold mb-16 transition-transform" style="${titleStyle}">${safeTitle}</h2>
@@ -108,7 +108,7 @@ function renderBlock(block: PageBlock): string {
       `;
     case 'footer':
       return `
-        <footer class="relative ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
+        <footer class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
           <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10" style="${contentGroupStyle}">
             <div>
               <div class="text-xl font-bold mb-4">${safeTitle}</div>

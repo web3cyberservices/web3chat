@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Maximize2, Palette, X, Move, RotateCcw } from 'lucide-react';
+import { Trash2, GripVertical, Settings2, Maximize2, Palette, X, Move, RotateCcw, ArrowsUpDown } from 'lucide-react';
 import images from '@/app/lib/placeholder-images.json';
 
 type ElementType = 'title' | 'desc' | 'btn' | 'block';
@@ -118,7 +118,7 @@ export function BuilderCanvas() {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         className={`group relative border-b last:border-b-0 border-slate-200 dark:border-slate-800 ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary' : ''}`}
-                        style={provided.draggableProps.style as any}
+                        style={provided.draggableProps.style as React.CSSProperties}
                       >
                         {/* Панель инструментов блока */}
                         <div className="absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
@@ -155,6 +155,21 @@ export function BuilderCanvas() {
                             
                             <div className="space-y-6">
                               <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground block">Высота блока</label>
+                                <div className="grid grid-cols-4 gap-1">
+                                  {['auto', '50vh', '75vh', '100vh'].map((h) => (
+                                    <button 
+                                      key={h}
+                                      onClick={() => updateBlock(block.id, { styles: { ...block.styles, minHeight: h } })}
+                                      className={`p-2 rounded text-[9px] border transition-all ${block.styles.minHeight === h ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30 border-transparent hover:bg-secondary/50'}`}
+                                    >
+                                      {h === 'auto' ? 'Auto' : h.replace('vh', '%')}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 pt-4 border-t">
                                 <label className="text-[10px] uppercase font-bold text-muted-foreground block">Сброс позиций</label>
                                 <div className="grid grid-cols-1 gap-1">
                                   <button onClick={() => updateBlock(block.id, { styles: { ...block.styles, titleX: 0, titleY: 0 } })} className="flex items-center justify-between bg-secondary/30 p-2 rounded text-[9px] hover:bg-secondary/50">
@@ -246,8 +261,16 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
   };
 
   const bgStyle = styles.backgroundImage 
-    ? { backgroundImage: `url(${styles.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : { backgroundColor: styles.backgroundColor };
+    ? { 
+        backgroundImage: `url(${styles.backgroundImage})`, 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center',
+        minHeight: styles.minHeight || 'auto'
+      }
+    : { 
+        backgroundColor: styles.backgroundColor,
+        minHeight: styles.minHeight || 'auto'
+      };
 
   const contentGroupStyle = {
     transform: `translate(${styles.translateX || 0}px, ${styles.translateY || 0}px)`,
@@ -264,7 +287,7 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
   );
 
   return (
-    <div className={`relative ${styles.padding} overflow-hidden`} style={bgStyle}>
+    <div className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center`} style={bgStyle}>
       {styles.backgroundImage && <div className="absolute inset-0 bg-black/40" />}
       
       <div className="relative z-10 w-full" style={contentGroupStyle}>
