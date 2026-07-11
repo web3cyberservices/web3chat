@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { getIdentity, saveIdentity, type ChatSession } from '@/lib/db';
-import { Toaster } from '@/components/ui/toaster';
 
 const ChatSidebar = dynamic(() => import('@/components/chat-sidebar').then(m => m.ChatSidebar), { 
   ssr: false,
@@ -66,13 +65,10 @@ export default function ChatPage() {
 
   if (!identity) {
     return (
-      <>
-        <AuthScreen onIdentityCreated={async (id) => {
-          await saveIdentity(id);
-          setIdentity(id);
-        }} />
-        <Toaster />
-      </>
+      <AuthScreen onIdentityCreated={async (id) => {
+        await saveIdentity(id);
+        setIdentity(id);
+      }} />
     );
   }
 
@@ -93,7 +89,6 @@ export default function ChatPage() {
           isMobile={isMobile}
         />
       </div>
-      <Toaster />
     </main>
   );
 }

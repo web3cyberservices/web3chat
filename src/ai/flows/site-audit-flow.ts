@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI Агент для аудита веб-сайтов.
@@ -20,9 +21,20 @@ const SiteAuditOutputSchema = z.object({
   summary: z.string().describe('Краткое резюме аудита'),
 });
 
-export async function analyzeSite(input: z.infer<typeof SiteAuditInputSchema>) {
-  return siteAuditFlow(input);
-}
+const siteAuditPrompt = ai.definePrompt({
+  name: 'siteAuditPrompt',
+  input: { schema: SiteAuditInputSchema },
+  output: { schema: SiteAuditOutputSchema },
+  prompt: `Ты — эксперт по кибербезопасности и SEO-оптимизации. 
+  Проведи виртуальный аудит сайта: {{url}}.
+  
+  Твоя задача:
+  1. Предположи типичные уязвимости для данного типа ресурса или на основе общедоступных данных о его архитектуре.
+  2. Проанализируй SEO-показатели (мета-теги, заголовки, скорость загрузки).
+  3. Оцени качество кода и предложи улучшения.
+  
+  Верни ответ в строго структурированном JSON формате.`,
+});
 
 const siteAuditFlow = ai.defineFlow(
   {
@@ -31,22 +43,12 @@ const siteAuditFlow = ai.defineFlow(
     outputSchema: SiteAuditOutputSchema,
   },
   async (input) => {
-    const prompt = ai.definePrompt({
-      name: 'siteAuditPrompt',
-      input: { schema: SiteAuditInputSchema },
-      output: { schema: SiteAuditOutputSchema },
-      prompt: `Ты — эксперт по кибербезопасности и SEO-оптимизации. 
-      Проведи виртуальный аудит сайта: {{url}}.
-      
-      Твоя задача:
-      1. Предположи типичные уязвимости для данного типа ресурса или на основе общедоступных данных о его архитектуре.
-      2. Проанализируй SEO-показатели (мета-теги, заголовки, скорость загрузки).
-      3. Оцени качество кода и предложи улучшения.
-      
-      Верни ответ в строго структурированном JSON формате.`,
-    });
-
-    const { output } = await prompt(input);
-    return output!;
+    const { output } = await siteAuditPrompt(input);
+    if (!output) throw new Error('AI failed to generate a report');
+    return output;
   }
 );
+
+export async function analyzeSite(input: z.infer<typeof SiteAuditInputSchema>) {
+  return siteAuditFlow(input);
+}
