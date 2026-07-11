@@ -69,17 +69,19 @@ const translations = {
 export default function Home() {
   const [lang, setLang] = useState<'en' | 'ru'>('en');
   const [hasMounted, setHasMounted] = useState(false);
-  const t = translations[lang];
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  if (!hasMounted) return null;
+  if (!hasMounted) {
+    return <div className="min-h-screen bg-background" />;
+  }
+
+  const t = translations[lang];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
-      {/* Background Decor */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[150px] rounded-full" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/10 blur-[150px] rounded-full" />
@@ -116,7 +118,6 @@ export default function Home() {
       </header>
 
       <main className="flex-1">
-        {/* Hero Section */}
         <section className="py-24 md:py-40 px-6 text-center max-w-5xl mx-auto space-y-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-widest animate-in fade-in slide-in-from-bottom-2 duration-700">
             <Zap className="w-3 h-3" /> {t.heroBadge}
@@ -128,12 +129,12 @@ export default function Home() {
             {t.heroDesc}
           </p>
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-            <Link href="https://chat.web3cyberservices.xyz">
+            <Link href="/chat">
               <Button size="lg" className="h-16 px-10 rounded-2xl text-lg font-bold shadow-2xl shadow-primary/20 group">
                 {t.openMessenger} <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-            <Link href="https://build.web3cyberservices.xyz">
+            <Link href="/builder">
               <Button variant="outline" size="lg" className="h-16 px-10 rounded-2xl text-lg font-bold border-white/10 hover:bg-white/5">
                 {t.launchBuilder}
               </Button>
@@ -141,7 +142,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Products Section */}
         <section id="products" className="py-24 px-6 bg-white/[0.02] border-y border-white/5">
           <div className="max-w-7xl mx-auto">
             <div className="mb-16 space-y-4">
@@ -154,7 +154,7 @@ export default function Home() {
                 icon={MessageSquare}
                 title={t.p2pTitle}
                 desc={t.p2pDesc}
-                link="https://chat.web3cyberservices.xyz"
+                link="/chat"
                 color="text-primary"
                 bgColor="bg-primary/10"
                 cta={t.launchPlatform}
@@ -163,7 +163,7 @@ export default function Home() {
                 icon={Layout}
                 title={t.builderTitle}
                 desc={t.builderDesc}
-                link="https://build.web3cyberservices.xyz"
+                link="/builder"
                 color="text-accent"
                 bgColor="bg-accent/10"
                 cta={t.launchPlatform}
@@ -181,7 +181,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Features / Why us */}
         <section id="security" className="py-32 px-6">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
             <div className="space-y-6">
@@ -225,8 +224,8 @@ export default function Home() {
             <span className="font-bold text-sm tracking-widest uppercase">Web3CyberServices</span>
           </div>
           <div className="flex gap-8 text-[10px] uppercase tracking-[0.2em] font-bold opacity-40">
-            <Link href="https://chat.web3cyberservices.xyz" className="hover:opacity-100">{t.p2pTitle}</Link>
-            <Link href="https://build.web3cyberservices.xyz" className="hover:opacity-100">{t.builderTitle}</Link>
+            <Link href="/chat" className="hover:opacity-100">{t.p2pTitle}</Link>
+            <Link href="/builder" className="hover:opacity-100">{t.builderTitle}</Link>
             <Link href="/protect" className="hover:opacity-100">{t.protectTitle}</Link>
           </div>
           <p className="text-[10px] opacity-40 uppercase tracking-widest font-mono">

@@ -49,7 +49,6 @@ export default function ChatPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Предотвращаем гидратационный диссонанс, гарантируя одинаковый первый рендер
   if (!hasMounted || isInitializing) {
     return (
       <div className="h-screen w-full bg-background flex flex-col items-center justify-center">
