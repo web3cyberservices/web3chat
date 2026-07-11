@@ -21,10 +21,9 @@ const SiteAuditOutputSchema = z.object({
   summary: z.string().describe('Краткое резюме аудита'),
 });
 
-// Промпт с явным указанием модели для стабильности
+// Определяем промпт на верхнем уровне
 const siteAuditPrompt = ai.definePrompt({
   name: 'siteAuditPrompt',
-  model: 'googleai/gemini-1.5-flash',
   input: { schema: SiteAuditInputSchema },
   output: { schema: SiteAuditOutputSchema },
   prompt: `Ты — эксперт по кибербезопасности и SEO-оптимизации. 
@@ -51,6 +50,13 @@ const siteAuditFlow = ai.defineFlow(
       return output;
     } catch (error: any) {
       console.error('[SiteAuditFlow] Error:', error);
+      // Проверяем на специфические ошибки API
+      if (error.message?.includes('API_KEY_INVALID')) {
+        throw new Error('Invalid API Key. Please check your Google AI credentials.');
+      }
+      if (error.message?.includes('API key')) {
+        throw new Error('API Key missing. Please set GOOGLE_GENAI_API_KEY in environment.');
+      }
       throw new Error(error.message || 'Failed to analyze site');
     }
   }
