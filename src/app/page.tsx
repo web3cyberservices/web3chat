@@ -74,6 +74,7 @@ export default function Home() {
     setHasMounted(true);
   }, []);
 
+  // Дождаться монтажа компонента на клиенте, чтобы избежать ошибок гидратации
   if (!hasMounted) {
     return <div className="min-h-screen bg-background" />;
   }
