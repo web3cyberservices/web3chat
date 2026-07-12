@@ -86,14 +86,15 @@ export const useBuilderStore = create<BuilderState>((set) => ({
   setViewport: (viewport) => set({ viewport }),
   reset: () => set({ mode: null, blocks: [] }),
   addBlock: (type) => set((state) => {
+    const isHeaderFooter = type === 'header' || type === 'footer';
     const newBlock: PageBlock = {
       id: Math.random().toString(36).substr(2, 9),
       type,
       styles: {
-        backgroundColor: (type === 'header' || type === 'footer') ? '#1a1a24' : (state.mode === 'landing' ? '#ffffff' : '#1a1a24'),
-        textColor: (type === 'header' || type === 'footer') ? '#ffffff' : (state.mode === 'landing' ? '#000000' : '#ffffff'),
-        padding: (type === 'header' || type === 'footer') ? 'py-4' : 'py-20',
-        minHeight: 'auto',
+        backgroundColor: isHeaderFooter ? '#1a1a24' : (state.mode === 'landing' ? '#ffffff' : '#0f172a'),
+        textColor: isHeaderFooter ? '#ffffff' : (state.mode === 'landing' ? '#1e293b' : '#f8fafc'),
+        padding: isHeaderFooter ? 'py-4' : 'py-20',
+        minHeight: type === 'header' ? '4rem' : 'auto',
         fontFamily: 'sans',
         fontSize: 'normal',
         overlayOpacity: 0.4,
@@ -112,10 +113,10 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       content: {
         title: getDefaultTitle(type),
         description: getDefaultDescription(type),
-        buttonText: state.mode === 'landing' && !['header', 'footer', 'contacts'].includes(type) ? 'Get Started' : undefined,
+        buttonText: state.mode === 'landing' && !isHeaderFooter && type !== 'contacts' ? 'Get Started' : undefined,
         buttonUrl: '#',
         logoUrl: '', 
-        links: (type === 'header' || type === 'footer') ? [
+        links: isHeaderFooter ? [
           { label: 'Home', url: '#' },
           { label: 'About', url: '#' },
           { label: 'Services', url: '#' }
