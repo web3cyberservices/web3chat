@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/request';
 
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
@@ -14,22 +14,25 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Очищаем hostname от порта для корректной работы в Firebase Studio
   const hostname = host.split(':')[0].toLowerCase();
 
-  if (hostname.startsWith('build.')) {
+  // Маршрутизация на основе ПОЛНОГО совпадения домена
+  if (hostname === 'build.web3cyberservices.xyz') {
     if (pathname === '/') {
       url.pathname = '/builder';
       return NextResponse.rewrite(url);
     }
   }
 
-  if (hostname.startsWith('chat.')) {
+  if (hostname === 'chat.web3cyberservices.xyz') {
     if (pathname === '/') {
       url.pathname = '/chat';
       return NextResponse.rewrite(url);
     }
   }
 
+  // Для всех остальных случаев (включая основной домен и локальные превью)
   return NextResponse.next();
 }
 

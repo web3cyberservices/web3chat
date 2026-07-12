@@ -3,12 +3,148 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Maximize2, Palette, X, Move, RotateCcw, Sparkles, Type, MousePointer2 } from 'lucide-react';
+import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles } from 'lucide-react';
 import images from '@/app/lib/placeholder-images.json';
 import { generateBlockContent } from '@/ai/flows/block-generator-flow';
 import { useToast } from '@/hooks/use-toast';
 
 type ElementType = 'title' | 'desc' | 'btn' | 'block';
+
+// Помещаем вспомогательный компонент ПЕРЕД основным для предотвращения ReferenceError
+function BlockContentComponent({ block, onUpdate, onStartDrag }: { 
+  block: PageBlock; 
+  onUpdate: (content: Partial<BlockContent>) => void;
+  onStartDrag: (e: React.MouseEvent, block: PageBlock, type: ElementType) => void;
+}) {
+  const { styles, content, type } = block;
+
+  const titleStyle = {
+    color: styles.textColor,
+    transform: `translate(${styles.titleX || 0}px, ${styles.titleY || 0}px)`,
+    transition: 'none',
+    cursor: 'text'
+  };
+
+  const descStyle = {
+    color: styles.textColor,
+    transform: `translate(${styles.descX || 0}px, ${styles.descY || 0}px)`,
+    transition: 'none',
+    cursor: 'text'
+  };
+
+  const btnStyle = {
+    backgroundColor: styles.buttonBgColor,
+    color: styles.buttonTextColor,
+    borderRadius: styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '0.75rem' : '0',
+    transform: `translate(${styles.btnX || 0}px, ${styles.btnY || 0}px)`,
+    transition: 'none'
+  };
+
+  const bgStyle = styles.backgroundImage 
+    ? { 
+        backgroundImage: `url(${styles.backgroundImage})`, 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center',
+        minHeight: styles.minHeight || 'auto'
+      }
+    : { 
+        backgroundColor: styles.backgroundColor,
+        minHeight: styles.minHeight || 'auto'
+      };
+
+  const contentGroupStyle = {
+    transform: `translate(${styles.translateX || 0}px, ${styles.translateY || 0}px)`,
+  };
+
+  const renderDragHandle = (type: ElementType) => (
+    <button 
+      onMouseDown={(e) => onStartDrag(e, block, type)} 
+      className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover/el:opacity-100 p-1.5 bg-primary text-primary-foreground rounded-lg shadow-lg z-30 cursor-move transition-opacity"
+      title="Move Element"
+    >
+      <Move className="w-3.5 h-3.5" />
+    </button>
+  );
+
+  return (
+    <div className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center font-${styles.fontFamily}`} style={bgStyle}>
+      {styles.backgroundImage && (
+        <div 
+          className="absolute inset-0 bg-black" 
+          style={{ opacity: styles.overlayOpacity || 0.4 }} 
+        />
+      )}
+      
+      <div className="relative z-10 w-full" style={contentGroupStyle}>
+        {type === 'header' && (
+          <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
+             <div className="relative group/el">
+                {renderDragHandle('title')}
+                <input 
+                  value={content.title} 
+                  onChange={(e) => onUpdate({ title: e.target.value })} 
+                  className="bg-transparent border-none font-black text-2xl outline-none tracking-tighter"
+                  style={titleStyle}
+                />
+             </div>
+          </div>
+        )}
+
+        {(['hero', 'features', 'pricing', 'contacts'].includes(type)) && (
+          <div className="max-w-4xl mx-auto px-6 text-center space-y-6">
+            <div className="relative group/el inline-block w-full">
+              {renderDragHandle('title')}
+              <textarea 
+                value={content.title} 
+                onChange={(e) => onUpdate({ title: e.target.value })}
+                className={`bg-transparent border-none font-black text-center w-full outline-none resize-none overflow-hidden leading-tight ${styles.fontSize === 'huge' ? 'text-7xl' : styles.fontSize === 'large' ? 'text-5xl' : 'text-4xl'}`}
+                style={titleStyle}
+                rows={1}
+              />
+            </div>
+
+            <div className="relative group/el inline-block w-full">
+              {renderDragHandle('desc')}
+              <textarea 
+                value={content.description} 
+                onChange={(e) => onUpdate({ description: e.target.value })}
+                className="bg-transparent border-none text-lg text-center w-full outline-none resize-none overflow-hidden opacity-90 leading-relaxed"
+                style={descStyle}
+                rows={2}
+              />
+            </div>
+
+            {content.buttonText !== undefined && (
+              <div className="relative group/el inline-block">
+                {renderDragHandle('btn')}
+                <input 
+                  value={content.buttonText} 
+                  onChange={(e) => onUpdate({ buttonText: e.target.value })}
+                  className="px-10 py-4 font-bold text-center outline-none shadow-2xl cursor-text transition-transform hover:scale-105 active:scale-95"
+                  style={btnStyle}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {type === 'footer' && (
+          <div className="max-w-6xl mx-auto px-6 text-center">
+            <div className="relative group/el inline-block w-full">
+              {renderDragHandle('title')}
+              <input 
+                value={content.title} 
+                onChange={(e) => onUpdate({ title: e.target.value })} 
+                className="bg-transparent border-none text-[10px] font-bold uppercase tracking-[0.2em] opacity-50 outline-none w-full text-center"
+                style={titleStyle}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function BuilderCanvas() {
   const { blocks, mode, viewport, reorderBlocks, removeBlock, updateBlock } = useBuilderStore();
@@ -221,7 +357,7 @@ export function BuilderCanvas() {
                                   </div>
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                      <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Background</span>
+                                      <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Background Color</span>
                                       <input type="color" value={block.styles.backgroundColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })} className="w-full h-8 rounded-lg cursor-pointer bg-transparent border" />
                                     </div>
                                     <div>
@@ -302,144 +438,6 @@ export function BuilderCanvas() {
             )}
           </Droppable>
         </DragDropContext>
-      </div>
-    </div>
-  );
-}
-
-function BlockContentComponent({ block, onUpdate, onStartDrag }: { 
-  block: PageBlock; 
-  onUpdate: (content: Partial<BlockContent>) => void;
-  onStartDrag: (e: React.MouseEvent, block: PageBlock, type: ElementType) => void;
-}) {
-  const { styles, content, type } = block;
-
-  const titleStyle = {
-    color: styles.textColor,
-    transform: `translate(${styles.titleX || 0}px, ${styles.titleY || 0}px)`,
-    transition: 'none',
-    cursor: 'text'
-  };
-
-  const descStyle = {
-    color: styles.textColor,
-    transform: `translate(${styles.descX || 0}px, ${styles.descY || 0}px)`,
-    transition: 'none',
-    cursor: 'text'
-  };
-
-  const btnStyle = {
-    backgroundColor: styles.buttonBgColor,
-    color: styles.buttonTextColor,
-    borderRadius: styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '0.75rem' : '0',
-    transform: `translate(${styles.btnX || 0}px, ${styles.btnY || 0}px)`,
-    transition: 'none'
-  };
-
-  const bgStyle = styles.backgroundImage 
-    ? { 
-        backgroundImage: `url(${styles.backgroundImage})`, 
-        backgroundSize: 'cover', 
-        backgroundPosition: 'center',
-        minHeight: styles.minHeight || 'auto'
-      }
-    : { 
-        backgroundColor: styles.backgroundColor,
-        minHeight: styles.minHeight || 'auto'
-      };
-
-  const contentGroupStyle = {
-    transform: `translate(${styles.translateX || 0}px, ${styles.translateY || 0}px)`,
-  };
-
-  const renderDragHandle = (type: ElementType) => (
-    <button 
-      onMouseDown={(e) => onStartDrag(e, block, type)} 
-      className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover/el:opacity-100 p-1.5 bg-primary text-primary-foreground rounded-lg shadow-lg z-30 cursor-move transition-opacity"
-      title="Move Element"
-    >
-      <Move className="w-3.5 h-3.5" />
-    </button>
-  );
-
-  return (
-    <div className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center font-${styles.fontFamily}`} style={bgStyle}>
-      {styles.backgroundImage && (
-        <div 
-          className="absolute inset-0 bg-black" 
-          style={{ opacity: styles.overlayOpacity || 0.4 }} 
-        />
-      )}
-      
-      <div className="relative z-10 w-full" style={contentGroupStyle}>
-        {/* Header Block */}
-        {type === 'header' && (
-          <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
-             <div className="relative group/el">
-                {renderDragHandle('title')}
-                <input 
-                  value={content.title} 
-                  onChange={(e) => onUpdate({ title: e.target.value })} 
-                  className="bg-transparent border-none font-black text-2xl outline-none tracking-tighter"
-                  style={titleStyle}
-                />
-             </div>
-          </div>
-        )}
-
-        {/* Common Landing Blocks */}
-        {(['hero', 'features', 'pricing', 'contacts'].includes(type)) && (
-          <div className="max-w-4xl mx-auto px-6 text-center space-y-6">
-            <div className="relative group/el inline-block w-full">
-              {renderDragHandle('title')}
-              <textarea 
-                value={content.title} 
-                onChange={(e) => onUpdate({ title: e.target.value })}
-                className={`bg-transparent border-none font-black text-center w-full outline-none resize-none overflow-hidden leading-tight ${styles.fontSize === 'huge' ? 'text-7xl' : styles.fontSize === 'large' ? 'text-5xl' : 'text-4xl'}`}
-                style={titleStyle}
-                rows={1}
-              />
-            </div>
-
-            <div className="relative group/el inline-block w-full">
-              {renderDragHandle('desc')}
-              <textarea 
-                value={content.description} 
-                onChange={(e) => onUpdate({ description: e.target.value })}
-                className="bg-transparent border-none text-lg text-center w-full outline-none resize-none overflow-hidden opacity-90 leading-relaxed"
-                style={descStyle}
-                rows={2}
-              />
-            </div>
-
-            {content.buttonText !== undefined && (
-              <div className="relative group/el inline-block">
-                {renderDragHandle('btn')}
-                <input 
-                  value={content.buttonText} 
-                  onChange={(e) => onUpdate({ buttonText: e.target.value })}
-                  className="px-10 py-4 font-bold text-center outline-none shadow-2xl cursor-text transition-transform hover:scale-105 active:scale-95"
-                  style={btnStyle}
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Footer Block */}
-        {type === 'footer' && (
-          <div className="max-w-6xl mx-auto px-6 text-center">
-            <div className="relative group/el inline-block w-full">
-              {renderDragHandle('title')}
-              <input 
-                value={content.title} 
-                onChange={(e) => onUpdate({ title: e.target.value })} 
-                className="bg-transparent border-none text-[10px] font-bold uppercase tracking-[0.2em] opacity-50 outline-none w-full text-center"
-                style={titleStyle}
-              />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

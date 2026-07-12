@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Zap, Layout, ArrowRight, MessageSquare, Globe, Cpu, Lock, Languages } from 'lucide-react';
+import { Shield, Zap, Layout, ArrowRight, MessageSquare, Lock, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -74,7 +74,6 @@ export default function Home() {
     setHasMounted(true);
   }, []);
 
-  // Hydration guard: сервер и клиент рендерят одно и то же на первом шаге
   if (!hasMounted) {
     return <div className="min-h-screen bg-[#0d0d12]" />;
   }
@@ -99,7 +98,6 @@ export default function Home() {
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium opacity-70">
           <a href="#products" className="hover:text-primary transition-colors">{t.products}</a>
           <a href="#security" className="hover:text-primary transition-colors">{t.security}</a>
-          <a href="#about" className="hover:text-primary transition-colors">{t.about}</a>
         </nav>
 
         <div className="flex items-center gap-4">
@@ -112,8 +110,8 @@ export default function Home() {
             <Languages className="w-4 h-4" />
             {lang === 'en' ? 'RU' : 'EN'}
           </Button>
-          <Link href="/builder">
-            <Button variant="default" className="rounded-full px-6 hidden sm:flex">{t.getStarted}</Button>
+          <Link href="/chat">
+            <Button variant="default" className="rounded-full px-6">{t.getStarted}</Button>
           </Link>
         </div>
       </header>
@@ -145,7 +143,7 @@ export default function Home() {
 
         <section id="products" className="py-24 px-6 bg-white/[0.02] border-y border-white/5">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-16 space-y-4">
+            <div className="mb-16 space-y-4 text-center md:text-left">
               <h2 className="text-3xl font-bold">{t.ecosystemTitle}</h2>
               <p className="text-muted-foreground">{t.ecosystemDesc}</p>
             </div>

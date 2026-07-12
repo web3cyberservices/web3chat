@@ -49,7 +49,6 @@ export default function ChatPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Исключаем расхождения при гидратации: сервер всегда возвращает одинаковый фон
   if (!hasMounted) {
     return <div className="h-screen w-full bg-background" />;
   }
