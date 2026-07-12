@@ -50,7 +50,7 @@ export default function ChatPage() {
   }, []);
 
   if (!hasMounted) {
-    return <div className="h-screen w-full bg-background" />;
+    return <div className="h-screen w-full bg-[#0d0d12]" />;
   }
 
   if (isInitializing) {

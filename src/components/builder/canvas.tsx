@@ -10,7 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 
 type ElementType = 'title' | 'desc' | 'btn' | 'block';
 
-// Помещаем вспомогательный компонент ПЕРЕД основным для предотвращения ReferenceError
+/**
+ * Внутренний компонент для рендеринга контента блока с поддержкой перемещения элементов.
+ */
 function BlockContentComponent({ block, onUpdate, onStartDrag }: { 
   block: PageBlock; 
   onUpdate: (content: Partial<BlockContent>) => void;
@@ -322,7 +324,7 @@ export function BuilderCanvas() {
                           </button>
                         </div>
 
-                        {/* Enhanced Block Settings */}
+                        {/* Block Settings */}
                         {editingId === block.id && (
                           <div className="absolute right-4 top-16 w-80 bg-card border rounded-2xl shadow-2xl p-0 z-50 max-h-[70vh] flex flex-col overflow-hidden">
                             <div className="flex items-center justify-between p-4 border-b">
@@ -424,6 +426,7 @@ export function BuilderCanvas() {
                           </div>
                         )}
 
+                        {/* Block Content Rendering Component */}
                         <BlockContentComponent 
                           block={block} 
                           onUpdate={(content) => updateBlock(block.id, { content })} 
