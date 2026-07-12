@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | null;
+export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
 export type BlockType = 
   | 'header' | 'hero' | 'features' | 'pricing' | 'contacts' | 'footer' // Landing
@@ -15,7 +16,7 @@ export interface BlockStyles {
   fontFamily: 'sans' | 'serif' | 'mono';
   fontSize: 'normal' | 'large' | 'huge';
   overlayOpacity?: number;
-  minHeight: string; // Новое свойство: 'auto', '50vh', '75vh', '100vh'
+  minHeight: string;
   // Positioning for elements
   titleX: number;
   titleY: number;
@@ -58,8 +59,10 @@ export interface PageBlock {
 
 interface BuilderState {
   mode: BuilderMode;
+  viewport: ViewportMode;
   blocks: PageBlock[];
   setMode: (mode: BuilderMode) => void;
+  setViewport: (viewport: ViewportMode) => void;
   addBlock: (type: BlockType) => void;
   removeBlock: (id: string) => void;
   updateBlock: (id: string, updates: Partial<PageBlock>) => void;
@@ -69,8 +72,10 @@ interface BuilderState {
 
 export const useBuilderStore = create<BuilderState>((set) => ({
   mode: null,
+  viewport: 'desktop',
   blocks: [],
   setMode: (mode) => set({ mode, blocks: [] }),
+  setViewport: (viewport) => set({ viewport }),
   reset: () => set({ mode: null, blocks: [] }),
   addBlock: (type) => set((state) => {
     const newBlock: PageBlock = {
@@ -83,7 +88,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         minHeight: 'auto',
         fontFamily: 'sans',
         fontSize: 'normal',
-        overlayOpacity: 0,
+        overlayOpacity: 0.4,
         titleX: 0, titleY: 0,
         descX: 0, descY: 0,
         btnX: 0, btnY: 0,
@@ -91,7 +96,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         translateY: 0,
         buttonRadius: 'full',
         buttonFontFamily: 'sans',
-        buttonBgColor: '#22c55e', // Emerald 500
+        buttonBgColor: '#22c55e',
         buttonTextColor: '#ffffff'
       },
       content: {
@@ -129,8 +134,6 @@ function getDefaultTitle(type: BlockType) {
     case 'features': return 'Why Choose Us';
     case 'pricing': return 'Simple Pricing';
     case 'footer': return '© 2026 Web3 Services';
-    case 'system-prompt': return 'System Personality';
-    case 'knowledge': return 'Knowledge Base';
     default: return `New ${type.charAt(0).toUpperCase() + type.slice(1)}`;
   }
 }

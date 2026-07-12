@@ -55,7 +55,7 @@ function renderBlock(block: PageBlock): string {
   const titleStyle = `color: ${styles.textColor}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px);`;
   const descStyle = `color: ${styles.textColor}; opacity: 0.9; transform: translate(${styles.descX || 0}px, ${styles.descY || 0}px);`;
 
-  const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black/40"></div>` : '';
+  const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black" style="opacity: ${styles.overlayOpacity || 0.4}"></div>` : '';
   
   const contentGroupStyle = `transform: translate(${styles.translateX || 0}px, ${styles.translateY || 0}px);`;
 
@@ -89,15 +89,15 @@ function renderBlock(block: PageBlock): string {
           <div class="relative max-w-6xl mx-auto px-6 z-10 text-center" style="${contentGroupStyle}">
             <h2 class="text-4xl font-bold mb-16 transition-transform" style="${titleStyle}">${safeTitle}</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-10 transition-transform" style="${descStyle}">
-              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
+              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 text-white">
                 <h3 class="font-bold text-2xl mb-4">Innovation</h3>
                 <p class="opacity-80 leading-relaxed">Next generation technology built for scale and security.</p>
               </div>
-              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
+              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 text-white">
                 <h3 class="font-bold text-2xl mb-4">Privacy</h3>
                 <p class="opacity-80 leading-relaxed">Your data remains yours with end-to-end encryption.</p>
               </div>
-              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
+              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 text-white">
                 <h3 class="font-bold text-2xl mb-4">Speed</h3>
                 <p class="opacity-80 leading-relaxed">Lightning-fast user experiences globally.</p>
               </div>
@@ -147,7 +147,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
 <body class="antialiased">
     ${content}
     <footer class="py-16 bg-black text-white text-center border-t border-white/10">
-      <p class="text-sm opacity-40 font-mono tracking-widest">&copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES BUILDER</p>
+      <p class="text-[10px] opacity-40 font-mono tracking-widest uppercase">&copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES BUILDER</p>
     </footer>
 </body>
 </html>

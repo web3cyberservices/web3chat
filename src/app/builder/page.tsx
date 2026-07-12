@@ -1,17 +1,16 @@
-
 'use client';
 
 import React from 'react';
 import { BuilderSidebar } from '@/components/builder/sidebar';
 import { BuilderCanvas } from '@/components/builder/canvas';
 import { Button } from '@/components/ui/button';
-import { Save, Eye, Globe, ArrowLeft, Layout, Cpu, MessageSquare, Sparkles } from 'lucide-react';
+import { Save, Eye, Globe, ArrowLeft, Layout, Cpu, MessageSquare, Sparkles, Monitor, Tablet, Smartphone } from 'lucide-react';
 import Link from 'next/link';
 import { useBuilderStore, type BuilderMode } from '@/lib/builder-store';
 import { generateFullHTML } from '@/lib/builder-renderer';
 
 export default function BuilderPage() {
-  const { mode, setMode, blocks, reset } = useBuilderStore();
+  const { mode, setMode, blocks, reset, viewport, setViewport } = useBuilderStore();
 
   const handleExport = () => {
     const html = generateFullHTML(blocks);
@@ -82,10 +81,37 @@ export default function BuilderPage() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="h-6 w-[1px] bg-border mx-2" />
-          <h1 className="font-bold tracking-tight capitalize">
-            {mode.replace('-', ' ')} Builder 
+          <h1 className="font-bold tracking-tight capitalize hidden md:block">
+            {mode.replace('-', ' ')} 
             <span className="text-primary text-[10px] ml-2 border px-2 py-0.5 rounded-full">Pro</span>
           </h1>
+        </div>
+
+        <div className="flex items-center bg-secondary/30 rounded-full p-1 border">
+          <Button 
+            variant={viewport === 'desktop' ? 'secondary' : 'ghost'} 
+            size="icon" 
+            className="rounded-full w-8 h-8"
+            onClick={() => setViewport('desktop')}
+          >
+            <Monitor className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant={viewport === 'tablet' ? 'secondary' : 'ghost'} 
+            size="icon" 
+            className="rounded-full w-8 h-8"
+            onClick={() => setViewport('tablet')}
+          >
+            <Tablet className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant={viewport === 'mobile' ? 'secondary' : 'ghost'} 
+            size="icon" 
+            className="rounded-full w-8 h-8"
+            onClick={() => setViewport('mobile')}
+          >
+            <Smartphone className="w-4 h-4" />
+          </Button>
         </div>
         
         <div className="flex items-center gap-3">
