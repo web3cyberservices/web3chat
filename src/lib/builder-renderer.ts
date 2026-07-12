@@ -1,9 +1,21 @@
-import { PageBlock } from './builder-store';
+import { PageBlock, FontFamily } from './builder-store';
 
 /**
  * @fileOverview Generator Engine.
  * Converts No-Code JSON structure into a standalone, SEO-ready Tailwind HTML document.
  */
+
+const FONT_MAP: Record<FontFamily, string> = {
+  sans: 'Inter, sans-serif',
+  serif: '"Playfair Display", serif',
+  mono: '"JetBrains Mono", monospace',
+  montserrat: 'Montserrat, sans-serif',
+  oswald: 'Oswald, sans-serif',
+  merriweather: 'Merriweather, serif',
+  bebas: '"Bebas Neue", cursive',
+  dancing: '"Dancing Script", cursive',
+  inter: 'Inter, sans-serif'
+};
 
 function escapeHTML(str: string): string {
   if (!str) return '';
@@ -24,11 +36,8 @@ function renderBlock(block: PageBlock): string {
   const safeBtnUrl = escapeHTML(content.buttonUrl || '#');
   const safeLogoUrl = escapeHTML(content.logoUrl || '');
 
-  const fontClass = {
-    sans: 'font-sans',
-    serif: 'font-serif',
-    mono: 'font-mono'
-  }[styles.fontFamily || 'sans'];
+  const fontStack = FONT_MAP[styles.fontFamily || 'sans'];
+  const btnFontStack = FONT_MAP[styles.buttonFontFamily || styles.fontFamily || 'sans'];
 
   const sizeClass = {
     normal: 'text-4xl md:text-5xl',
@@ -42,19 +51,13 @@ function renderBlock(block: PageBlock): string {
     full: 'rounded-full'
   }[styles.buttonRadius || 'full'];
 
-  const btnFontClass = {
-    sans: 'font-sans',
-    serif: 'font-serif',
-    mono: 'font-mono'
-  }[styles.buttonFontFamily || 'sans'];
-
   const bgStyle = styles.backgroundImage 
     ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; min-height: ${styles.minHeight || 'auto'};`
     : `background-color: ${styles.backgroundColor}; min-height: ${styles.minHeight || 'auto'};`;
 
-  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px);`;
-  const titleStyle = `color: ${styles.textColor}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px);`;
-  const descStyle = `color: ${styles.textColor}; opacity: 0.9; transform: translate(${styles.descX || 0}px, ${styles.descY || 0}px);`;
+  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${btnFontStack}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px);`;
+  const titleStyle = `color: ${styles.textColor}; font-family: ${fontStack}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px);`;
+  const descStyle = `color: ${styles.textColor}; font-family: ${fontStack}; opacity: 0.9; transform: translate(${styles.descX || 0}px, ${styles.descY || 0}px);`;
 
   const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black" style="opacity: ${styles.overlayOpacity || 0.4}"></div>` : '';
   
@@ -63,31 +66,31 @@ function renderBlock(block: PageBlock): string {
   switch (type) {
     case 'header':
       return `
-        <header class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
+        <header class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} color: ${styles.textColor};">
           <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10" style="${contentGroupStyle}">
             <div class="flex items-center gap-3">
               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="h-8 w-auto object-contain" style="${titleStyle}">` : `<div class="text-2xl font-black tracking-tighter" style="${titleStyle}">${safeTitle}</div>`}
             </div>
             <nav class="hidden md:flex items-center gap-8">
-              ${content.links?.map(l => `<a href="${l.url}" class="text-sm font-medium hover:opacity-70 transition-opacity">${escapeHTML(l.label)}</a>`).join('')}
+              ${content.links?.map(l => `<a href="${l.url}" class="text-sm font-medium hover:opacity-70 transition-opacity" style="font-family: ${fontStack}">${escapeHTML(l.label)}</a>`).join('')}
             </nav>
           </div>
         </header>
       `;
     case 'hero':
       return `
-        <section class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} overflow: hidden;">
+        <section class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} overflow: hidden;">
           ${overlay}
           <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col gap-8" style="${contentGroupStyle}">
             <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight transition-transform" style="${titleStyle}">${safeTitle}</h1>
             <p class="text-xl leading-relaxed max-w-2xl mx-auto transition-transform" style="${descStyle}">${safeDesc}</p>
-            ${safeBtn ? `<div class="mt-4"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} ${btnFontClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
+            ${safeBtn ? `<div class="mt-4"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
       `;
     case 'features':
       return `
-        <section class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} overflow: hidden;">
+        <section class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} overflow: hidden;">
           ${overlay}
           <div class="relative max-w-6xl mx-auto px-6 z-10 text-center" style="${contentGroupStyle}">
             <h2 class="text-4xl font-bold mb-16 transition-transform" style="${titleStyle}">${safeTitle}</h2>
@@ -105,20 +108,20 @@ function renderBlock(block: PageBlock): string {
                 <p class="opacity-80 leading-relaxed">Lightning-fast user experiences globally.</p>
               </div>
             </div>
-            ${safeBtn ? `<div class="mt-12"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} ${btnFontClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
+            ${safeBtn ? `<div class="mt-12"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
       `;
     case 'footer':
       return `
-        <footer class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
+        <footer class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} color: ${styles.textColor};">
           <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10" style="${contentGroupStyle}">
             <div>
               <div class="text-xl font-bold mb-4" style="${titleStyle}">${safeTitle}</div>
               <p class="opacity-60 text-sm max-w-xs" style="${descStyle}">${safeDesc}</p>
             </div>
             <div class="flex flex-wrap gap-x-10 gap-y-4 md:justify-end">
-               ${content.links?.map(l => `<a href="${l.url}" class="text-sm opacity-80 hover:opacity-100 transition-opacity">${escapeHTML(l.label)}</a>`).join('')}
+               ${content.links?.map(l => `<a href="${l.url}" class="text-sm opacity-80 hover:opacity-100 transition-opacity" style="font-family: ${fontStack}">${escapeHTML(l.label)}</a>`).join('')}
             </div>
           </div>
         </footer>
@@ -139,11 +142,9 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web3 Builder Export</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
-        .font-serif { font-family: 'Playfair Display', serif; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
         section, header, footer { position: relative; }
     </style>
 </head>

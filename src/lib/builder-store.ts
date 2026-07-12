@@ -8,12 +8,17 @@ export type BlockType =
   | 'system-prompt' | 'knowledge' | 'tools'      // AI Agent
   | 'command' | 'menu' | 'reply';                // Bot
 
+export type FontFamily = 
+  | 'sans' | 'serif' | 'mono' 
+  | 'montserrat' | 'oswald' | 'merriweather' 
+  | 'bebas' | 'dancing' | 'inter';
+
 export interface BlockStyles {
   backgroundColor: string;
   textColor: string;
   padding: string;
   backgroundImage?: string;
-  fontFamily: 'sans' | 'serif' | 'mono';
+  fontFamily: FontFamily;
   fontSize: 'normal' | 'large' | 'huge';
   overlayOpacity?: number;
   minHeight: string;
@@ -26,7 +31,7 @@ export interface BlockStyles {
   btnY: number;
   // Button specific styles
   buttonRadius: 'none' | 'md' | 'full';
-  buttonFontFamily: 'sans' | 'serif' | 'mono';
+  buttonFontFamily: FontFamily;
   buttonBgColor: string;
   buttonTextColor: string;
   // Legacy
@@ -46,7 +51,7 @@ export interface BlockContent {
   buttonUrl?: string;
   items?: string[];
   imageUrl?: string;
-  logoUrl?: string; // New field for custom logo
+  logoUrl?: string; 
   code?: string;
   links?: BlockLink[];
 }
@@ -105,7 +110,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         description: getDefaultDescription(type),
         buttonText: state.mode === 'landing' && !['header', 'footer', 'contacts'].includes(type) ? 'Get Started' : undefined,
         buttonUrl: '#',
-        logoUrl: '', // Default empty logo URL
+        logoUrl: '', 
         links: (type === 'header' || type === 'footer') ? [
           { label: 'Home', url: '#' },
           { label: 'About', url: '#' },

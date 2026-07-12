@@ -2,13 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { useBuilderStore, PageBlock, BlockContent } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { useBuilderStore, PageBlock, BlockContent, FontFamily } from '@/lib/builder-store';
+import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon, Type } from 'lucide-react';
 import images from '@/app/lib/placeholder-images.json';
 import { generateBlockContent } from '@/ai/flows/block-generator-flow';
 import { useToast } from '@/hooks/use-toast';
 
 type ElementType = 'title' | 'desc' | 'btn' | 'block';
+
+const FONT_MAP: Record<FontFamily, string> = {
+  sans: 'Inter, sans-serif',
+  serif: '"Playfair Display", serif',
+  mono: '"JetBrains Mono", monospace',
+  montserrat: 'Montserrat, sans-serif',
+  oswald: 'Oswald, sans-serif',
+  merriweather: 'Merriweather, serif',
+  bebas: '"Bebas Neue", cursive',
+  dancing: '"Dancing Script", cursive',
+  inter: 'Inter, sans-serif'
+};
 
 function BlockContentComponent({ block, onUpdate, onStartDrag }: { 
   block: PageBlock; 
@@ -21,14 +33,16 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
     color: styles.textColor,
     transform: `translate(${styles.titleX || 0}px, ${styles.titleY || 0}px)`,
     transition: 'none',
-    cursor: 'text'
+    cursor: 'text',
+    fontFamily: FONT_MAP[styles.fontFamily]
   };
 
   const descStyle = {
     color: styles.textColor,
     transform: `translate(${styles.descX || 0}px, ${styles.descY || 0}px)`,
     transition: 'none',
-    cursor: 'text'
+    cursor: 'text',
+    fontFamily: FONT_MAP[styles.fontFamily]
   };
 
   const btnStyle = {
@@ -36,7 +50,8 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
     color: styles.buttonTextColor,
     borderRadius: styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '0.75rem' : '0',
     transform: `translate(${styles.btnX || 0}px, ${styles.btnY || 0}px)`,
-    transition: 'none'
+    transition: 'none',
+    fontFamily: FONT_MAP[styles.buttonFontFamily || styles.fontFamily]
   };
 
   const bgStyle = styles.backgroundImage 
@@ -66,7 +81,7 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
   );
 
   return (
-    <div className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center font-${styles.fontFamily}`} style={bgStyle}>
+    <div className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center`} style={bgStyle}>
       {styles.backgroundImage && (
         <div 
           className="absolute inset-0 bg-black" 
@@ -269,6 +284,9 @@ export function BuilderCanvas() {
 
   return (
     <div className="flex-1 bg-muted/20 overflow-y-auto p-4 md:p-8 relative transition-all duration-500">
+      {/* Import Google Fonts for Preview */}
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
+      
       <div className={`${canvasWidth} mx-auto min-h-[85vh] bg-white shadow-2xl rounded-sm ring-1 ring-black/5 flex flex-col transition-all duration-500 ${mode !== 'landing' ? 'dark bg-slate-900 border border-white/10' : ''}`}>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="canvas">
@@ -399,12 +417,6 @@ export function BuilderCanvas() {
                                         />
                                         <div className="p-2 border rounded-lg bg-muted/50"><ImageIcon className="w-3 h-3" /></div>
                                       </div>
-                                      <div className="grid grid-cols-4 gap-1">
-                                        <button onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: '' } })} className={`h-8 border rounded flex items-center justify-center ${!block.styles.backgroundImage ? 'border-primary' : ''}`}><X className="w-3 h-3" /></button>
-                                        {images.slice(0, 3).map(img => (
-                                          <button key={img.id} onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: img.url } })} className={`h-8 border rounded overflow-hidden transition-transform hover:scale-105 ${block.styles.backgroundImage === img.url ? 'border-primary ring-1 ring-primary' : ''}`}><img src={img.url} className="w-full h-full object-cover" /></button>
-                                        ))}
-                                      </div>
                                     </div>
                                     <span className="text-[9px] text-muted-foreground mt-4 mb-1 block">Overlay Opacity: {(block.styles.overlayOpacity || 0) * 100}%</span>
                                     <input type="range" min="0" max="1" step="0.1" value={block.styles.overlayOpacity || 0} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, overlayOpacity: parseFloat(e.target.value) } })} className="w-full" />
@@ -415,13 +427,30 @@ export function BuilderCanvas() {
                               {activeTab === 'typo' && (
                                 <div className="space-y-4">
                                   <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Font Family</label>
-                                    <div className="grid grid-cols-3 gap-1">
-                                      {(['sans', 'serif', 'mono'] as const).map((f) => (
-                                        <button key={f} onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontFamily: f } })} className={`p-2 rounded text-[9px] border capitalize ${block.styles.fontFamily === f ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30'}`}>{f}</button>
+                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1"><Type className="w-3 h-3" /> Font Family</label>
+                                    <div className="grid grid-cols-2 gap-1">
+                                      {(['inter', 'playfair', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
+                                        <button 
+                                          key={f} 
+                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontFamily: f as any } })} 
+                                          className={`p-2 rounded text-[9px] border capitalize transition-all ${block.styles.fontFamily === f ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30 hover:bg-secondary/50'}`}
+                                          style={{ fontFamily: FONT_MAP[f as any] }}
+                                        >
+                                          {f}
+                                        </button>
                                       ))}
                                     </div>
                                   </div>
+                                  
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Font Size</label>
+                                    <div className="grid grid-cols-3 gap-1">
+                                      {(['normal', 'large', 'huge'] as const).map((s) => (
+                                        <button key={s} onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontSize: s } })} className={`p-2 rounded text-[9px] border capitalize ${block.styles.fontSize === s ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30'}`}>{s}</button>
+                                      ))}
+                                    </div>
+                                  </div>
+
                                   <div className="space-y-2">
                                     <label className="text-[10px] uppercase font-bold text-muted-foreground block">Position Controls</label>
                                     <button onClick={() => updateBlock(block.id, { styles: { ...block.styles, translateX: 0, translateY: 0, titleX: 0, titleY: 0, descX: 0, descY: 0, btnX: 0, btnY: 0 } })} className="flex items-center justify-between w-full bg-primary/10 p-2 rounded text-[9px] hover:bg-primary/20 text-primary font-bold">
@@ -443,6 +472,23 @@ export function BuilderCanvas() {
                                       <input type="color" value={block.styles.buttonTextColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonTextColor: e.target.value } })} className="w-full h-8 rounded-lg cursor-pointer bg-transparent border" />
                                     </div>
                                   </div>
+                                  
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Button Font</label>
+                                    <div className="grid grid-cols-2 gap-1">
+                                      {(['inter', 'playfair', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
+                                        <button 
+                                          key={f} 
+                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, buttonFontFamily: f as any } })} 
+                                          className={`p-2 rounded text-[9px] border capitalize ${block.styles.buttonFontFamily === f ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30'}`}
+                                          style={{ fontFamily: FONT_MAP[f as any] }}
+                                        >
+                                          {f}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
                                   <div className="space-y-2">
                                     <label className="text-[10px] uppercase font-bold text-muted-foreground block">Button Radius</label>
                                     <div className="grid grid-cols-3 gap-1">
