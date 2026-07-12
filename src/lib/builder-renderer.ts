@@ -71,7 +71,7 @@ function renderBlock(block: PageBlock): string {
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : 'border-radius: 0px;';
 
-  const containerStyle = `min-height: ${styles.minHeight || (type === 'header' ? '4rem' : 'auto')}; ${borderRadiusStyle} overflow: hidden; position: relative;`;
+  const containerStyle = `min-height: ${styles.minHeight || (type === 'header' ? '5rem' : 'auto')}; ${borderRadiusStyle} overflow: hidden; position: relative;`;
   
   const bgLayerStyle = styles.backgroundImage 
     ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; opacity: 1; ${borderRadiusStyle}`
@@ -95,7 +95,7 @@ function renderBlock(block: PageBlock): string {
               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="h-10 w-auto object-contain" style="${titleStyle}">` : `<div class="text-2xl font-black tracking-tighter" style="${titleStyle}">${safeTitle}</div>`}
             </div>
             <nav class="hidden md:flex items-center gap-8">
-              ${content.links?.map(l => `<a href="${l.url}" class="text-sm font-medium hover:opacity-70 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
+              ${content.links?.map(l => `<a href="${l.url}" class="text-sm font-bold hover:opacity-70 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
             </nav>
           </div>
         </header>

@@ -69,13 +69,13 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
 
   return (
     <div 
-      className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center transition-all duration-300 w-full`} 
+      className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center transition-all duration-300 w-full min-h-[4rem]`} 
       style={{ 
-        minHeight: styles.minHeight || (type === 'header' ? '4rem' : 'auto'),
+        minHeight: styles.minHeight || (type === 'header' ? '5rem' : 'auto'),
         borderRadius: styles.borderRadius || '0px'
       }}
     >
-      {/* Background Color Layer */}
+      {/* Background Layers */}
       <div 
         className="absolute inset-0 -z-10" 
         style={{ 
@@ -85,7 +85,6 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
         }} 
       />
 
-      {/* Background Image Layer */}
       {styles.backgroundImage && (
         <div 
           className="absolute inset-0 -z-20 bg-cover bg-center" 
@@ -96,7 +95,6 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
         />
       )}
 
-      {/* Overlay for Image */}
       {styles.backgroundImage && (
         <div 
           className="absolute inset-0 -z-10 bg-black" 
@@ -107,9 +105,9 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
         />
       )}
       
-      <div className="relative z-10 w-full" style={contentGroupStyle}>
+      <div className="relative z-10 w-full h-full flex items-center" style={contentGroupStyle}>
         {type === 'header' && (
-          <div className="max-w-6xl mx-auto px-6 flex items-center justify-between w-full h-full min-h-[4rem]">
+          <div className="max-w-6xl mx-auto px-6 flex items-center justify-between w-full">
              <div className="relative group/el flex items-center gap-3">
                 {renderDragHandle('title')}
                 {content.logoUrl ? (
@@ -119,14 +117,19 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
                     value={content.title} 
                     onChange={(e) => onUpdate({ title: e.target.value })} 
                     placeholder="Brand Name"
-                    className="bg-transparent border-none font-black text-2xl outline-none tracking-tighter hover:ring-1 hover:ring-primary/30 rounded px-2"
+                    className="bg-transparent border-none font-black text-2xl outline-none tracking-tighter hover:ring-1 hover:ring-primary/30 rounded px-2 transition-all"
                     style={titleStyle}
                   />
                 )}
              </div>
-             <nav className="hidden md:flex items-center gap-8">
+             <nav className="hidden md:flex items-center gap-6">
                {content.links?.map((link, idx) => (
-                 <a key={idx} href={link.url} className="text-sm font-medium opacity-80 hover:opacity-100 transition-opacity" style={{ fontFamily: FONT_MAP[styles.fontFamily], color: styles.textColor }}>
+                 <a 
+                   key={idx} 
+                   href={link.url} 
+                   className="text-sm font-bold opacity-80 hover:opacity-100 transition-opacity border-b border-transparent hover:border-current" 
+                   style={{ fontFamily: FONT_MAP[styles.fontFamily], color: styles.textColor }}
+                 >
                    {link.label}
                  </a>
                ))}
@@ -135,7 +138,7 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
         )}
 
         {(['hero', 'features', 'pricing', 'contacts'].includes(type)) && (
-          <div className="max-w-4xl mx-auto px-6 text-center space-y-8 flex flex-col items-center">
+          <div className="max-w-4xl mx-auto px-6 text-center space-y-8 flex flex-col items-center py-10 w-full">
             <div className="relative group/el inline-block w-full">
               {renderDragHandle('title')}
               <textarea 
@@ -173,17 +176,17 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
         )}
 
         {type === 'footer' && (
-          <div className="max-w-6xl mx-auto px-6 text-center py-10">
+          <div className="max-w-6xl mx-auto px-6 text-center py-12 w-full">
             <div className="relative group/el inline-block w-full">
               {renderDragHandle('title')}
               <input 
                 value={content.title} 
                 onChange={(e) => onUpdate({ title: e.target.value })} 
-                className="bg-transparent border-none text-[10px] font-bold uppercase tracking-[0.3em] opacity-60 outline-none w-full text-center"
+                className="bg-transparent border-none text-xs font-bold uppercase tracking-[0.3em] opacity-70 outline-none w-full text-center"
                 style={titleStyle}
               />
             </div>
-            <p className="text-xs opacity-40 mt-4" style={{ color: styles.textColor }}>&copy; {new Date().getFullYear()} Built with Web3 Cyber Builder</p>
+            <p className="text-[10px] opacity-40 mt-4 uppercase tracking-widest" style={{ color: styles.textColor }}>&copy; {new Date().getFullYear()} Built with Web3 Cyber Builder</p>
           </div>
         )}
       </div>
@@ -310,10 +313,10 @@ export function BuilderCanvas() {
   }, [dragging, blocks, updateBlock]);
 
   return (
-    <div className="flex-1 bg-muted/20 overflow-y-auto p-4 md:p-8 relative transition-all duration-500">
+    <div className="flex-1 bg-muted/20 overflow-y-auto p-4 md:p-12 relative transition-all duration-500">
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
       
-      <div className={`${canvasWidth} mx-auto min-h-[90vh] bg-white shadow-2xl rounded-sm ring-1 ring-black/5 flex flex-col transition-all duration-500 ${mode !== 'landing' ? 'dark bg-slate-900 border border-white/10' : ''}`}>
+      <div className={`${canvasWidth} mx-auto min-h-[90vh] bg-white shadow-2xl rounded-sm ring-1 ring-black/5 flex flex-col transition-all duration-500 overflow-hidden ${mode !== 'landing' ? 'dark bg-slate-900 border border-white/10' : ''}`}>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="canvas">
             {(provided) => (
@@ -338,9 +341,10 @@ export function BuilderCanvas() {
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        className={`group relative border-b last:border-b-0 border-slate-200 dark:border-slate-800 transition-all ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary scale-[1.01]' : ''}`}
+                        className={`group relative border-b last:border-b-0 border-slate-100 dark:border-slate-800 transition-all ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary scale-[1.01]' : ''}`}
                         style={provided.draggableProps.style as any}
                       >
+                        {/* Editor Controls Overlay */}
                         <div className="absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
                           <button 
                             onClick={() => handleAIGenerate(block)}
@@ -374,6 +378,9 @@ export function BuilderCanvas() {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
+
+                        {/* Block Border for visibility during editing */}
+                        <div className="absolute inset-0 border border-dashed border-primary/5 pointer-events-none group-hover:border-primary/20 transition-colors" />
 
                         {editingId === block.id && (
                           <div className="absolute right-4 top-16 w-80 bg-card/95 backdrop-blur-xl border rounded-[2rem] shadow-2xl p-0 z-50 max-h-[75vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
