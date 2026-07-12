@@ -6,12 +6,12 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Web3 Cyber Services",
+  title: "Web3CyberServices",
   description: "Secure and anonymous decentralized communication and tools",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Web3 Cyber",
+    title: "Web3CyberServices",
   },
   formatDetection: {
     telephone: false,

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -53,7 +52,6 @@ export default function ProtectPage() {
       </header>
 
       <main className="flex-1 max-w-6xl mx-auto w-full flex flex-col gap-12">
-        {/* Hero Section with Input */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-bold uppercase tracking-widest">
@@ -130,7 +128,6 @@ export default function ProtectPage() {
           </div>
         </section>
 
-        {/* Detailed Results Section */}
         {report && (
           <section className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
             <ResultCard 
@@ -159,7 +156,7 @@ export default function ProtectPage() {
       </main>
 
       <footer className="mt-auto text-center pb-8 opacity-40 text-[10px] uppercase tracking-[0.2em]">
-        Web3 Cyber Services &copy; 2026 • AI Audit Powered by Genkit
+        Web3CyberServices &copy; 2026 • AI Audit Powered by Genkit
       </footer>
     </div>
   );

@@ -123,7 +123,7 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
             <ShieldCheck className="w-10 h-10 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Web3 Chat</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Web3CyberServices</h1>
             <p className="text-muted-foreground mt-2">Private. Anonymous. Secure.</p>
           </div>
         </div>
@@ -206,7 +206,6 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
         </div>
       </div>
 
-      {/* Bottom Navigation */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-xl border border-border/50 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-40">
         <Link href="/" className="flex flex-col items-center gap-1 group">
           <div className="p-2 bg-primary/10 rounded-full group-hover:bg-primary/20 transition-all">
