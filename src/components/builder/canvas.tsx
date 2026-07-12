@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent, FontFamily } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon, Type } from 'lucide-react';
-import images from '@/app/lib/placeholder-images.json';
+import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon, Type, Link as LinkIcon, Plus } from 'lucide-react';
 import { generateBlockContent } from '@/ai/flows/block-generator-flow';
 import { useToast } from '@/hooks/use-toast';
 
@@ -105,6 +104,13 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
                   />
                 )}
              </div>
+             <nav className="hidden md:flex items-center gap-8">
+               {content.links?.map((link, idx) => (
+                 <span key={idx} className="text-sm font-medium opacity-80" style={{ fontFamily: FONT_MAP[styles.fontFamily], color: styles.textColor }}>
+                   {link.label}
+                 </span>
+               ))}
+             </nav>
           </div>
         )}
 
@@ -168,7 +174,7 @@ export function BuilderCanvas() {
   const { blocks, mode, viewport, reorderBlocks, removeBlock, updateBlock } = useBuilderStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'visual' | 'typo' | 'buttons'>('visual');
+  const [activeTab, setActiveTab] = useState<'visual' | 'typo' | 'buttons' | 'nav'>('visual');
   const { toast } = useToast();
 
   const [dragging, setDragging] = useState<{ 
@@ -284,7 +290,6 @@ export function BuilderCanvas() {
 
   return (
     <div className="flex-1 bg-muted/20 overflow-y-auto p-4 md:p-8 relative transition-all duration-500">
-      {/* Import Google Fonts for Preview */}
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
       
       <div className={`${canvasWidth} mx-auto min-h-[85vh] bg-white shadow-2xl rounded-sm ring-1 ring-black/5 flex flex-col transition-all duration-500 ${mode !== 'landing' ? 'dark bg-slate-900 border border-white/10' : ''}`}>
@@ -312,7 +317,6 @@ export function BuilderCanvas() {
                         className={`group relative border-b last:border-b-0 border-slate-200 dark:border-slate-800 ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary' : ''}`}
                         style={provided.draggableProps.style as any}
                       >
-                        {/* Block Toolbar */}
                         <div className="absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                           <button 
                             onClick={() => handleAIGenerate(block)}
@@ -330,7 +334,11 @@ export function BuilderCanvas() {
                             <Move className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => setEditingId(editingId === block.id ? null : block.id)}
+                            onClick={() => {
+                              setEditingId(editingId === block.id ? null : block.id);
+                              if (block.type === 'header') setActiveTab('nav');
+                              else setActiveTab('visual');
+                            }}
                             className={`p-2 bg-card shadow-md border rounded-lg hover:text-primary transition-colors ${editingId === block.id ? 'text-primary' : ''}`}
                           >
                             <Settings2 className="w-4 h-4" />
@@ -343,7 +351,6 @@ export function BuilderCanvas() {
                           </button>
                         </div>
 
-                        {/* Block Settings */}
                         {editingId === block.id && (
                           <div className="absolute right-4 top-16 w-80 bg-card border rounded-2xl shadow-2xl p-0 z-50 max-h-[70vh] flex flex-col overflow-hidden">
                             <div className="flex items-center justify-between p-4 border-b">
@@ -353,13 +360,70 @@ export function BuilderCanvas() {
                               <X className="w-3 h-3 cursor-pointer" onClick={() => setEditingId(null)} />
                             </div>
 
-                            <div className="flex border-b bg-muted/20">
-                              <button onClick={() => setActiveTab('visual')} className={`flex-1 py-2 text-[9px] font-bold uppercase border-b-2 transition-colors ${activeTab === 'visual' ? 'border-primary text-primary' : 'border-transparent opacity-50'}`}>Visual</button>
-                              <button onClick={() => setActiveTab('typo')} className={`flex-1 py-2 text-[9px] font-bold uppercase border-b-2 transition-colors ${activeTab === 'typo' ? 'border-primary text-primary' : 'border-transparent opacity-50'}`}>Text</button>
-                              <button onClick={() => setActiveTab('buttons')} className={`flex-1 py-2 text-[9px] font-bold uppercase border-b-2 transition-colors ${activeTab === 'buttons' ? 'border-primary text-primary' : 'border-transparent opacity-50'}`}>Buttons</button>
+                            <div className="flex border-b bg-muted/20 overflow-x-auto">
+                              {block.type === 'header' && (
+                                <button onClick={() => setActiveTab('nav')} className={`flex-1 py-2 px-3 text-[9px] font-bold uppercase border-b-2 transition-colors whitespace-nowrap ${activeTab === 'nav' ? 'border-primary text-primary' : 'border-transparent opacity-50'}`}>Navigation</button>
+                              )}
+                              <button onClick={() => setActiveTab('visual')} className={`flex-1 py-2 px-3 text-[9px] font-bold uppercase border-b-2 transition-colors whitespace-nowrap ${activeTab === 'visual' ? 'border-primary text-primary' : 'border-transparent opacity-50'}`}>Visual</button>
+                              <button onClick={() => setActiveTab('typo')} className={`flex-1 py-2 px-3 text-[9px] font-bold uppercase border-b-2 transition-colors whitespace-nowrap ${activeTab === 'typo' ? 'border-primary text-primary' : 'border-transparent opacity-50'}`}>Text</button>
+                              <button onClick={() => setActiveTab('buttons')} className={`flex-1 py-2 px-3 text-[9px] font-bold uppercase border-b-2 transition-colors whitespace-nowrap ${activeTab === 'buttons' ? 'border-primary text-primary' : 'border-transparent opacity-50'}`}>Buttons</button>
                             </div>
                             
                             <div className="p-4 overflow-y-auto space-y-6">
+                              {activeTab === 'nav' && block.type === 'header' && (
+                                <div className="space-y-4">
+                                  <label className="text-[10px] uppercase font-bold text-muted-foreground block">Links</label>
+                                  <div className="space-y-2">
+                                    {(block.content.links || []).map((link, lidx) => (
+                                      <div key={lidx} className="flex flex-col gap-2 p-3 bg-secondary/30 rounded-xl border">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[9px] font-bold text-muted-foreground">Link {lidx + 1}</span>
+                                          <button 
+                                            onClick={() => {
+                                              const newLinks = [...(block.content.links || [])];
+                                              newLinks.splice(lidx, 1);
+                                              updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                            }}
+                                            className="text-destructive hover:scale-110 transition-transform"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                        <input 
+                                          value={link.label} 
+                                          onChange={(e) => {
+                                            const newLinks = [...(block.content.links || [])];
+                                            newLinks[lidx].label = e.target.value;
+                                            updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                          }} 
+                                          placeholder="Label (e.g. About)"
+                                          className="bg-background border rounded p-1.5 text-[10px] outline-none"
+                                        />
+                                        <input 
+                                          value={link.url} 
+                                          onChange={(e) => {
+                                            const newLinks = [...(block.content.links || [])];
+                                            newLinks[lidx].url = e.target.value;
+                                            updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                          }} 
+                                          placeholder="URL (e.g. #block-id)"
+                                          className="bg-background border rounded p-1.5 text-[10px] outline-none font-mono"
+                                        />
+                                      </div>
+                                    ))}
+                                    <button 
+                                      onClick={() => {
+                                        const newLinks = [...(block.content.links || []), { label: 'New Link', url: '#' }];
+                                        updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                      }}
+                                      className="w-full py-2 border border-dashed rounded-xl flex items-center justify-center gap-2 text-[10px] font-bold hover:bg-primary/5 transition-colors"
+                                    >
+                                      <Plus className="w-3 h-3" /> Add Link
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
                               {activeTab === 'visual' && (
                                 <>
                                   <div className="space-y-2">
@@ -429,7 +493,7 @@ export function BuilderCanvas() {
                                   <div className="space-y-2">
                                     <label className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1"><Type className="w-3 h-3" /> Font Family</label>
                                     <div className="grid grid-cols-2 gap-1">
-                                      {(['inter', 'playfair', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
+                                      {(['inter', 'serif', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
                                         <button 
                                           key={f} 
                                           onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontFamily: f as any } })} 
@@ -476,7 +540,7 @@ export function BuilderCanvas() {
                                   <div className="space-y-2">
                                     <label className="text-[10px] uppercase font-bold text-muted-foreground block">Button Font</label>
                                     <div className="grid grid-cols-2 gap-1">
-                                      {(['inter', 'playfair', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
+                                      {(['inter', 'serif', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
                                         <button 
                                           key={f} 
                                           onClick={() => updateBlock(block.id, { styles: { ...block.styles, buttonFontFamily: f as any } })} 
@@ -503,7 +567,6 @@ export function BuilderCanvas() {
                           </div>
                         )}
 
-                        {/* Block Content Rendering Component */}
                         <BlockContentComponent 
                           block={block} 
                           onUpdate={(content) => updateBlock(block.id, { content })} 

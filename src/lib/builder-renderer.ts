@@ -29,7 +29,7 @@ function escapeHTML(str: string): string {
 }
 
 function renderBlock(block: PageBlock): string {
-  const { type, content, styles } = block;
+  const { type, content, styles, id } = block;
   const safeTitle = escapeHTML(content.title || '');
   const safeDesc = escapeHTML(content.description || '');
   const safeBtn = escapeHTML(content.buttonText || '');
@@ -66,8 +66,8 @@ function renderBlock(block: PageBlock): string {
   switch (type) {
     case 'header':
       return `
-        <header class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} color: ${styles.textColor};">
-          <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10" style="${contentGroupStyle}">
+        <header id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} color: ${styles.textColor};">
+          <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10 w-full" style="${contentGroupStyle}">
             <div class="flex items-center gap-3">
               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="h-8 w-auto object-contain" style="${titleStyle}">` : `<div class="text-2xl font-black tracking-tighter" style="${titleStyle}">${safeTitle}</div>`}
             </div>
@@ -78,44 +78,23 @@ function renderBlock(block: PageBlock): string {
         </header>
       `;
     case 'hero':
+    case 'features':
+    case 'pricing':
+    case 'contacts':
       return `
-        <section class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} overflow: hidden;">
+        <section id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} overflow: hidden;">
           ${overlay}
-          <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col gap-8" style="${contentGroupStyle}">
+          <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col gap-8 w-full" style="${contentGroupStyle}">
             <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight transition-transform" style="${titleStyle}">${safeTitle}</h1>
             <p class="text-xl leading-relaxed max-w-2xl mx-auto transition-transform" style="${descStyle}">${safeDesc}</p>
             ${safeBtn ? `<div class="mt-4"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
       `;
-    case 'features':
-      return `
-        <section class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} overflow: hidden;">
-          ${overlay}
-          <div class="relative max-w-6xl mx-auto px-6 z-10 text-center" style="${contentGroupStyle}">
-            <h2 class="text-4xl font-bold mb-16 transition-transform" style="${titleStyle}">${safeTitle}</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-10 transition-transform" style="${descStyle}">
-              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 text-white">
-                <h3 class="font-bold text-2xl mb-4">Innovation</h3>
-                <p class="opacity-80 leading-relaxed">Next generation technology built for scale and security.</p>
-              </div>
-              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 text-white">
-                <h3 class="font-bold text-2xl mb-4">Privacy</h3>
-                <p class="opacity-80 leading-relaxed">Your data remains yours with end-to-end encryption.</p>
-              </div>
-              <div class="p-10 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 text-white">
-                <h3 class="font-bold text-2xl mb-4">Speed</h3>
-                <p class="opacity-80 leading-relaxed">Lightning-fast user experiences globally.</p>
-              </div>
-            </div>
-            ${safeBtn ? `<div class="mt-12"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
-          </div>
-        </section>
-      `;
     case 'footer':
       return `
-        <footer class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} color: ${styles.textColor};">
-          <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10" style="${contentGroupStyle}">
+        <footer id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} color: ${styles.textColor};">
+          <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10 w-full" style="${contentGroupStyle}">
             <div>
               <div class="text-xl font-bold mb-4" style="${titleStyle}">${safeTitle}</div>
               <p class="opacity-60 text-sm max-w-xs" style="${descStyle}">${safeDesc}</p>
@@ -144,7 +123,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; overflow-x: hidden; scroll-behavior: smooth; }
         section, header, footer { position: relative; }
     </style>
 </head>
