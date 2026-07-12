@@ -1,11 +1,10 @@
-
 'use client';
 
 import React from 'react';
 import { 
   Layout, Type, CreditCard, Mail, Plus, 
   Terminal, Database, Wrench, 
-  Hash, List, Zap, PanelTop, PanelBottom 
+  Hash, List, Zap, PanelTop, PanelBottom, HelpCircle, UserCheck, ImageIcon 
 } from 'lucide-react';
 import { useBuilderStore, BlockType, BuilderMode } from '@/lib/builder-store';
 
@@ -14,6 +13,9 @@ const TEMPLATES: Record<NonNullable<BuilderMode>, { type: BlockType; label: stri
     { type: 'header', label: 'Header', icon: PanelTop },
     { type: 'hero', label: 'Hero Section', icon: Layout },
     { type: 'features', label: 'Features', icon: Type },
+    { type: 'faq', label: 'FAQ', icon: HelpCircle },
+    { type: 'testimonials', label: 'Testimonials', icon: UserCheck },
+    { type: 'gallery', label: 'Image Gallery', icon: ImageIcon },
     { type: 'pricing', label: 'Pricing Table', icon: CreditCard },
     { type: 'contacts', label: 'Contact Us', icon: Mail },
     { type: 'footer', label: 'Footer', icon: PanelBottom },
@@ -31,7 +33,7 @@ const TEMPLATES: Record<NonNullable<BuilderMode>, { type: BlockType; label: stri
 };
 
 export function BuilderSidebar() {
-  const { mode, addBlock } = useBuilderStore();
+  const { mode, addBlock, botToken, setBotToken } = useBuilderStore();
   
   if (!mode) return null;
   const currentTemplates = TEMPLATES[mode];
@@ -40,8 +42,21 @@ export function BuilderSidebar() {
     <div className="w-64 bg-card border-r flex flex-col h-full">
       <div className="p-4 border-b">
         <h2 className="font-bold text-lg">Blocks</h2>
-        <p className="text-xs text-muted-foreground">Context: {mode.toUpperCase()}</p>
+        <p className="text-xs text-muted-foreground">Workspace: {mode.toUpperCase()}</p>
       </div>
+      
+      {mode === 'bot' && (
+        <div className="p-4 border-b bg-primary/5">
+          <label className="text-[10px] uppercase font-bold text-primary mb-2 block">Bot Token</label>
+          <input 
+            value={botToken}
+            onChange={(e) => setBotToken(e.target.value)}
+            placeholder="72841..."
+            className="w-full bg-background border border-primary/20 rounded-lg p-2 text-xs outline-none"
+          />
+        </div>
+      )}
+
       <div className="p-4 grid grid-cols-1 gap-3 overflow-y-auto">
         {currentTemplates.map((block) => (
           <button
@@ -56,10 +71,6 @@ export function BuilderSidebar() {
             <Plus className="ml-auto w-4 h-4 opacity-0 group-hover:opacity-100" />
           </button>
         ))}
-      </div>
-      <div className="mt-auto p-4 bg-primary/5 border-t">
-        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Workspace Ready</p>
-        <p className="text-[10px] text-muted-foreground mt-1">AI-assisted generation is active.</p>
       </div>
     </div>
   );
