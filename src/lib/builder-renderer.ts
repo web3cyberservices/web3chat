@@ -28,6 +28,23 @@ function escapeHTML(str: string): string {
   }[m] as string));
 }
 
+function hexToRgba(hex: string, opacity: number): string {
+  let r = 0, g = 0, b = 0;
+  // 3 digits
+  if (hex.length === 4) {
+    r = parseInt(hex[1] + hex[1], 16);
+    g = parseInt(hex[2] + hex[2], 16);
+    b = parseInt(hex[3] + hex[3], 16);
+  }
+  // 6 digits
+  else if (hex.length === 7) {
+    r = parseInt(hex.substring(1, 3), 16);
+    g = parseInt(hex.substring(3, 5), 16);
+    b = parseInt(hex.substring(5, 7), 16);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 function renderBlock(block: PageBlock): string {
   const { type, content, styles, id } = block;
   const safeTitle = escapeHTML(content.title || '');
@@ -51,22 +68,27 @@ function renderBlock(block: PageBlock): string {
     full: 'rounded-full'
   }[styles.buttonRadius || 'full'];
 
-  const bgStyle = styles.backgroundImage 
-    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; min-height: ${styles.minHeight || 'auto'};`
-    : `background-color: ${styles.backgroundColor}; min-height: ${styles.minHeight || 'auto'};`;
+  const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
+  const borderRadiusStyle = `border-radius: ${styles.borderRadius || '0px'};`;
+
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} overflow: hidden;`;
+  const bgLayerStyle = styles.backgroundImage 
+    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; ${borderRadiusStyle}`
+    : `background-color: ${bgRgba}; ${borderRadiusStyle}`;
 
   const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${btnFontStack}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px);`;
   const titleStyle = `color: ${styles.textColor}; font-family: ${fontStack}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px);`;
   const descStyle = `color: ${styles.textColor}; font-family: ${fontStack}; opacity: 0.9; transform: translate(${styles.descX || 0}px, ${styles.descY || 0}px);`;
 
-  const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black" style="opacity: ${styles.overlayOpacity || 0.4}"></div>` : '';
+  const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black" style="opacity: ${styles.overlayOpacity || 0.4}; ${borderRadiusStyle}"></div>` : '';
   
   const contentGroupStyle = `transform: translate(${styles.translateX || 0}px, ${styles.translateY || 0}px);`;
 
   switch (type) {
     case 'header':
       return `
-        <header id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} color: ${styles.textColor};">
+        <header id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${containerStyle} color: ${styles.textColor};">
+          <div class="absolute inset-0 -z-10" style="${bgLayerStyle}"></div>
           <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10 w-full" style="${contentGroupStyle}">
             <div class="flex items-center gap-3">
               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="h-8 w-auto object-contain" style="${titleStyle}">` : `<div class="text-2xl font-black tracking-tighter" style="${titleStyle}">${safeTitle}</div>`}
@@ -82,7 +104,8 @@ function renderBlock(block: PageBlock): string {
     case 'pricing':
     case 'contacts':
       return `
-        <section id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} overflow: hidden;">
+        <section id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${containerStyle}">
+          <div class="absolute inset-0 -z-10" style="${bgLayerStyle}"></div>
           ${overlay}
           <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col gap-8 w-full" style="${contentGroupStyle}">
             <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight transition-transform" style="${titleStyle}">${safeTitle}</h1>
@@ -93,7 +116,8 @@ function renderBlock(block: PageBlock): string {
       `;
     case 'footer':
       return `
-        <footer id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${bgStyle} color: ${styles.textColor};">
+        <footer id="${id}" class="relative flex flex-col justify-center ${styles.padding}" style="${containerStyle} color: ${styles.textColor};">
+          <div class="absolute inset-0 -z-10" style="${bgLayerStyle}"></div>
           <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10 w-full" style="${contentGroupStyle}">
             <div>
               <div class="text-xl font-bold mb-4" style="${titleStyle}">${safeTitle}</div>

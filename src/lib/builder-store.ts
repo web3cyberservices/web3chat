@@ -22,6 +22,8 @@ export interface BlockStyles {
   fontSize: 'normal' | 'large' | 'huge';
   overlayOpacity?: number;
   minHeight: string;
+  backgroundOpacity?: number;
+  borderRadius?: string;
   // Positioning for elements
   titleX: number;
   titleY: number;
@@ -95,6 +97,8 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         fontFamily: 'sans',
         fontSize: 'normal',
         overlayOpacity: 0.4,
+        backgroundOpacity: 1,
+        borderRadius: '0px',
         titleX: 0, titleY: 0,
         descX: 0, descY: 0,
         btnX: 0, btnY: 0,

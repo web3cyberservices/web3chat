@@ -53,18 +53,6 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
     fontFamily: FONT_MAP[styles.buttonFontFamily || styles.fontFamily]
   };
 
-  const bgStyle = styles.backgroundImage 
-    ? { 
-        backgroundImage: `url(${styles.backgroundImage})`, 
-        backgroundSize: 'cover', 
-        backgroundPosition: 'center',
-        minHeight: styles.minHeight || 'auto'
-      }
-    : { 
-        backgroundColor: styles.backgroundColor,
-        minHeight: styles.minHeight || 'auto'
-      };
-
   const contentGroupStyle = {
     transform: `translate(${styles.translateX || 0}px, ${styles.translateY || 0}px)`,
   };
@@ -80,11 +68,44 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
   );
 
   return (
-    <div className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center`} style={bgStyle}>
+    <div 
+      className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center transition-all duration-300`} 
+      style={{ 
+        minHeight: styles.minHeight || 'auto',
+        borderRadius: styles.borderRadius || '0px'
+      }}
+    >
+      {/* Background Color Layer */}
+      {!styles.backgroundImage && (
+        <div 
+          className="absolute inset-0 -z-10" 
+          style={{ 
+            backgroundColor: styles.backgroundColor, 
+            opacity: styles.backgroundOpacity ?? 1,
+            borderRadius: styles.borderRadius || '0px'
+          }} 
+        />
+      )}
+
+      {/* Background Image Layer */}
       {styles.backgroundImage && (
         <div 
-          className="absolute inset-0 bg-black" 
-          style={{ opacity: styles.overlayOpacity || 0.4 }} 
+          className="absolute inset-0 -z-10 bg-cover bg-center" 
+          style={{ 
+            backgroundImage: `url(${styles.backgroundImage})`,
+            borderRadius: styles.borderRadius || '0px'
+          }} 
+        />
+      )}
+
+      {/* Overlay for Image */}
+      {styles.backgroundImage && (
+        <div 
+          className="absolute inset-0 -z-10 bg-black" 
+          style={{ 
+            opacity: styles.overlayOpacity || 0.4,
+            borderRadius: styles.borderRadius || '0px'
+          }} 
         />
       )}
       
@@ -441,6 +462,26 @@ export function BuilderCanvas() {
                                     </div>
                                   </div>
 
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Border Radius</label>
+                                    <div className="grid grid-cols-4 gap-1">
+                                      {[
+                                        { label: 'None', val: '0px' },
+                                        { label: 'Small', val: '12px' },
+                                        { label: 'Large', val: '32px' },
+                                        { label: 'Full', val: '9999px' }
+                                      ].map((r) => (
+                                        <button 
+                                          key={r.val}
+                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, borderRadius: r.val } })}
+                                          className={`p-2 rounded text-[9px] border transition-all ${block.styles.borderRadius === r.val ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30 border-transparent hover:bg-secondary/50'}`}
+                                        >
+                                          {r.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
                                   {block.type === 'header' && (
                                     <div className="space-y-2">
                                       <label className="text-[10px] uppercase font-bold text-muted-foreground block">Logo Image URL</label>
@@ -468,6 +509,11 @@ export function BuilderCanvas() {
                                       <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-8 rounded-lg cursor-pointer bg-transparent border" />
                                     </div>
                                   </div>
+
+                                  <div>
+                                    <span className="text-[9px] text-muted-foreground mt-2 mb-1 block uppercase font-bold">Background Opacity: {Math.round((block.styles.backgroundOpacity ?? 1) * 100)}%</span>
+                                    <input type="range" min="0" max="1" step="0.05" value={block.styles.backgroundOpacity ?? 1} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundOpacity: parseFloat(e.target.value) } })} className="w-full accent-primary" />
+                                  </div>
                                   
                                   <div>
                                     <span className="text-[9px] text-muted-foreground mb-2 block font-bold uppercase tracking-wider">Background Image</span>
@@ -482,7 +528,7 @@ export function BuilderCanvas() {
                                         <div className="p-2 border rounded-lg bg-muted/50"><ImageIcon className="w-3 h-3" /></div>
                                       </div>
                                     </div>
-                                    <span className="text-[9px] text-muted-foreground mt-4 mb-1 block">Overlay Opacity: {(block.styles.overlayOpacity || 0) * 100}%</span>
+                                    <span className="text-[9px] text-muted-foreground mt-4 mb-1 block">Overlay Opacity: {Math.round((block.styles.overlayOpacity || 0) * 100)}%</span>
                                     <input type="range" min="0" max="1" step="0.1" value={block.styles.overlayOpacity || 0} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, overlayOpacity: parseFloat(e.target.value) } })} className="w-full" />
                                   </div>
                                 </>
