@@ -4,32 +4,33 @@
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
+    --background: 240 10% 2%;
     --foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --popover: 240 10% 3.9%;
+    --muted: 240 3.7% 10%;
+    --muted-foreground: 240 5% 60%;
+    --popover: 240 10% 2%;
     --popover-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --card: 240 10% 3.9%;
+    --border: 240 3.7% 12%;
+    --input: 240 3.7% 12%;
+    --card: 240 10% 2%;
     --card-foreground: 0 0% 98%;
     --primary: 142 70% 50%;
-    --primary-foreground: 144 30% 10%;
-    --secondary: 240 3.7% 15.9%;
+    --primary-foreground: 144 30% 5%;
+    --secondary: 240 3.7% 12%;
     --secondary-foreground: 0 0% 98%;
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --ring: 142 70% 50%;
-    --radius: 1rem;
+    --radius: 1.25rem;
   }
 }
 
 body {
   @apply bg-background text-foreground antialiased selection:bg-primary/30;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  background-color: #020203;
 }
 
 * {
@@ -37,23 +38,60 @@ body {
 }
 
 .glass {
-  @apply bg-white/[0.03] backdrop-blur-xl border border-white/10;
+  @apply bg-white/[0.01] backdrop-blur-2xl border border-white/5;
+}
+
+.glass-morphism {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .glow-mesh {
   background-image: 
-    radial-gradient(at 0% 0%, hsla(142, 70%, 50%, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(240, 70%, 50%, 0.1) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, hsla(142, 70%, 50%, 0.1) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, hsla(240, 70%, 50%, 0.15) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, hsla(142, 70%, 50%, 0.12) 0px, transparent 40%),
+    radial-gradient(at 100% 0%, hsla(210, 70%, 50%, 0.08) 0px, transparent 40%),
+    radial-gradient(at 50% 50%, hsla(142, 70%, 50%, 0.05) 0px, transparent 50%);
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40;
+}
+
+.premium-border {
+  position: relative;
+}
+
+.premium-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.1), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
   @apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+  @apply bg-white/5 rounded-full hover:bg-white/10 transition-colors;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }
