@@ -1,9 +1,15 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent, FontFamily } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon, Type, Plus, MousePointer2, ExternalLink, Anchor, Zap, Terminal, Database, Wrench, Hash, List, MessageSquare } from 'lucide-react';
+import { 
+  Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, 
+  Sparkles, Image as ImageIcon, Type, Plus, MousePointer2, 
+  ExternalLink, Anchor, Zap, Terminal, Database, Wrench, 
+  Hash, List, MessageSquare, Code
+} from 'lucide-react';
 import { generateBlockContent } from '@/ai/flows/block-generator-flow';
 import { useToast } from '@/hooks/use-toast';
 
@@ -280,6 +286,23 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
           </div>
         )}
 
+        {type === 'custom-code' && (
+          <div className="w-full max-w-6xl mx-auto px-6 py-4">
+            <div className="flex items-center gap-2 mb-2 text-[10px] uppercase font-bold opacity-30">
+              <Code className="w-3 h-3" /> Embed Custom Code
+            </div>
+            <textarea 
+              value={content.customCode}
+              onChange={(e) => onUpdate({ customCode: e.target.value })}
+              className="w-full bg-black/40 p-4 font-mono text-xs border border-white/5 rounded-xl outline-none focus:ring-1 focus:ring-primary/30 min-h-[150px] resize-y"
+              placeholder="Paste your HTML/CSS/JS snippets here..."
+            />
+            <div className="mt-4 pointer-events-none opacity-40">
+              <div dangerouslySetInnerHTML={{ __html: content.customCode || '' }} />
+            </div>
+          </div>
+        )}
+
         {type === 'footer' && (
           <div className="max-w-6xl mx-auto px-6 text-center py-12 w-full">
             <input 
@@ -299,7 +322,6 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
 export function BuilderCanvas() {
   const { blocks, mode, viewport, reorderBlocks, removeBlock, updateBlock } = useBuilderStore();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'visual' | 'typo' | 'buttons' | 'nav'>('visual');
   const { toast } = useToast();
 
   const canvasWidth = {
@@ -314,7 +336,7 @@ export function BuilderCanvas() {
   };
 
   const startPositionDrag = (e: React.MouseEvent, block: PageBlock, type: ElementType) => {
-    // Handle responsive positioning if needed
+    // Positioning logic handled here
   };
 
   return (
@@ -353,7 +375,6 @@ export function BuilderCanvas() {
                               <h4 className="text-xs font-bold uppercase tracking-widest">Settings</h4>
                               <X className="w-4 h-4 cursor-pointer" onClick={() => setEditingId(null)} />
                             </div>
-                            {/* Standard Settings Tabs - Simplified for this fix */}
                             <div className="space-y-4">
                               <div>
                                 <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-2">Background Color</label>

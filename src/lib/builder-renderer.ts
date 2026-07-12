@@ -1,3 +1,4 @@
+
 import { PageBlock, FontFamily } from './builder-store';
 
 /**
@@ -30,14 +31,11 @@ function escapeHTML(str: string): string {
 
 function hexToRgba(hex: string, opacity: number): string {
   let r = 0, g = 0, b = 0;
-  // 3 digits
   if (hex.length === 4) {
     r = parseInt(hex[1] + hex[1], 16);
     g = parseInt(hex[2] + hex[2], 16);
     b = parseInt(hex[3] + hex[3], 16);
-  }
-  // 6 digits
-  else if (hex.length === 7) {
+  } else if (hex.length === 7) {
     r = parseInt(hex.substring(1, 3), 16);
     g = parseInt(hex.substring(3, 5), 16);
     b = parseInt(hex.substring(5, 7), 16);
@@ -109,6 +107,9 @@ function renderBlock(block: PageBlock): string {
     case 'features':
     case 'pricing':
     case 'contacts':
+    case 'faq':
+    case 'testimonials':
+    case 'gallery':
       return `
         <section id="${id}" class="relative flex flex-col justify-center ${styles.padding} w-full" style="${containerStyle}">
           ${styles.backgroundImage ? `<div class="absolute inset-0 pointer-events-none" style="${bgImageStyle}"></div>` : ''}
@@ -119,6 +120,12 @@ function renderBlock(block: PageBlock): string {
             ${safeBtn ? `<div class="mt-4"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
+      `;
+    case 'custom-code':
+      return `
+        <div id="${id}" class="w-full">
+          ${content.customCode || ''}
+        </div>
       `;
     case 'footer':
       return `

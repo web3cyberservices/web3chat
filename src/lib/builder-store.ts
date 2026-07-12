@@ -1,10 +1,11 @@
+
 import { create } from 'zustand';
 
 export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | null;
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
 export type BlockType = 
-  | 'header' | 'hero' | 'features' | 'pricing' | 'contacts' | 'footer' | 'faq' | 'testimonials' | 'gallery' // Landing
+  | 'header' | 'hero' | 'features' | 'pricing' | 'contacts' | 'footer' | 'faq' | 'testimonials' | 'gallery' | 'custom-code' // Landing
   | 'system-prompt' | 'knowledge' | 'tools'      // AI Agent
   | 'command' | 'menu' | 'reply';                // Bot
 
@@ -73,6 +74,7 @@ export interface BlockContent {
   faq?: FAQItem[];
   testimonials?: Testimonial[];
   gallery?: string[];
+  customCode?: string;
   // Agent/Bot specific
   systemPrompt?: string;
   knowledgeSources?: string[];
@@ -93,6 +95,9 @@ interface BuilderState {
   viewport: ViewportMode;
   blocks: PageBlock[];
   botToken: string;
+  past: PageBlock[][];
+  future: PageBlock[][];
+  
   setMode: (mode: BuilderMode) => void;
   setViewport: (viewport: ViewportMode) => void;
   setBotToken: (token: string) => void;
@@ -100,6 +105,8 @@ interface BuilderState {
   removeBlock: (id: string) => void;
   updateBlock: (id: string, updates: Partial<PageBlock>) => void;
   reorderBlocks: (startIndex: number, endIndex: number) => void;
+  undo: () => void;
+  redo: () => void;
   reset: () => void;
 }
 
@@ -108,10 +115,36 @@ export const useBuilderStore = create<BuilderState>((set) => ({
   viewport: 'desktop',
   blocks: [],
   botToken: '',
-  setMode: (mode) => set({ mode, blocks: [], botToken: '' }),
+  past: [],
+  future: [],
+
+  setMode: (mode) => set({ mode, blocks: [], botToken: '', past: [], future: [] }),
   setViewport: (viewport) => set({ viewport }),
   setBotToken: (botToken) => set({ botToken }),
-  reset: () => set({ mode: null, blocks: [], botToken: '' }),
+  reset: () => set({ mode: null, blocks: [], botToken: '', past: [], future: [] }),
+
+  undo: () => set((state) => {
+    if (state.past.length === 0) return state;
+    const previous = state.past[state.past.length - 1];
+    const newPast = state.past.slice(0, state.past.length - 1);
+    return {
+      past: newPast,
+      blocks: previous,
+      future: [state.blocks, ...state.future]
+    };
+  }),
+
+  redo: () => set((state) => {
+    if (state.future.length === 0) return state;
+    const next = state.future[0];
+    const newFuture = state.future.slice(1);
+    return {
+      past: [...state.past, state.blocks],
+      blocks: next,
+      future: newFuture
+    };
+  }),
+
   addBlock: (type) => set((state) => {
     const isHeaderFooter = type === 'header' || type === 'footer';
     const isSpecialMode = state.mode === 'ai-agent' || state.mode === 'bot';
@@ -143,19 +176,38 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       },
       content: getDefaultContent(type, state.mode)
     };
-    return { blocks: [...state.blocks, newBlock] };
+    
+    return { 
+      past: [...state.past, state.blocks],
+      blocks: [...state.blocks, newBlock],
+      future: []
+    };
   }),
+
   removeBlock: (id) => set((state) => ({
-    blocks: state.blocks.filter(b => b.id !== id)
+    past: [...state.past, state.blocks],
+    blocks: state.blocks.filter(b => b.id !== id),
+    future: []
   })),
-  updateBlock: (id, updates) => set((state) => ({
-    blocks: state.blocks.map(b => b.id === id ? { ...b, ...updates } : b)
-  })),
+
+  updateBlock: (id, updates) => set((state) => {
+    const newBlocks = state.blocks.map(b => b.id === id ? { ...b, ...updates } : b);
+    return { 
+      blocks: newBlocks,
+      // We don't save every keystroke to history to avoid bloating
+      // Only major updates should trigger history save if needed
+    };
+  }),
+
   reorderBlocks: (startIndex, endIndex) => set((state) => {
     const result = Array.from(state.blocks);
     const [removed] = result.splice(startIndex, 1);
     result.splice(endIndex, 0, removed);
-    return { blocks: result };
+    return { 
+      past: [...state.past, state.blocks],
+      blocks: result,
+      future: []
+    };
   }),
 }));
 
@@ -166,6 +218,7 @@ function getDefaultContent(type: BlockType, mode: BuilderMode): BlockContent {
     case 'faq': return { title: 'Frequently Asked Questions', faq: [{question: 'How it works?', answer: 'It is simple...'}] };
     case 'testimonials': return { title: 'What clients say', testimonials: [{name: 'John Doe', role: 'CEO', text: 'Great service!', avatar: 'https://picsum.photos/seed/1/100/100'}] };
     case 'gallery': return { title: 'Our Work', gallery: ['https://picsum.photos/seed/g1/600/400', 'https://picsum.photos/seed/g2/600/400'] };
+    case 'custom-code': return { customCode: '<!-- Insert custom HTML here -->\n<div class="p-4 bg-primary/20 rounded-xl text-center">Custom Widget Area</div>' };
     case 'system-prompt': return { systemPrompt: 'You are a helpful assistant specialized in Web3...' };
     case 'knowledge': return { title: 'Knowledge Sources', knowledgeSources: ['https://docs.example.com', 'Internal Handbook v1'] };
     case 'tools': return { title: 'Enabled Tools', tools: [{name: 'getWeather', description: 'Fetch weather data', endpoint: 'https://api.weather.com'}] };

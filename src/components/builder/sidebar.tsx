@@ -1,9 +1,10 @@
+
 'use client';
 
 import React from 'react';
 import { 
   Layout, Type, CreditCard, Mail, Plus, 
-  Terminal, Database, Wrench, 
+  Terminal, Database, Wrench, Code,
   Hash, List, Zap, PanelTop, PanelBottom, HelpCircle, UserCheck, ImageIcon 
 } from 'lucide-react';
 import { useBuilderStore, BlockType, BuilderMode } from '@/lib/builder-store';
@@ -19,6 +20,7 @@ const TEMPLATES: Record<NonNullable<BuilderMode>, { type: BlockType; label: stri
     { type: 'pricing', label: 'Pricing Table', icon: CreditCard },
     { type: 'contacts', label: 'Contact Us', icon: Mail },
     { type: 'footer', label: 'Footer', icon: PanelBottom },
+    { type: 'custom-code', label: 'Custom Code', icon: Code },
   ],
   'ai-agent': [
     { type: 'system-prompt', label: 'System Prompt', icon: Terminal },
@@ -39,7 +41,7 @@ export function BuilderSidebar() {
   const currentTemplates = TEMPLATES[mode];
 
   return (
-    <div className="w-64 bg-card border-r flex flex-col h-full">
+    <div className="w-64 bg-card border-r flex flex-col h-full z-40">
       <div className="p-4 border-b">
         <h2 className="font-bold text-lg">Blocks</h2>
         <p className="text-xs text-muted-foreground">Workspace: {mode.toUpperCase()}</p>
