@@ -324,7 +324,7 @@ export function BuilderCanvas() {
     <div className="flex-1 bg-muted/20 overflow-y-auto p-4 md:p-12 relative transition-all duration-500">
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
       
-      <div className={`${canvasWidth} mx-auto min-h-[90vh] bg-white shadow-2xl rounded-sm ring-1 ring-black/5 flex flex-col transition-all duration-500 overflow-visible ${mode !== 'landing' ? 'dark bg-slate-900 border border-white/10' : ''}`}>
+      <div className={`${canvasWidth} mx-auto min-h-[90vh] bg-white shadow-2xl rounded-sm ring-1 ring-black/5 flex flex-col transition-all duration-500 overflow-visible relative ${mode !== 'landing' ? 'dark bg-slate-900 border border-white/10' : ''}`}>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="canvas">
             {(provided) => (
@@ -343,328 +343,332 @@ export function BuilderCanvas() {
                   </div>
                 )}
                 
-                {blocks.map((block, index) => (
-                  <Draggable key={block.id} draggableId={block.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className={`group relative border-b last:border-b-0 border-slate-100 dark:border-slate-800 transition-all ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary scale-[1.01]' : ''}`}
-                        style={provided.draggableProps.style as any}
-                      >
-                        {/* Editor Controls Overlay */}
-                        <div className="absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
-                          <button 
-                            onClick={() => handleAIGenerate(block)}
-                            disabled={isGenerating === block.id}
-                            className={`p-2 bg-card shadow-lg border rounded-xl hover:text-primary transition-all active:scale-95 ${isGenerating === block.id ? 'animate-pulse text-primary' : ''}`}
-                            title="AI Generate Content"
-                          >
-                            <Sparkles className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onMouseDown={(e) => startPositionDrag(e, block, 'block')}
-                            className="p-2 bg-card shadow-lg border rounded-xl cursor-move hover:text-primary transition-all active:scale-95"
-                            title="Move Block Container"
-                          >
-                            <Move className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setEditingId(editingId === block.id ? null : block.id);
-                              if (block.type === 'header') setActiveTab('nav');
-                              else setActiveTab('visual');
-                            }}
-                            className={`p-2 bg-card shadow-lg border rounded-xl hover:text-primary transition-all active:scale-95 ${editingId === block.id ? 'text-primary ring-1 ring-primary' : ''}`}
-                          >
-                            <Settings2 className="w-4 h-4" />
-                          </button>
-                          <div {...provided.dragHandleProps} className="p-2 bg-card shadow-lg border rounded-xl cursor-grab active:cursor-grabbing hover:bg-muted transition-colors">
-                            <GripVertical className="w-4 h-4 text-muted-foreground" />
+                {blocks.map((block, index) => {
+                  const isOverlayHeader = block.type === 'header' && block.styles.isOverlay;
+                  
+                  return (
+                    <Draggable key={block.id} draggableId={block.id} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={`group relative transition-all ${snapshot.isDragging ? 'shadow-2xl z-50 ring-2 ring-primary scale-[1.01]' : ''} ${isOverlayHeader ? 'h-0 z-40' : 'border-b last:border-b-0 border-slate-100 dark:border-slate-800'}`}
+                          style={provided.draggableProps.style as any}
+                        >
+                          {/* Editor Controls Overlay */}
+                          <div className={`absolute right-4 top-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-[60] ${isOverlayHeader ? 'translate-y-4' : ''}`}>
+                            <button 
+                              onClick={() => handleAIGenerate(block)}
+                              disabled={isGenerating === block.id}
+                              className={`p-2 bg-card shadow-lg border rounded-xl hover:text-primary transition-all active:scale-95 ${isGenerating === block.id ? 'animate-pulse text-primary' : ''}`}
+                              title="AI Generate Content"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onMouseDown={(e) => startPositionDrag(e, block, 'block')}
+                              className="p-2 bg-card shadow-lg border rounded-xl cursor-move hover:text-primary transition-all active:scale-95"
+                              title="Move Block Container"
+                            >
+                              <Move className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setEditingId(editingId === block.id ? null : block.id);
+                                if (block.type === 'header') setActiveTab('nav');
+                                else setActiveTab('visual');
+                              }}
+                              className={`p-2 bg-card shadow-lg border rounded-xl hover:text-primary transition-all active:scale-95 ${editingId === block.id ? 'text-primary ring-1 ring-primary' : ''}`}
+                            >
+                              <Settings2 className="w-4 h-4" />
+                            </button>
+                            <div {...provided.dragHandleProps} className="p-2 bg-card shadow-lg border rounded-xl cursor-grab active:cursor-grabbing hover:bg-muted transition-colors">
+                              <GripVertical className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                            <button onClick={() => removeBlock(block.id)} className="p-2 bg-card shadow-lg border rounded-xl hover:text-destructive hover:bg-destructive/5 transition-all active:scale-95">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                          <button onClick={() => removeBlock(block.id)} className="p-2 bg-card shadow-lg border rounded-xl hover:text-destructive hover:bg-destructive/5 transition-all active:scale-95">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
 
-                        {/* Block Border for visibility during editing */}
-                        <div className={`absolute inset-0 border border-dashed border-primary/5 pointer-events-none group-hover:border-primary/40 transition-colors ${editingId === block.id ? 'border-primary/60 border-2' : ''}`} />
+                          {/* Block Border for visibility during editing */}
+                          <div className={`absolute inset-0 border border-dashed border-primary/5 pointer-events-none group-hover:border-primary/40 transition-colors ${editingId === block.id ? 'border-primary/60 border-2' : ''} ${isOverlayHeader ? 'h-[5rem]' : ''}`} />
 
-                        {editingId === block.id && (
-                          <div className="fixed top-24 right-8 w-80 bg-card/95 backdrop-blur-xl border rounded-[2rem] shadow-2xl p-0 z-50 max-h-[75vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                            <div className="flex items-center justify-between p-5 border-b bg-muted/30">
-                              <h4 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                                <Palette className="w-3 h-3 text-primary" /> Block Settings
-                              </h4>
-                              <X className="w-4 h-4 cursor-pointer hover:rotate-90 transition-transform" onClick={() => setEditingId(null)} />
-                            </div>
+                          {editingId === block.id && (
+                            <div className="fixed top-24 right-8 w-80 bg-card/95 backdrop-blur-xl border rounded-[2rem] shadow-2xl p-0 z-[70] max-h-[75vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                              <div className="flex items-center justify-between p-5 border-b bg-muted/30">
+                                <h4 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                                  <Palette className="w-3 h-3 text-primary" /> Block Settings
+                                </h4>
+                                <X className="w-4 h-4 cursor-pointer hover:rotate-90 transition-transform" onClick={() => setEditingId(null)} />
+                              </div>
 
-                            <div className="flex border-b bg-muted/20 overflow-x-auto scrollbar-hide">
-                              {block.type === 'header' && (
-                                <button onClick={() => setActiveTab('nav')} className={`flex-1 py-3 px-4 text-[9px] font-bold uppercase border-b-2 transition-all whitespace-nowrap ${activeTab === 'nav' ? 'border-primary text-primary bg-primary/5' : 'border-transparent opacity-50 hover:opacity-100'}`}>Navigation</button>
-                              )}
-                              <button onClick={() => setActiveTab('visual')} className={`flex-1 py-3 px-4 text-[9px] font-bold uppercase border-b-2 transition-all whitespace-nowrap ${activeTab === 'visual' ? 'border-primary text-primary bg-primary/5' : 'border-transparent opacity-50 hover:opacity-100'}`}>Visual</button>
-                              <button onClick={() => setActiveTab('typo')} className={`flex-1 py-3 px-4 text-[9px] font-bold uppercase border-b-2 transition-all whitespace-nowrap ${activeTab === 'typo' ? 'border-primary text-primary bg-primary/5' : 'border-transparent opacity-50 hover:opacity-100'}`}>Text</button>
-                              <button onClick={() => setActiveTab('buttons')} className={`flex-1 py-3 px-4 text-[9px] font-bold uppercase border-b-2 transition-all whitespace-nowrap ${activeTab === 'buttons' ? 'border-primary text-primary bg-primary/5' : 'border-transparent opacity-50 hover:opacity-100'}`}>Buttons</button>
-                            </div>
-                            
-                            <div className="p-5 overflow-y-auto space-y-6">
-                              {activeTab === 'nav' && block.type === 'header' && (
-                                <div className="space-y-4">
-                                  <label className="text-[10px] uppercase font-bold text-muted-foreground block">Links</label>
-                                  <div className="space-y-2">
-                                    {(block.content.links || []).map((link, lidx) => (
-                                      <div key={lidx} className="flex flex-col gap-2 p-4 bg-secondary/30 rounded-2xl border border-border/50 group/link">
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Link {lidx + 1}</span>
-                                          <button 
-                                            onClick={() => {
+                              <div className="flex border-b bg-muted/20 overflow-x-auto scrollbar-hide">
+                                {block.type === 'header' && (
+                                  <button onClick={() => setActiveTab('nav')} className={`flex-1 py-3 px-4 text-[9px] font-bold uppercase border-b-2 transition-all whitespace-nowrap ${activeTab === 'nav' ? 'border-primary text-primary bg-primary/5' : 'border-transparent opacity-50 hover:opacity-100'}`}>Navigation</button>
+                                )}
+                                <button onClick={() => setActiveTab('visual')} className={`flex-1 py-3 px-4 text-[9px] font-bold uppercase border-b-2 transition-all whitespace-nowrap ${activeTab === 'visual' ? 'border-primary text-primary bg-primary/5' : 'border-transparent opacity-50 hover:opacity-100'}`}>Visual</button>
+                                <button onClick={() => setActiveTab('typo')} className={`flex-1 py-3 px-4 text-[9px] font-bold uppercase border-b-2 transition-all whitespace-nowrap ${activeTab === 'typo' ? 'border-primary text-primary bg-primary/5' : 'border-transparent opacity-50 hover:opacity-100'}`}>Text</button>
+                                <button onClick={() => setActiveTab('buttons')} className={`flex-1 py-3 px-4 text-[9px] font-bold uppercase border-b-2 transition-all whitespace-nowrap ${activeTab === 'buttons' ? 'border-primary text-primary bg-primary/5' : 'border-transparent opacity-50 hover:opacity-100'}`}>Buttons</button>
+                              </div>
+                              
+                              <div className="p-5 overflow-y-auto space-y-6">
+                                {activeTab === 'nav' && block.type === 'header' && (
+                                  <div className="space-y-4">
+                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Links</label>
+                                    <div className="space-y-2">
+                                      {(block.content.links || []).map((link, lidx) => (
+                                        <div key={lidx} className="flex flex-col gap-2 p-4 bg-secondary/30 rounded-2xl border border-border/50 group/link">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Link {lidx + 1}</span>
+                                            <button 
+                                              onClick={() => {
+                                                const newLinks = [...(block.content.links || [])];
+                                                newLinks.splice(lidx, 1);
+                                                updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                              }}
+                                              className="text-destructive hover:scale-125 transition-transform"
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                          <input 
+                                            value={link.label} 
+                                            onChange={(e) => {
                                               const newLinks = [...(block.content.links || [])];
-                                              newLinks.splice(lidx, 1);
+                                              newLinks[lidx].label = e.target.value;
                                               updateBlock(block.id, { content: { ...block.content, links: newLinks } });
-                                            }}
-                                            className="text-destructive hover:scale-125 transition-transform"
+                                            }} 
+                                            placeholder="Label (e.g. About)"
+                                            className="bg-background border rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-primary/50"
+                                          />
+                                          <input 
+                                            value={link.url} 
+                                            onChange={(e) => {
+                                              const newLinks = [...(block.content.links || [])];
+                                              newLinks[lidx].url = e.target.value;
+                                              updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                            }} 
+                                            placeholder="URL (e.g. #features)"
+                                            className="bg-background border rounded-lg p-2 text-xs outline-none font-mono focus:ring-1 focus:ring-primary/50"
+                                          />
+                                        </div>
+                                      ))}
+                                      <button 
+                                        onClick={() => {
+                                          const newLinks = [...(block.content.links || []), { label: 'New Link', url: '#' }];
+                                          updateBlock(block.id, { content: { ...block.content, links: newLinks } });
+                                        }}
+                                        className="w-full py-3 border border-dashed rounded-2xl flex items-center justify-center gap-2 text-[10px] font-bold hover:bg-primary/5 hover:border-primary transition-all group"
+                                      >
+                                        <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Menu Item
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {activeTab === 'visual' && (
+                                  <>
+                                    {block.type === 'header' && (
+                                      <div className="space-y-4 pt-2 border-t mt-2">
+                                        <label className="text-[10px] uppercase font-bold text-muted-foreground block">Header Behavior</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <button 
+                                            onClick={() => updateBlock(block.id, { styles: { ...block.styles, isSticky: !block.styles.isSticky } })}
+                                            className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-[10px] font-bold transition-all ${block.styles.isSticky ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-secondary/30 hover:bg-secondary/50'}`}
                                           >
-                                            <X className="w-3 h-3" />
+                                            <Anchor className="w-3.5 h-3.5" /> {block.styles.isSticky ? 'Sticky On' : 'Sticky Off'}
+                                          </button>
+                                          <button 
+                                            onClick={() => updateBlock(block.id, { styles: { ...block.styles, isOverlay: !block.styles.isOverlay } })}
+                                            className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-[10px] font-bold transition-all ${block.styles.isOverlay ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-secondary/30 hover:bg-secondary/50'}`}
+                                          >
+                                            <Zap className="w-3.5 h-3.5" /> {block.styles.isOverlay ? 'Overlay On' : 'Overlay Off'}
                                           </button>
                                         </div>
-                                        <input 
-                                          value={link.label} 
-                                          onChange={(e) => {
-                                            const newLinks = [...(block.content.links || [])];
-                                            newLinks[lidx].label = e.target.value;
-                                            updateBlock(block.id, { content: { ...block.content, links: newLinks } });
-                                          }} 
-                                          placeholder="Label (e.g. About)"
-                                          className="bg-background border rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-primary/50"
-                                        />
-                                        <input 
-                                          value={link.url} 
-                                          onChange={(e) => {
-                                            const newLinks = [...(block.content.links || [])];
-                                            newLinks[lidx].url = e.target.value;
-                                            updateBlock(block.id, { content: { ...block.content, links: newLinks } });
-                                          }} 
-                                          placeholder="URL (e.g. #features)"
-                                          className="bg-background border rounded-lg p-2 text-xs outline-none font-mono focus:ring-1 focus:ring-primary/50"
-                                        />
+                                        <p className="text-[9px] text-muted-foreground italic">Overlay makes header sit on top of next block. Sticky keeps it fixed when scrolling.</p>
                                       </div>
-                                    ))}
-                                    <button 
-                                      onClick={() => {
-                                        const newLinks = [...(block.content.links || []), { label: 'New Link', url: '#' }];
-                                        updateBlock(block.id, { content: { ...block.content, links: newLinks } });
-                                      }}
-                                      className="w-full py-3 border border-dashed rounded-2xl flex items-center justify-center gap-2 text-[10px] font-bold hover:bg-primary/5 hover:border-primary transition-all group"
-                                    >
-                                      <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Menu Item
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
+                                    )}
 
-                              {activeTab === 'visual' && (
-                                <>
-                                  {block.type === 'header' && (
-                                    <div className="space-y-4 pt-2 border-t mt-2">
-                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Header Behavior</label>
-                                      <div className="grid grid-cols-2 gap-2">
-                                        <button 
-                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, isSticky: !block.styles.isSticky } })}
-                                          className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-[10px] font-bold transition-all ${block.styles.isSticky ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-secondary/30 hover:bg-secondary/50'}`}
-                                        >
-                                          <Anchor className="w-3.5 h-3.5" /> {block.styles.isSticky ? 'Sticky On' : 'Sticky Off'}
-                                        </button>
-                                        <button 
-                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, isOverlay: !block.styles.isOverlay } })}
-                                          className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-[10px] font-bold transition-all ${block.styles.isOverlay ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-secondary/30 hover:bg-secondary/50'}`}
-                                        >
-                                          <Zap className="w-3.5 h-3.5" /> {block.styles.isOverlay ? 'Overlay On' : 'Overlay Off'}
-                                        </button>
-                                      </div>
-                                      <p className="text-[9px] text-muted-foreground italic">Overlay makes header sit on top of next block. Sticky keeps it fixed when scrolling.</p>
-                                    </div>
-                                  )}
-
-                                  <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Block Height</label>
-                                    <div className="grid grid-cols-4 gap-1">
-                                      {['auto', '50vh', '75vh', '100vh'].map((h) => (
-                                        <button 
-                                          key={h}
-                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, minHeight: h } })}
-                                          className={`p-2 rounded-lg text-[9px] border transition-all ${block.styles.minHeight === h ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30 border-transparent hover:bg-secondary/50'}`}
-                                        >
-                                          {h === 'auto' ? 'Auto' : h.replace('vh', '%')}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Block Radius</label>
-                                    <div className="grid grid-cols-4 gap-1">
-                                      {[
-                                        { label: 'None', val: '0px' },
-                                        { label: 'Small', val: '12px' },
-                                        { label: 'Large', val: '40px' },
-                                        { label: 'Full', val: '9999px' }
-                                      ].map((r) => (
-                                        <button 
-                                          key={r.val}
-                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, borderRadius: r.val } })}
-                                          className={`p-2 rounded-lg text-[9px] border transition-all ${block.styles.borderRadius === r.val ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30 border-transparent hover:bg-secondary/50'}`}
-                                        >
-                                          {r.label}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {block.type === 'header' && (
                                     <div className="space-y-2">
-                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Logo URL (Optional)</label>
-                                      <div className="flex gap-2">
-                                        <input 
-                                          value={block.content.logoUrl || ''} 
-                                          onChange={(e) => updateBlock(block.id, { content: { ...block.content, logoUrl: e.target.value } })} 
-                                          placeholder="https://example.com/logo.png"
-                                          className="flex-1 bg-background border rounded-xl p-2.5 text-[10px] outline-none"
-                                        />
-                                        {block.content.logoUrl && (
-                                          <button onClick={() => updateBlock(block.id, { content: { ...block.content, logoUrl: '' } })} className="p-2 border rounded-xl hover:text-destructive"><X className="w-4 h-4" /></button>
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Block Height</label>
+                                      <div className="grid grid-cols-4 gap-1">
+                                        {['auto', '50vh', '75vh', '100vh'].map((h) => (
+                                          <button 
+                                            key={h}
+                                            onClick={() => updateBlock(block.id, { styles: { ...block.styles, minHeight: h } })}
+                                            className={`p-2 rounded-lg text-[9px] border transition-all ${block.styles.minHeight === h ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30 border-transparent hover:bg-secondary/50'}`}
+                                          >
+                                            {h === 'auto' ? 'Auto' : h.replace('vh', '%')}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Block Radius</label>
+                                      <div className="grid grid-cols-4 gap-1">
+                                        {[
+                                          { label: 'None', val: '0px' },
+                                          { label: 'Small', val: '12px' },
+                                          { label: 'Large', val: '40px' },
+                                          { label: 'Full', val: '9999px' }
+                                        ].map((r) => (
+                                          <button 
+                                            key={r.val}
+                                            onClick={() => updateBlock(block.id, { styles: { ...block.styles, borderRadius: r.val } })}
+                                            className={`p-2 rounded-lg text-[9px] border transition-all ${block.styles.borderRadius === r.val ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/30 border-transparent hover:bg-secondary/50'}`}
+                                          >
+                                            {r.label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {block.type === 'header' && (
+                                      <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-bold text-muted-foreground block">Logo URL (Optional)</label>
+                                        <div className="flex gap-2">
+                                          <input 
+                                            value={block.content.logoUrl || ''} 
+                                            onChange={(e) => updateBlock(block.id, { content: { ...block.content, logoUrl: e.target.value } })} 
+                                            placeholder="https://example.com/logo.png"
+                                            className="flex-1 bg-background border rounded-xl p-2.5 text-[10px] outline-none"
+                                          />
+                                          {block.content.logoUrl && (
+                                            <button onClick={() => updateBlock(block.id, { content: { ...block.content, logoUrl: '' } })} className="p-2 border rounded-xl hover:text-destructive"><X className="w-4 h-4" /></button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Background</span>
+                                        <input type="color" value={block.styles.backgroundColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })} className="w-full h-10 rounded-xl cursor-pointer bg-transparent border p-1" />
+                                      </div>
+                                      <div>
+                                        <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Text Color</span>
+                                        <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-10 rounded-xl cursor-pointer bg-transparent border p-1" />
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <span className="text-[9px] text-muted-foreground mt-2 mb-1 block uppercase font-bold">Background Opacity: {Math.round((block.styles.backgroundOpacity ?? 1) * 100)}%</span>
+                                      <input type="range" min="0" max="1" step="0.05" value={block.styles.backgroundOpacity ?? 1} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundOpacity: parseFloat(e.target.value) } })} className="w-full accent-primary h-1.5 bg-muted rounded-full" />
+                                    </div>
+                                    
+                                    <div className="pt-2 border-t mt-4">
+                                      <span className="text-[9px] text-muted-foreground mb-2 block font-bold uppercase tracking-wider">Background Image</span>
+                                      <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                          <input 
+                                            value={block.styles.backgroundImage || ''} 
+                                            onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: e.target.value } })} 
+                                            placeholder="https://picsum.photos/seed/..."
+                                            className="flex-1 bg-background border rounded-xl p-2.5 text-[10px] outline-none"
+                                          />
+                                          <div className="p-2.5 border rounded-xl bg-muted/50"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>
+                                        </div>
+                                        {block.styles.backgroundImage && (
+                                          <>
+                                            <span className="text-[9px] text-muted-foreground mb-1 block uppercase font-bold">Image Overlay: {Math.round((block.styles.overlayOpacity || 0) * 100)}%</span>
+                                            <input type="range" min="0" max="1" step="0.1" value={block.styles.overlayOpacity || 0} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, overlayOpacity: parseFloat(e.target.value) } })} className="w-full accent-primary h-1.5 bg-muted rounded-full" />
+                                          </>
                                         )}
                                       </div>
                                     </div>
-                                  )}
+                                  </>
+                                )}
 
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Background</span>
-                                      <input type="color" value={block.styles.backgroundColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })} className="w-full h-10 rounded-xl cursor-pointer bg-transparent border p-1" />
-                                    </div>
-                                    <div>
-                                      <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Text Color</span>
-                                      <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-10 rounded-xl cursor-pointer bg-transparent border p-1" />
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <span className="text-[9px] text-muted-foreground mt-2 mb-1 block uppercase font-bold">Background Opacity: {Math.round((block.styles.backgroundOpacity ?? 1) * 100)}%</span>
-                                    <input type="range" min="0" max="1" step="0.05" value={block.styles.backgroundOpacity ?? 1} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundOpacity: parseFloat(e.target.value) } })} className="w-full accent-primary h-1.5 bg-muted rounded-full" />
-                                  </div>
-                                  
-                                  <div className="pt-2 border-t mt-4">
-                                    <span className="text-[9px] text-muted-foreground mb-2 block font-bold uppercase tracking-wider">Background Image</span>
-                                    <div className="space-y-3">
-                                      <div className="flex gap-2">
-                                        <input 
-                                          value={block.styles.backgroundImage || ''} 
-                                          onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: e.target.value } })} 
-                                          placeholder="https://picsum.photos/seed/..."
-                                          className="flex-1 bg-background border rounded-xl p-2.5 text-[10px] outline-none"
-                                        />
-                                        <div className="p-2.5 border rounded-xl bg-muted/50"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>
+                                {activeTab === 'typo' && (
+                                  <div className="space-y-4">
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1"><Type className="w-3 h-3" /> Font Family</label>
+                                      <div className="grid grid-cols-2 gap-1.5">
+                                        {(['inter', 'serif', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
+                                          <button 
+                                            key={f} 
+                                            onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontFamily: f as any } })} 
+                                            className={`p-2.5 rounded-xl border capitalize transition-all ${block.styles.fontFamily === f ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-secondary/30 hover:bg-secondary/50 border-transparent'}`}
+                                            style={{ fontFamily: FONT_MAP[f as any] }}
+                                          >
+                                            {f}
+                                          </button>
+                                        ))}
                                       </div>
-                                      {block.styles.backgroundImage && (
-                                        <>
-                                          <span className="text-[9px] text-muted-foreground mb-1 block uppercase font-bold">Image Overlay: {Math.round((block.styles.overlayOpacity || 0) * 100)}%</span>
-                                          <input type="range" min="0" max="1" step="0.1" value={block.styles.overlayOpacity || 0} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, overlayOpacity: parseFloat(e.target.value) } })} className="w-full accent-primary h-1.5 bg-muted rounded-full" />
-                                        </>
-                                      )}
                                     </div>
-                                  </div>
-                                </>
-                              )}
+                                    
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Font Size</label>
+                                      <div className="grid grid-cols-3 gap-1.5">
+                                        {(['normal', 'large', 'huge'] as const).map((s) => (
+                                          <button key={s} onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontSize: s } })} className={`p-2.5 rounded-xl border capitalize transition-all ${block.styles.fontSize === s ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-secondary/30 hover:bg-secondary/50 border-transparent'}`}>{s}</button>
+                                        ))}
+                                      </div>
+                                    </div>
 
-                              {activeTab === 'typo' && (
-                                <div className="space-y-4">
-                                  <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block flex items-center gap-1"><Type className="w-3 h-3" /> Font Family</label>
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                      {(['inter', 'serif', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
-                                        <button 
-                                          key={f} 
-                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontFamily: f as any } })} 
-                                          className={`p-2.5 rounded-xl border capitalize transition-all ${block.styles.fontFamily === f ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-secondary/30 hover:bg-secondary/50 border-transparent'}`}
-                                          style={{ fontFamily: FONT_MAP[f as any] }}
-                                        >
-                                          {f}
-                                        </button>
-                                      ))}
+                                    <div className="space-y-2 pt-4 border-t">
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Layout Reset</label>
+                                      <button onClick={() => updateBlock(block.id, { styles: { ...block.styles, translateX: 0, translateY: 0, titleX: 0, titleY: 0, descX: 0, descY: 0, btnX: 0, btnY: 0 } })} className="flex items-center justify-between w-full bg-destructive/10 p-3 rounded-xl text-[10px] hover:bg-destructive/20 text-destructive font-bold transition-all group">
+                                        <span>Reset Element Positions</span> <RotateCcw className="w-3.5 h-3.5 group-hover:rotate-[-180deg] transition-transform duration-500" />
+                                      </button>
                                     </div>
                                   </div>
-                                  
-                                  <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Font Size</label>
-                                    <div className="grid grid-cols-3 gap-1.5">
-                                      {(['normal', 'large', 'huge'] as const).map((s) => (
-                                        <button key={s} onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontSize: s } })} className={`p-2.5 rounded-xl border capitalize transition-all ${block.styles.fontSize === s ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-secondary/30 hover:bg-secondary/50 border-transparent'}`}>{s}</button>
-                                      ))}
-                                    </div>
-                                  </div>
+                                )}
 
-                                  <div className="space-y-2 pt-4 border-t">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Layout Reset</label>
-                                    <button onClick={() => updateBlock(block.id, { styles: { ...block.styles, translateX: 0, translateY: 0, titleX: 0, titleY: 0, descX: 0, descY: 0, btnX: 0, btnY: 0 } })} className="flex items-center justify-between w-full bg-destructive/10 p-3 rounded-xl text-[10px] hover:bg-destructive/20 text-destructive font-bold transition-all group">
-                                      <span>Reset Element Positions</span> <RotateCcw className="w-3.5 h-3.5 group-hover:rotate-[-180deg] transition-transform duration-500" />
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
+                                {activeTab === 'buttons' && (
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Button BG</span>
+                                        <input type="color" value={block.styles.buttonBgColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonBgColor: e.target.value } })} className="w-full h-10 rounded-xl cursor-pointer bg-transparent border p-1" />
+                                      </div>
+                                      <div>
+                                        <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Button Text</span>
+                                        <input type="color" value={block.styles.buttonTextColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonTextColor: e.target.value } })} className="w-full h-10 rounded-xl cursor-pointer bg-transparent border p-1" />
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Button Font</label>
+                                      <div className="grid grid-cols-2 gap-1.5">
+                                        {(['inter', 'serif', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
+                                          <button 
+                                            key={f} 
+                                            onClick={() => updateBlock(block.id, { styles: { ...block.styles, buttonFontFamily: f as any } })} 
+                                            className={`p-2.5 rounded-xl border capitalize transition-all ${block.styles.buttonFontFamily === f ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-secondary/30 hover:bg-secondary/50 border-transparent'}`}
+                                            style={{ fontFamily: FONT_MAP[f as any] }}
+                                          >
+                                            {f}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
 
-                              {activeTab === 'buttons' && (
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Button BG</span>
-                                      <input type="color" value={block.styles.buttonBgColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonBgColor: e.target.value } })} className="w-full h-10 rounded-xl cursor-pointer bg-transparent border p-1" />
-                                    </div>
-                                    <div>
-                                      <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Button Text</span>
-                                      <input type="color" value={block.styles.buttonTextColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonTextColor: e.target.value } })} className="w-full h-10 rounded-xl cursor-pointer bg-transparent border p-1" />
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Button Radius</label>
+                                      <div className="grid grid-cols-3 gap-1.5">
+                                        {(['none', 'md', 'full'] as const).map((r) => (
+                                          <button key={r} onClick={() => updateBlock(block.id, { styles: { ...block.styles, buttonRadius: r } })} className={`p-2.5 rounded-xl border capitalize transition-all ${block.styles.buttonRadius === r ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-secondary/30 hover:bg-secondary/50 border-transparent'}`}>{r}</button>
+                                        ))}
+                                      </div>
                                     </div>
                                   </div>
-                                  
-                                  <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Button Font</label>
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                      {(['inter', 'serif', 'mono', 'montserrat', 'oswald', 'merriweather', 'bebas', 'dancing'] as const).map((f) => (
-                                        <button 
-                                          key={f} 
-                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, buttonFontFamily: f as any } })} 
-                                          className={`p-2.5 rounded-xl border capitalize transition-all ${block.styles.buttonFontFamily === f ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-secondary/30 hover:bg-secondary/50 border-transparent'}`}
-                                          style={{ fontFamily: FONT_MAP[f as any] }}
-                                        >
-                                          {f}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground block">Button Radius</label>
-                                    <div className="grid grid-cols-3 gap-1.5">
-                                      {(['none', 'md', 'full'] as const).map((r) => (
-                                        <button key={r} onClick={() => updateBlock(block.id, { styles: { ...block.styles, buttonRadius: r } })} className={`p-2.5 rounded-xl border capitalize transition-all ${block.styles.buttonRadius === r ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-secondary/30 hover:bg-secondary/50 border-transparent'}`}>{r}</button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        <BlockContentComponent 
-                          block={block} 
-                          onUpdate={(content) => updateBlock(block.id, { content })} 
-                          onStartDrag={startPositionDrag}
-                        />
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
+                          <BlockContentComponent 
+                            block={block} 
+                            onUpdate={(content) => updateBlock(block.id, { content })} 
+                            onStartDrag={startPositionDrag}
+                          />
+                        </div>
+                      )}
+                    </Draggable>
+                  );
+                })}
                 {provided.placeholder}
               </div>
             )}
