@@ -61,47 +61,49 @@ export default function Home() {
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/5 blur-[180px] rounded-full" />
       </div>
 
-      <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 md:px-12 backdrop-blur-2xl sticky top-0 z-50 bg-background/40">
-        <div className="flex items-center gap-4">
-          <div className="w-8 h-8 glass-morphism premium-border rounded-lg flex items-center justify-center shadow-2xl shadow-primary/20 transition-transform hover:scale-105 duration-500">
-            <Shield className="w-4 h-4 text-primary" />
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-6xl px-4 md:px-0">
+        <header className="h-14 glass-morphism premium-border rounded-full flex items-center justify-between px-6 md:px-10 bg-background/60 neo-shadow backdrop-blur-3xl transition-all duration-500">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 glass-morphism premium-border rounded-lg flex items-center justify-center shadow-2xl shadow-primary/20 transition-transform hover:scale-105 duration-500">
+              <Shield className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <span className="font-black text-lg tracking-tighter uppercase text-gradient">WEB3 CYBER</span>
           </div>
-          <span className="font-black text-xl tracking-tighter uppercase text-gradient">WEB3 CYBER</span>
-        </div>
-        
-        <nav className="hidden lg:flex items-center gap-8 text-[9px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
-          <a href="#architecture" className="hover:text-primary transition-all duration-500 relative group">
-            Architecture
-            <span className="absolute -bottom-1 left-0 w-0 h-px bg-primary transition-all duration-500 group-hover:w-full" />
-          </a>
-          <a href="/chat" className="hover:text-primary transition-all duration-500 relative group">
-            Nexus
-            <span className="absolute -bottom-1 left-0 w-0 h-px bg-primary transition-all duration-500 group-hover:w-full" />
-          </a>
-          <a href="/builder" className="hover:text-primary transition-all duration-500 relative group">
-            Builder
-            <span className="absolute -bottom-1 left-0 w-0 h-px bg-primary transition-all duration-500 group-hover:w-full" />
-          </a>
-        </nav>
+          
+          <nav className="hidden lg:flex items-center gap-6 text-[9px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
+            <a href="#architecture" className="hover:text-primary transition-all duration-500 relative group">
+              Architecture
+              <span className="absolute -bottom-1 left-0 w-0 h-px bg-primary transition-all duration-500 group-hover:w-full" />
+            </a>
+            <a href="/chat" className="hover:text-primary transition-all duration-500 relative group">
+              Nexus
+              <span className="absolute -bottom-1 left-0 w-0 h-px bg-primary transition-all duration-500 group-hover:w-full" />
+            </a>
+            <a href="/builder" className="hover:text-primary transition-all duration-500 relative group">
+              Builder
+              <span className="absolute -bottom-1 left-0 w-0 h-px bg-primary transition-all duration-500 group-hover:w-full" />
+            </a>
+          </nav>
 
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setLang(lang === 'en' ? 'ru' : 'en')}
-            className="hidden md:flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
-          >
-            <Globe className="w-4 h-4" />
-            {lang.toUpperCase()}
-          </button>
-          <Link href="/chat">
-            <Button variant="default" className="rounded-full px-6 font-bold text-[9px] h-9 premium-border bg-primary shadow-primary/30 hover:shadow-primary/50 transition-all duration-700 uppercase tracking-widest neo-shadow">
-              JOIN NETWORK
-            </Button>
-          </Link>
-        </div>
-      </header>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setLang(lang === 'en' ? 'ru' : 'en')}
+              className="hidden md:flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              {lang.toUpperCase()}
+            </button>
+            <Link href="/chat">
+              <Button variant="default" className="rounded-full px-5 font-bold text-[9px] h-8 premium-border bg-primary shadow-primary/30 hover:shadow-primary/50 transition-all duration-700 uppercase tracking-widest neo-shadow">
+                JOIN
+              </Button>
+            </Link>
+          </div>
+        </header>
+      </div>
 
       <main className="flex-1">
-        <section className="relative pt-12 pb-12 md:pt-16 md:pb-16 px-6 text-center max-w-7xl mx-auto overflow-visible min-h-[calc(100vh-4rem)] flex flex-col justify-center">
+        <section className="relative pt-32 pb-16 px-6 text-center max-w-7xl mx-auto overflow-visible min-h-[calc(100vh-2rem)] flex flex-col justify-center">
           <div className="flex justify-center mb-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 glass-morphism premium-border rounded-full text-[9px] font-bold uppercase tracking-[0.4em] text-primary animate-float">
               <Sparkles className="w-3 h-3 fill-primary" /> {t.heroBadge}
