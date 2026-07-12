@@ -3,16 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles } from 'lucide-react';
+import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon } from 'lucide-react';
 import images from '@/app/lib/placeholder-images.json';
 import { generateBlockContent } from '@/ai/flows/block-generator-flow';
 import { useToast } from '@/hooks/use-toast';
 
 type ElementType = 'title' | 'desc' | 'btn' | 'block';
 
-/**
- * Внутренний компонент для рендеринга контента блока с поддержкой перемещения элементов.
- */
 function BlockContentComponent({ block, onUpdate, onStartDrag }: { 
   block: PageBlock; 
   onUpdate: (content: Partial<BlockContent>) => void;
@@ -80,14 +77,18 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
       <div className="relative z-10 w-full" style={contentGroupStyle}>
         {type === 'header' && (
           <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
-             <div className="relative group/el">
+             <div className="relative group/el flex items-center gap-3">
                 {renderDragHandle('title')}
-                <input 
-                  value={content.title} 
-                  onChange={(e) => onUpdate({ title: e.target.value })} 
-                  className="bg-transparent border-none font-black text-2xl outline-none tracking-tighter"
-                  style={titleStyle}
-                />
+                {content.logoUrl ? (
+                  <img src={content.logoUrl} alt="Logo" className="h-8 w-auto object-contain transition-transform" style={titleStyle} />
+                ) : (
+                  <input 
+                    value={content.title} 
+                    onChange={(e) => onUpdate({ title: e.target.value })} 
+                    className="bg-transparent border-none font-black text-2xl outline-none tracking-tighter"
+                    style={titleStyle}
+                  />
+                )}
              </div>
           </div>
         )}
@@ -357,6 +358,24 @@ export function BuilderCanvas() {
                                       ))}
                                     </div>
                                   </div>
+
+                                  {block.type === 'header' && (
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Logo Image URL</label>
+                                      <div className="flex gap-2">
+                                        <input 
+                                          value={block.content.logoUrl || ''} 
+                                          onChange={(e) => updateBlock(block.id, { content: { ...block.content, logoUrl: e.target.value } })} 
+                                          placeholder="https://example.com/logo.png"
+                                          className="flex-1 bg-background border rounded-lg p-2 text-[10px] outline-none"
+                                        />
+                                        {block.content.logoUrl && (
+                                          <button onClick={() => updateBlock(block.id, { content: { ...block.content, logoUrl: '' } })} className="p-2 border rounded-lg hover:text-destructive"><X className="w-3 h-3" /></button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
                                       <span className="text-[9px] text-muted-foreground mb-1 block font-bold">Background Color</span>
@@ -367,15 +386,27 @@ export function BuilderCanvas() {
                                       <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-8 rounded-lg cursor-pointer bg-transparent border" />
                                     </div>
                                   </div>
+                                  
                                   <div>
-                                    <span className="text-[9px] text-muted-foreground mb-2 block font-bold uppercase tracking-wider">Background Image & Overlay</span>
-                                    <div className="grid grid-cols-4 gap-1 mb-2">
-                                      <button onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: '' } })} className={`h-8 border rounded flex items-center justify-center ${!block.styles.backgroundImage ? 'border-primary' : ''}`}><X className="w-3 h-3" /></button>
-                                      {images.slice(0, 7).map(img => (
-                                        <button key={img.id} onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: img.url } })} className={`h-8 border rounded overflow-hidden transition-transform hover:scale-105 ${block.styles.backgroundImage === img.url ? 'border-primary ring-1 ring-primary' : ''}`}><img src={img.url} className="w-full h-full object-cover" /></button>
-                                      ))}
+                                    <span className="text-[9px] text-muted-foreground mb-2 block font-bold uppercase tracking-wider">Background Image</span>
+                                    <div className="space-y-2">
+                                      <div className="flex gap-2">
+                                        <input 
+                                          value={block.styles.backgroundImage || ''} 
+                                          onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: e.target.value } })} 
+                                          placeholder="Paste image URL here..."
+                                          className="flex-1 bg-background border rounded-lg p-2 text-[10px] outline-none"
+                                        />
+                                        <div className="p-2 border rounded-lg bg-muted/50"><ImageIcon className="w-3 h-3" /></div>
+                                      </div>
+                                      <div className="grid grid-cols-4 gap-1">
+                                        <button onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: '' } })} className={`h-8 border rounded flex items-center justify-center ${!block.styles.backgroundImage ? 'border-primary' : ''}`}><X className="w-3 h-3" /></button>
+                                        {images.slice(0, 3).map(img => (
+                                          <button key={img.id} onClick={() => updateBlock(block.id, { styles: { ...block.styles, backgroundImage: img.url } })} className={`h-8 border rounded overflow-hidden transition-transform hover:scale-105 ${block.styles.backgroundImage === img.url ? 'border-primary ring-1 ring-primary' : ''}`}><img src={img.url} className="w-full h-full object-cover" /></button>
+                                        ))}
+                                      </div>
                                     </div>
-                                    <span className="text-[9px] text-muted-foreground mb-1 block">Overlay Opacity: {(block.styles.overlayOpacity || 0) * 100}%</span>
+                                    <span className="text-[9px] text-muted-foreground mt-4 mb-1 block">Overlay Opacity: {(block.styles.overlayOpacity || 0) * 100}%</span>
                                     <input type="range" min="0" max="1" step="0.1" value={block.styles.overlayOpacity || 0} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, overlayOpacity: parseFloat(e.target.value) } })} className="w-full" />
                                   </div>
                                 </>

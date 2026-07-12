@@ -46,6 +46,7 @@ export interface BlockContent {
   buttonUrl?: string;
   items?: string[];
   imageUrl?: string;
+  logoUrl?: string; // New field for custom logo
   code?: string;
   links?: BlockLink[];
 }
@@ -104,6 +105,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         description: getDefaultDescription(type),
         buttonText: state.mode === 'landing' && !['header', 'footer', 'contacts'].includes(type) ? 'Get Started' : undefined,
         buttonUrl: '#',
+        logoUrl: '', // Default empty logo URL
         links: (type === 'header' || type === 'footer') ? [
           { label: 'Home', url: '#' },
           { label: 'About', url: '#' },

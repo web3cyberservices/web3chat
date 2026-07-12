@@ -22,6 +22,7 @@ function renderBlock(block: PageBlock): string {
   const safeDesc = escapeHTML(content.description || '');
   const safeBtn = escapeHTML(content.buttonText || '');
   const safeBtnUrl = escapeHTML(content.buttonUrl || '#');
+  const safeLogoUrl = escapeHTML(content.logoUrl || '');
 
   const fontClass = {
     sans: 'font-sans',
@@ -64,7 +65,9 @@ function renderBlock(block: PageBlock): string {
       return `
         <header class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
           <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10" style="${contentGroupStyle}">
-            <div class="text-2xl font-black tracking-tighter">${safeTitle}</div>
+            <div class="flex items-center gap-3">
+              ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="h-8 w-auto object-contain" style="${titleStyle}">` : `<div class="text-2xl font-black tracking-tighter" style="${titleStyle}">${safeTitle}</div>`}
+            </div>
             <nav class="hidden md:flex items-center gap-8">
               ${content.links?.map(l => `<a href="${l.url}" class="text-sm font-medium hover:opacity-70 transition-opacity">${escapeHTML(l.label)}</a>`).join('')}
             </nav>
@@ -111,8 +114,8 @@ function renderBlock(block: PageBlock): string {
         <footer class="relative flex flex-col justify-center ${styles.padding} ${fontClass}" style="${bgStyle} color: ${styles.textColor};">
           <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10" style="${contentGroupStyle}">
             <div>
-              <div class="text-xl font-bold mb-4">${safeTitle}</div>
-              <p class="opacity-60 text-sm max-w-xs">${safeDesc}</p>
+              <div class="text-xl font-bold mb-4" style="${titleStyle}">${safeTitle}</div>
+              <p class="opacity-60 text-sm max-w-xs" style="${descStyle}">${safeDesc}</p>
             </div>
             <div class="flex flex-wrap gap-x-10 gap-y-4 md:justify-end">
                ${content.links?.map(l => `<a href="${l.url}" class="text-sm opacity-80 hover:opacity-100 transition-opacity">${escapeHTML(l.label)}</a>`).join('')}
