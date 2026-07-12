@@ -74,6 +74,7 @@ export default function Home() {
     setHasMounted(true);
   }, []);
 
+  // Hydration guard: сервер и клиент рендерят одно и то же на первом шаге
   if (!hasMounted) {
     return <div className="min-h-screen bg-[#0d0d12]" />;
   }

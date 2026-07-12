@@ -49,7 +49,7 @@ export default function ChatPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Исключаем расхождения текста при гидратации
+  // Исключаем расхождения при гидратации: сервер всегда возвращает одинаковый фон
   if (!hasMounted) {
     return <div className="h-screen w-full bg-background" />;
   }
@@ -59,7 +59,7 @@ export default function ChatPage() {
       <div className="h-screen w-full bg-background flex flex-col items-center justify-center">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-[10px] uppercase tracking-widest text-muted-foreground animate-pulse">
-          Secure Handshake...
+          Connecting to P2P Mesh...
         </p>
       </div>
     );
