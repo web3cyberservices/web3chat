@@ -6,18 +6,20 @@ export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const { pathname } = url;
 
+  // Игнорируем статические файлы, API и ресурсы Next.js
   if (
     pathname.startsWith('/_next') || 
     pathname.startsWith('/api') ||
+    pathname.startsWith('/static') ||
     pathname.includes('.')
   ) {
     return NextResponse.next();
   }
 
-  // Очищаем hostname от порта для корректной работы в Firebase Studio
+  // Очищаем hostname от порта для корректной работы в Firebase Studio/Cloud Workstations
   const hostname = host.split(':')[0].toLowerCase();
 
-  // Маршрутизация на основе ПОЛНОГО совпадения домена
+  // Маршрутизация на основе поддоменов
   if (hostname === 'build.web3cyberservices.xyz') {
     if (pathname === '/') {
       url.pathname = '/builder';
@@ -32,7 +34,7 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // Для всех остальных случаев (включая основной домен и локальные превью)
+  // По умолчанию для основного домена или локального окружения
   return NextResponse.next();
 }
 

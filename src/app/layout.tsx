@@ -1,4 +1,3 @@
-
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -7,12 +6,12 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Web3 Chat",
-  description: "Secure and anonymous decentralized communication",
+  title: "Web3 Cyber Services",
+  description: "Secure and anonymous decentralized communication and tools",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Web3 Chat",
+    title: "Web3 Cyber",
   },
   formatDetection: {
     telephone: false,
@@ -41,24 +40,6 @@ export default function RootLayout({
       <body className={inter.className}>
         {children}
         <Toaster />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
-                    function(registration) {
-                      console.log('ServiceWorker registration successful');
-                    },
-                    function(err) {
-                      console.log('ServiceWorker registration failed: ', err);
-                    }
-                  );
-                });
-              }
-            `,
-          }}
-        />
       </body>
     </html>
   );
