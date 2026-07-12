@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent, FontFamily } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon, Type, Plus, MousePointer2 } from 'lucide-react';
+import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon, Type, Plus, MousePointer2, ExternalLink } from 'lucide-react';
 import { generateBlockContent } from '@/ai/flows/block-generator-flow';
 import { useToast } from '@/hooks/use-toast';
 
@@ -61,7 +61,6 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
     <button 
       onMouseDown={(e) => onStartDrag(e, block, type)} 
       className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover/el:opacity-100 p-2 bg-primary text-primary-foreground rounded-full shadow-xl z-30 cursor-move transition-all hover:scale-110"
-      title="Move Element"
     >
       <Move className="w-3.5 h-3.5" />
     </button>
@@ -69,15 +68,16 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
 
   return (
     <div 
-      className={`relative ${styles.padding} overflow-hidden flex flex-col justify-center transition-all duration-300 w-full min-h-[4rem]`} 
+      className={`relative ${styles.padding} flex flex-col justify-center transition-all duration-300 w-full overflow-visible`} 
       style={{ 
         minHeight: styles.minHeight || (type === 'header' ? '5rem' : 'auto'),
-        borderRadius: styles.borderRadius || '0px'
+        backgroundColor: styles.backgroundColor,
+        borderRadius: styles.borderRadius || '0px',
       }}
     >
       {/* Background Layers */}
       <div 
-        className="absolute inset-0 -z-10" 
+        className="absolute inset-0 pointer-events-none" 
         style={{ 
           backgroundColor: styles.backgroundColor, 
           opacity: styles.backgroundOpacity ?? 1,
@@ -87,7 +87,7 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
 
       {styles.backgroundImage && (
         <div 
-          className="absolute inset-0 -z-20 bg-cover bg-center" 
+          className="absolute inset-0 bg-cover bg-center pointer-events-none" 
           style={{ 
             backgroundImage: `url(${styles.backgroundImage})`,
             borderRadius: styles.borderRadius || '0px'
@@ -97,7 +97,7 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
 
       {styles.backgroundImage && (
         <div 
-          className="absolute inset-0 -z-10 bg-black" 
+          className="absolute inset-0 bg-black pointer-events-none" 
           style={{ 
             opacity: styles.overlayOpacity || 0.4,
             borderRadius: styles.borderRadius || '0px'
@@ -107,27 +107,27 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
       
       <div className="relative z-10 w-full h-full flex items-center" style={contentGroupStyle}>
         {type === 'header' && (
-          <div className="max-w-6xl mx-auto px-6 flex items-center justify-between w-full">
+          <div className="max-w-6xl mx-auto px-6 flex items-center justify-between w-full min-h-[4rem]">
              <div className="relative group/el flex items-center gap-3">
                 {renderDragHandle('title')}
                 {content.logoUrl ? (
-                  <img src={content.logoUrl} alt="Logo" className="h-10 w-auto object-contain transition-transform" style={titleStyle} />
+                  <img src={content.logoUrl} alt="Logo" className="h-10 w-auto object-contain" style={titleStyle} />
                 ) : (
                   <input 
                     value={content.title} 
                     onChange={(e) => onUpdate({ title: e.target.value })} 
                     placeholder="Brand Name"
-                    className="bg-transparent border-none font-black text-2xl outline-none tracking-tighter hover:ring-1 hover:ring-primary/30 rounded px-2 transition-all"
+                    className="bg-transparent border-none font-black text-2xl outline-none tracking-tighter hover:bg-black/5 dark:hover:bg-white/5 rounded px-2 transition-all"
                     style={titleStyle}
                   />
                 )}
              </div>
              <nav className="hidden md:flex items-center gap-6">
-               {content.links?.map((link, idx) => (
+               {(content.links || []).map((link, idx) => (
                  <a 
                    key={idx} 
                    href={link.url} 
-                   className="text-sm font-bold opacity-80 hover:opacity-100 transition-opacity border-b border-transparent hover:border-current" 
+                   className="text-sm font-bold opacity-80 hover:opacity-100 transition-opacity" 
                    style={{ fontFamily: FONT_MAP[styles.fontFamily], color: styles.textColor }}
                  >
                    {link.label}
@@ -144,7 +144,7 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
               <textarea 
                 value={content.title} 
                 onChange={(e) => onUpdate({ title: e.target.value })}
-                className={`bg-transparent border-none font-black text-center w-full outline-none resize-none overflow-hidden leading-tight transition-all focus:ring-1 focus:ring-primary/30 rounded ${styles.fontSize === 'huge' ? 'text-7xl' : styles.fontSize === 'large' ? 'text-5xl' : 'text-4xl'}`}
+                className={`bg-transparent border-none font-black text-center w-full outline-none resize-none overflow-hidden leading-tight hover:bg-black/5 dark:hover:bg-white/5 rounded transition-all ${styles.fontSize === 'huge' ? 'text-7xl' : styles.fontSize === 'large' ? 'text-5xl' : 'text-4xl'}`}
                 style={titleStyle}
                 rows={1}
               />
@@ -155,7 +155,7 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
               <textarea 
                 value={content.description} 
                 onChange={(e) => onUpdate({ description: e.target.value })}
-                className="bg-transparent border-none text-lg text-center w-full outline-none resize-none overflow-hidden opacity-90 leading-relaxed focus:ring-1 focus:ring-primary/30 rounded"
+                className="bg-transparent border-none text-lg text-center w-full outline-none resize-none overflow-hidden opacity-90 leading-relaxed hover:bg-black/5 dark:hover:bg-white/5 rounded transition-all"
                 style={descStyle}
                 rows={2}
               />
@@ -182,7 +182,7 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
               <input 
                 value={content.title} 
                 onChange={(e) => onUpdate({ title: e.target.value })} 
-                className="bg-transparent border-none text-xs font-bold uppercase tracking-[0.3em] opacity-70 outline-none w-full text-center"
+                className="bg-transparent border-none text-xs font-bold uppercase tracking-[0.3em] opacity-70 outline-none w-full text-center hover:bg-black/5 dark:hover:bg-white/5 rounded transition-all"
                 style={titleStyle}
               />
             </div>
@@ -316,7 +316,7 @@ export function BuilderCanvas() {
     <div className="flex-1 bg-muted/20 overflow-y-auto p-4 md:p-12 relative transition-all duration-500">
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
       
-      <div className={`${canvasWidth} mx-auto min-h-[90vh] bg-white shadow-2xl rounded-sm ring-1 ring-black/5 flex flex-col transition-all duration-500 overflow-hidden ${mode !== 'landing' ? 'dark bg-slate-900 border border-white/10' : ''}`}>
+      <div className={`${canvasWidth} mx-auto min-h-[90vh] bg-white shadow-2xl rounded-sm ring-1 ring-black/5 flex flex-col transition-all duration-500 overflow-visible ${mode !== 'landing' ? 'dark bg-slate-900 border border-white/10' : ''}`}>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="canvas">
             {(provided) => (
@@ -380,10 +380,10 @@ export function BuilderCanvas() {
                         </div>
 
                         {/* Block Border for visibility during editing */}
-                        <div className="absolute inset-0 border border-dashed border-primary/5 pointer-events-none group-hover:border-primary/20 transition-colors" />
+                        <div className={`absolute inset-0 border border-dashed border-primary/5 pointer-events-none group-hover:border-primary/40 transition-colors ${editingId === block.id ? 'border-primary/60 border-2' : ''}`} />
 
                         {editingId === block.id && (
-                          <div className="absolute right-4 top-16 w-80 bg-card/95 backdrop-blur-xl border rounded-[2rem] shadow-2xl p-0 z-50 max-h-[75vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                          <div className="fixed top-24 right-8 w-80 bg-card/95 backdrop-blur-xl border rounded-[2rem] shadow-2xl p-0 z-50 max-h-[75vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                             <div className="flex items-center justify-between p-5 border-b bg-muted/30">
                               <h4 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
                                 <Palette className="w-3 h-3 text-primary" /> Block Settings

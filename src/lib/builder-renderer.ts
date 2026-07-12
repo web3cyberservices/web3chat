@@ -71,31 +71,31 @@ function renderBlock(block: PageBlock): string {
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : 'border-radius: 0px;';
 
-  const containerStyle = `min-height: ${styles.minHeight || (type === 'header' ? '5rem' : 'auto')}; ${borderRadiusStyle} overflow: hidden; position: relative;`;
+  const containerStyle = `min-height: ${styles.minHeight || (type === 'header' ? '5rem' : 'auto')}; ${borderRadiusStyle} overflow: visible; position: relative; background-color: ${bgRgba};`;
   
-  const bgLayerStyle = styles.backgroundImage 
-    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; opacity: 1; ${borderRadiusStyle}`
-    : `background-color: ${bgRgba}; opacity: 1; ${borderRadiusStyle}`;
+  const bgImageStyle = styles.backgroundImage 
+    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; border-radius: ${styles.borderRadius || '0px'};`
+    : '';
 
   const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${btnFontStack}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px);`;
   const titleStyle = `color: ${styles.textColor}; font-family: ${fontStack}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px);`;
   const descStyle = `color: ${styles.textColor}; font-family: ${fontStack}; opacity: 0.9; transform: translate(${styles.descX || 0}px, ${styles.descY || 0}px);`;
 
-  const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black" style="opacity: ${styles.overlayOpacity || 0.4}; ${borderRadiusStyle} pointer-events: none;"></div>` : '';
+  const overlay = styles.backgroundImage ? `<div class="absolute inset-0 bg-black pointer-events-none" style="opacity: ${styles.overlayOpacity || 0.4}; border-radius: ${styles.borderRadius || '0px'};"></div>` : '';
   
-  const contentGroupStyle = `transform: translate(${styles.translateX || 0}px, ${styles.translateY || 0}px); width: 100%;`;
+  const contentGroupStyle = `transform: translate(${styles.translateX || 0}px, ${styles.translateY || 0}px); width: 100%; position: relative; z-index: 10;`;
 
   switch (type) {
     case 'header':
       return `
         <header id="${id}" class="relative flex flex-col justify-center ${styles.padding} w-full" style="${containerStyle}">
-          <div class="absolute inset-0 -z-10" style="${bgLayerStyle}"></div>
+          ${styles.backgroundImage ? `<div class="absolute inset-0 pointer-events-none" style="${bgImageStyle}"></div>` : ''}
           <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10 w-full" style="${contentGroupStyle}">
             <div class="flex items-center gap-3">
               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="h-10 w-auto object-contain" style="${titleStyle}">` : `<div class="text-2xl font-black tracking-tighter" style="${titleStyle}">${safeTitle}</div>`}
             </div>
             <nav class="hidden md:flex items-center gap-8">
-              ${content.links?.map(l => `<a href="${l.url}" class="text-sm font-bold hover:opacity-70 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
+              ${(content.links || []).map(l => `<a href="${l.url}" class="text-sm font-bold hover:opacity-70 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
             </nav>
           </div>
         </header>
@@ -106,11 +106,11 @@ function renderBlock(block: PageBlock): string {
     case 'contacts':
       return `
         <section id="${id}" class="relative flex flex-col justify-center ${styles.padding} w-full" style="${containerStyle}">
-          <div class="absolute inset-0 -z-20" style="${bgLayerStyle}"></div>
+          ${styles.backgroundImage ? `<div class="absolute inset-0 pointer-events-none" style="${bgImageStyle}"></div>` : ''}
           ${overlay}
           <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col items-center gap-8 w-full" style="${contentGroupStyle}">
-            <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight transition-transform" style="${titleStyle}">${safeTitle}</h1>
-            <p class="text-xl leading-relaxed max-w-2xl mx-auto transition-transform" style="${descStyle}">${safeDesc}</p>
+            <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight" style="${titleStyle}">${safeTitle}</h1>
+            <p class="text-xl leading-relaxed max-w-2xl mx-auto" style="${descStyle}">${safeDesc}</p>
             ${safeBtn ? `<div class="mt-4"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
@@ -118,14 +118,14 @@ function renderBlock(block: PageBlock): string {
     case 'footer':
       return `
         <footer id="${id}" class="relative flex flex-col justify-center ${styles.padding} w-full" style="${containerStyle}">
-          <div class="absolute inset-0 -z-10" style="${bgLayerStyle}"></div>
+          ${styles.backgroundImage ? `<div class="absolute inset-0 pointer-events-none" style="${bgImageStyle}"></div>` : ''}
           <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10 w-full" style="${contentGroupStyle}">
             <div>
               <div class="text-xl font-bold mb-4" style="${titleStyle}">${safeTitle}</div>
               <p class="opacity-60 text-sm max-w-xs" style="${descStyle}">${safeDesc}</p>
             </div>
             <div class="flex flex-wrap gap-x-10 gap-y-4 md:justify-end">
-               ${content.links?.map(l => `<a href="${l.url}" class="text-sm opacity-80 hover:opacity-100 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
+               ${(content.links || []).map(l => `<a href="${l.url}" class="text-sm opacity-80 hover:opacity-100 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
             </div>
           </div>
         </footer>
