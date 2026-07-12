@@ -1,4 +1,3 @@
-
 import { PageBlock, FontFamily } from './builder-store';
 
 /**
@@ -55,9 +54,9 @@ function renderBlock(block: PageBlock): string {
   const btnFontStack = FONT_MAP[styles.buttonFontFamily || styles.fontFamily || 'sans'];
 
   const sizeClass = {
-    normal: 'text-4xl md:text-5xl',
-    large: 'text-5xl md:text-6xl',
-    huge: 'text-7xl md:text-8xl'
+    normal: 'text-3xl md:text-4xl',
+    large: 'text-4xl md:text-5xl',
+    huge: 'text-6xl md:text-7xl'
   }[styles.fontSize || 'normal'];
 
   const btnRadiusClass = {
@@ -74,7 +73,7 @@ function renderBlock(block: PageBlock): string {
 
   const positionClass = isOverlay ? 'absolute top-0 left-0 w-full z-40' : (isSticky ? 'sticky top-0 z-50 shadow-lg' : 'relative');
   
-  const containerStyle = `min-height: ${styles.minHeight || (type === 'header' ? '5rem' : 'auto')}; ${borderRadiusStyle} background-color: ${bgRgba};`;
+  const containerStyle = `min-height: ${styles.minHeight || (type === 'header' ? '4rem' : 'auto')}; ${borderRadiusStyle} background-color: ${bgRgba};`;
   
   const bgImageStyle = styles.backgroundImage 
     ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; border-radius: ${styles.borderRadius || '0px'}; opacity: ${styles.backgroundOpacity ?? 1};`
@@ -95,10 +94,10 @@ function renderBlock(block: PageBlock): string {
           ${styles.backgroundImage ? `<div class="absolute inset-0 pointer-events-none" style="${bgImageStyle}"></div>` : ''}
           <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10 w-full" style="${contentGroupStyle}">
             <div class="flex items-center gap-3">
-              ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="h-10 w-auto object-contain" style="${titleStyle}">` : `<div class="text-2xl font-black tracking-tighter" style="${titleStyle}">${safeTitle}</div>`}
+              ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="h-8 w-auto object-contain" style="${titleStyle}">` : `<div class="text-xl font-black tracking-tighter" style="${titleStyle}">${safeTitle}</div>`}
             </div>
-            <nav class="hidden md:flex items-center gap-8">
-              ${(content.links || []).map(l => `<a href="${l.url}" class="text-sm font-bold hover:opacity-70 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
+            <nav class="hidden md:flex items-center gap-6">
+              ${(content.links || []).map(l => `<a href="${l.url}" class="text-xs font-bold hover:opacity-70 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
             </nav>
           </div>
         </header>
@@ -114,10 +113,10 @@ function renderBlock(block: PageBlock): string {
         <section id="${id}" class="relative flex flex-col justify-center ${styles.padding} w-full" style="${containerStyle}">
           ${styles.backgroundImage ? `<div class="absolute inset-0 pointer-events-none" style="${bgImageStyle}"></div>` : ''}
           ${overlay}
-          <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col items-center gap-8 w-full" style="${contentGroupStyle}">
+          <div class="relative max-w-4xl mx-auto px-6 text-center z-10 flex flex-col items-center gap-6 w-full" style="${contentGroupStyle}">
             <h1 class="${sizeClass} font-extrabold tracking-tight leading-tight" style="${titleStyle}">${safeTitle}</h1>
-            <p class="text-xl leading-relaxed max-w-2xl mx-auto" style="${descStyle}">${safeDesc}</p>
-            ${safeBtn ? `<div class="mt-4"><a href="${safeBtnUrl}" class="inline-block px-12 py-5 ${btnRadiusClass} font-bold shadow-2xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
+            <p class="text-lg leading-relaxed max-w-2xl mx-auto" style="${descStyle}">${safeDesc}</p>
+            ${safeBtn ? `<div class="mt-2"><a href="${safeBtnUrl}" class="inline-block px-10 py-4 ${btnRadiusClass} font-bold shadow-xl hover:scale-105 transition-transform" style="${btnStyle}">${safeBtn}</a></div>` : ''}
           </div>
         </section>
       `;
@@ -131,13 +130,13 @@ function renderBlock(block: PageBlock): string {
       return `
         <footer id="${id}" class="relative flex flex-col justify-center ${styles.padding} w-full" style="${containerStyle}">
           ${styles.backgroundImage ? `<div class="absolute inset-0 pointer-events-none" style="${bgImageStyle}"></div>` : ''}
-          <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 z-10 w-full" style="${contentGroupStyle}">
+          <div class="relative max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 z-10 w-full" style="${contentGroupStyle}">
             <div>
-              <div class="text-xl font-bold mb-4" style="${titleStyle}">${safeTitle}</div>
-              <p class="opacity-60 text-sm max-w-xs" style="${descStyle}">${safeDesc}</p>
+              <div class="text-lg font-bold mb-3" style="${titleStyle}">${safeTitle}</div>
+              <p class="opacity-60 text-xs max-w-xs" style="${descStyle}">${safeDesc}</p>
             </div>
-            <div class="flex flex-wrap gap-x-10 gap-y-4 md:justify-end">
-               ${(content.links || []).map(l => `<a href="${l.url}" class="text-sm opacity-80 hover:opacity-100 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
+            <div class="flex flex-wrap gap-x-8 gap-y-3 md:justify-end">
+               ${(content.links || []).map(l => `<a href="${l.url}" class="text-xs opacity-80 hover:opacity-100 transition-opacity" style="font-family: ${fontStack}; color: ${styles.textColor}">${escapeHTML(l.label)}</a>`).join('')}
             </div>
           </div>
         </footer>
@@ -168,8 +167,8 @@ export function generateFullHTML(blocks: PageBlock[]): string {
 <body class="antialiased">
     <div class="flex flex-col min-h-screen">
       ${content}
-      <footer class="py-16 bg-black text-white text-center border-t border-white/10 mt-auto">
-        <p class="text-[10px] opacity-40 font-mono tracking-widest uppercase">&copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES BUILDER</p>
+      <footer class="py-12 bg-black text-white text-center border-t border-white/10 mt-auto">
+        <p class="text-[9px] opacity-40 font-mono tracking-widest uppercase">&copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES BUILDER</p>
       </footer>
     </div>
 </body>

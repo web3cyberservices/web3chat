@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 
 export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | null;
@@ -155,7 +154,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       styles: {
         backgroundColor: isHeaderFooter ? '#1a1a24' : (state.mode === 'landing' ? '#ffffff' : '#0f172a'),
         textColor: isHeaderFooter ? '#ffffff' : (state.mode === 'landing' ? '#1e293b' : '#f8fafc'),
-        padding: isHeaderFooter ? 'py-4' : (isSpecialMode ? 'p-6' : 'py-20'),
+        padding: isHeaderFooter ? 'py-3' : (isSpecialMode ? 'p-6' : 'py-12'),
         minHeight: type === 'header' ? '4rem' : (isSpecialMode ? 'auto' : 'auto'),
         fontFamily: isSpecialMode ? 'mono' : 'sans',
         fontSize: 'normal',
@@ -194,8 +193,6 @@ export const useBuilderStore = create<BuilderState>((set) => ({
     const newBlocks = state.blocks.map(b => b.id === id ? { ...b, ...updates } : b);
     return { 
       blocks: newBlocks,
-      // We don't save every keystroke to history to avoid bloating
-      // Only major updates should trigger history save if needed
     };
   }),
 
