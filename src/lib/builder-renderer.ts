@@ -71,10 +71,15 @@ function renderBlock(block: PageBlock): string {
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : 'border-radius: 0px;';
 
-  const containerStyle = `min-height: ${styles.minHeight || (type === 'header' ? '5rem' : 'auto')}; ${borderRadiusStyle} overflow: visible; position: relative; background-color: ${bgRgba};`;
+  const isSticky = type === 'header' && styles.isSticky;
+  const isOverlay = type === 'header' && styles.isOverlay;
+
+  const positionClass = isOverlay ? 'absolute top-0 left-0 w-full z-40' : (isSticky ? 'sticky top-0 z-50 shadow-lg' : 'relative');
+  
+  const containerStyle = `min-height: ${styles.minHeight || (type === 'header' ? '5rem' : 'auto')}; ${borderRadiusStyle} background-color: ${bgRgba};`;
   
   const bgImageStyle = styles.backgroundImage 
-    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; border-radius: ${styles.borderRadius || '0px'};`
+    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; border-radius: ${styles.borderRadius || '0px'}; opacity: ${styles.backgroundOpacity ?? 1};`
     : '';
 
   const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${btnFontStack}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px);`;
@@ -88,7 +93,7 @@ function renderBlock(block: PageBlock): string {
   switch (type) {
     case 'header':
       return `
-        <header id="${id}" class="relative flex flex-col justify-center ${styles.padding} w-full" style="${containerStyle}">
+        <header id="${id}" class="${positionClass} flex flex-col justify-center ${styles.padding} w-full" style="${containerStyle}">
           ${styles.backgroundImage ? `<div class="absolute inset-0 pointer-events-none" style="${bgImageStyle}"></div>` : ''}
           <div class="relative max-w-6xl mx-auto px-6 flex items-center justify-between z-10 w-full" style="${contentGroupStyle}">
             <div class="flex items-center gap-3">

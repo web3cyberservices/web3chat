@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent, FontFamily } from '@/lib/builder-store';
-import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon, Type, Plus, MousePointer2, ExternalLink } from 'lucide-react';
+import { Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, Sparkles, Image as ImageIcon, Type, Plus, MousePointer2, ExternalLink, Anchor, Zap } from 'lucide-react';
 import { generateBlockContent } from '@/ai/flows/block-generator-flow';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,6 +20,20 @@ const FONT_MAP: Record<FontFamily, string> = {
   dancing: '"Dancing Script", cursive',
   inter: 'Inter, sans-serif'
 };
+
+function hexToRgba(hex: string, opacity: number): string {
+  let r = 0, g = 0, b = 0;
+  if (hex.length === 4) {
+    r = parseInt(hex[1] + hex[1], 16);
+    g = parseInt(hex[2] + hex[2], 16);
+    b = parseInt(hex[3] + hex[3], 16);
+  } else if (hex.length === 7) {
+    r = parseInt(hex.substring(1, 3), 16);
+    g = parseInt(hex.substring(3, 5), 16);
+    b = parseInt(hex.substring(5, 7), 16);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
 
 function BlockContentComponent({ block, onUpdate, onStartDrag }: { 
   block: PageBlock; 
@@ -66,31 +80,25 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
     </button>
   );
 
+  const isOverlay = type === 'header' && styles.isOverlay;
+  const isSticky = type === 'header' && styles.isSticky;
+
   return (
     <div 
-      className={`relative ${styles.padding} flex flex-col justify-center transition-all duration-300 w-full overflow-visible`} 
+      className={`relative ${styles.padding} flex flex-col justify-center transition-all duration-300 w-full overflow-visible ${isOverlay ? 'absolute top-0 left-0 z-40' : ''} ${isSticky ? 'sticky top-0 z-50 shadow-lg' : ''}`} 
       style={{ 
         minHeight: styles.minHeight || (type === 'header' ? '5rem' : 'auto'),
-        backgroundColor: styles.backgroundColor,
+        backgroundColor: hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1),
         borderRadius: styles.borderRadius || '0px',
       }}
     >
-      {/* Background Layers */}
-      <div 
-        className="absolute inset-0 pointer-events-none" 
-        style={{ 
-          backgroundColor: styles.backgroundColor, 
-          opacity: styles.backgroundOpacity ?? 1,
-          borderRadius: styles.borderRadius || '0px'
-        }} 
-      />
-
       {styles.backgroundImage && (
         <div 
           className="absolute inset-0 bg-cover bg-center pointer-events-none" 
           style={{ 
             backgroundImage: `url(${styles.backgroundImage})`,
-            borderRadius: styles.borderRadius || '0px'
+            borderRadius: styles.borderRadius || '0px',
+            opacity: styles.backgroundOpacity ?? 1
           }} 
         />
       )}
@@ -457,6 +465,27 @@ export function BuilderCanvas() {
 
                               {activeTab === 'visual' && (
                                 <>
+                                  {block.type === 'header' && (
+                                    <div className="space-y-4 pt-2 border-t mt-2">
+                                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">Header Behavior</label>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <button 
+                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, isSticky: !block.styles.isSticky } })}
+                                          className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-[10px] font-bold transition-all ${block.styles.isSticky ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-secondary/30 hover:bg-secondary/50'}`}
+                                        >
+                                          <Anchor className="w-3.5 h-3.5" /> {block.styles.isSticky ? 'Sticky On' : 'Sticky Off'}
+                                        </button>
+                                        <button 
+                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, isOverlay: !block.styles.isOverlay } })}
+                                          className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-[10px] font-bold transition-all ${block.styles.isOverlay ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-secondary/30 hover:bg-secondary/50'}`}
+                                        >
+                                          <Zap className="w-3.5 h-3.5" /> {block.styles.isOverlay ? 'Overlay On' : 'Overlay Off'}
+                                        </button>
+                                      </div>
+                                      <p className="text-[9px] text-muted-foreground italic">Overlay makes header sit on top of next block. Sticky keeps it fixed when scrolling.</p>
+                                    </div>
+                                  )}
+
                                   <div className="space-y-2">
                                     <label className="text-[10px] uppercase font-bold text-muted-foreground block">Block Height</label>
                                     <div className="grid grid-cols-4 gap-1">

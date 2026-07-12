@@ -36,6 +36,9 @@ export interface BlockStyles {
   buttonFontFamily: FontFamily;
   buttonBgColor: string;
   buttonTextColor: string;
+  // Header specific
+  isSticky?: boolean;
+  isOverlay?: boolean;
   // Legacy
   translateX: number;
   translateY: number;
@@ -108,7 +111,9 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         buttonRadius: 'full',
         buttonFontFamily: 'sans',
         buttonBgColor: '#22c55e',
-        buttonTextColor: '#ffffff'
+        buttonTextColor: '#ffffff',
+        isSticky: type === 'header' ? false : undefined,
+        isOverlay: type === 'header' ? false : undefined,
       },
       content: {
         title: getDefaultTitle(type),
