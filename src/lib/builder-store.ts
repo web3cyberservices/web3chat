@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 
 export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | null;
@@ -154,13 +155,13 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       styles: {
         backgroundColor: isHeaderFooter ? '#1a1a24' : (state.mode === 'landing' ? '#ffffff' : '#0f172a'),
         textColor: isHeaderFooter ? '#ffffff' : (state.mode === 'landing' ? '#1e293b' : '#f8fafc'),
-        padding: isHeaderFooter ? 'py-3' : (isSpecialMode ? 'p-6' : 'py-12'),
+        padding: isHeaderFooter ? 'py-4' : (isSpecialMode ? 'p-8' : 'py-16'),
         minHeight: type === 'header' ? '4rem' : (isSpecialMode ? 'auto' : 'auto'),
         fontFamily: isSpecialMode ? 'mono' : 'sans',
         fontSize: 'normal',
         overlayOpacity: 0.4,
         backgroundOpacity: 1,
-        borderRadius: isSpecialMode ? '12px' : '0px',
+        borderRadius: isSpecialMode ? '1.5rem' : '0px',
         titleX: 0, titleY: 0,
         descX: 0, descY: 0,
         btnX: 0, btnY: 0,
@@ -215,7 +216,7 @@ function getDefaultContent(type: BlockType, mode: BuilderMode): BlockContent {
     case 'faq': return { title: 'Frequently Asked Questions', faq: [{question: 'How it works?', answer: 'It is simple...'}] };
     case 'testimonials': return { title: 'What clients say', testimonials: [{name: 'John Doe', role: 'CEO', text: 'Great service!', avatar: 'https://picsum.photos/seed/1/100/100'}] };
     case 'gallery': return { title: 'Our Work', gallery: ['https://picsum.photos/seed/g1/600/400', 'https://picsum.photos/seed/g2/600/400'] };
-    case 'custom-code': return { customCode: '<!-- Insert custom HTML here -->\n<div class="p-4 bg-primary/20 rounded-xl text-center">Custom Widget Area</div>' };
+    case 'custom-code': return { customCode: '<!-- Insert custom HTML here -->\n<div class="p-8 bg-primary/20 rounded-[2rem] text-center font-bold">Custom Widget Area</div>' };
     case 'system-prompt': return { systemPrompt: 'You are a helpful assistant specialized in Web3...' };
     case 'knowledge': return { title: 'Knowledge Sources', knowledgeSources: ['https://docs.example.com', 'Internal Handbook v1'] };
     case 'tools': return { title: 'Enabled Tools', tools: [{name: 'getWeather', description: 'Fetch weather data', endpoint: 'https://api.weather.com'}] };

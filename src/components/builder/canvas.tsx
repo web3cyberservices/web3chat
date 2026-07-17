@@ -1,15 +1,15 @@
+
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent, FontFamily } from '@/lib/builder-store';
 import { 
-  Trash2, GripVertical, Settings2, Palette, X, Move, RotateCcw, 
-  Sparkles, Image as ImageIcon, Type, Plus, MousePointer2, 
-  ExternalLink, Anchor, Zap, Terminal, Database, Wrench, 
-  Hash, List, MessageSquare, Code, Layout, Smartphone, Tablet, Monitor, Info
+  Trash2, GripVertical, Settings2, Palette, X, Move, 
+  Sparkles, Image as ImageIcon, Plus, 
+  Zap, Terminal, Database, Wrench, 
+  Hash, List, MessageSquare, Code, Layout, Info
 } from 'lucide-react';
-import { generateBlockContent } from '@/ai/flows/block-generator-flow';
 import { useToast } from '@/hooks/use-toast';
 
 type ElementType = 'title' | 'desc' | 'btn' | 'block' | 'prompt';
@@ -366,9 +366,8 @@ function BlockContentComponent({ block, onUpdate, onStartDrag }: {
 }
 
 export function BuilderCanvas() {
-  const { blocks, mode, viewport, reorderBlocks, removeBlock, updateBlock } = useBuilderStore();
+  const { blocks, viewport, reorderBlocks, removeBlock, updateBlock } = useBuilderStore();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const canvasWidth = {
     desktop: 'max-w-7xl',
@@ -525,7 +524,7 @@ export function BuilderCanvas() {
                                 </div>
                               </section>
                               
-                              {type === 'header' && (
+                              {block.type === 'header' && (
                                 <section className="space-y-4 pt-4 border-t border-white/5">
                                   <h5 className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Protocol Behavior</h5>
                                   <div className="flex flex-col gap-3">
