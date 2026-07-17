@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI Agent Tester.
@@ -20,14 +19,16 @@ const TestAgentInputSchema = z.object({
 export async function testAgent(input: z.infer<typeof TestAgentInputSchema>) {
   const { systemPrompt, userMessage, history = [] } = input;
 
-  const response = await ai.generate({
+  const { text } = await ai.generate({
     system: systemPrompt,
-    prompt: userMessage,
-    history: history.map(h => ({
-      role: h.role,
-      content: [{ text: h.content }]
-    })),
+    messages: [
+      ...history.map(h => ({
+        role: h.role as 'user' | 'model',
+        content: [{ text: h.content }]
+      })),
+      { role: 'user', content: [{ text: userMessage }] }
+    ],
   });
 
-  return response.text;
+  return text;
 }

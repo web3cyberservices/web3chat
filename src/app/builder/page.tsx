@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -47,24 +46,19 @@ const { Telegraf } = require('telegraf');
 const BOT_TOKEN = '${token || 'YOUR_TELEGRAM_BOT_TOKEN'}';
 const bot = new Telegraf(BOT_TOKEN);
 
-// Middleware for logging
 bot.use((ctx, next) => {
-  console.log(\`Incoming update: \${ctx.updateType}\`);
+  console.log(\`Update: \${ctx.updateType}\`);
   return next();
 });
 
-// Command Handlers
-${commands || '// No commands defined'}
+${commands || '// No commands'}
 
-// AI/Neural Replies
-${replies || '// No custom replies defined'}
+${replies || '// No replies'}
 
-// Start Bot
 bot.launch()
-  .then(() => console.log('>>> Nexus Bot is online'))
-  .catch((err) => console.error('>>> Bot launch failed:', err));
+  .then(() => console.log('Nexus Bot online'))
+  .catch((err) => console.error('Launch failed:', err));
 
-// Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
 `;
@@ -78,14 +72,12 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
     return JSON.stringify({
       version: "1.0.0",
       agent: {
-        name: "Cyber Intelligence Agent",
         instructions: systemPrompt,
         capabilities: tools,
         knowledge_base: knowledge,
       },
       metadata: {
-        generated_at: new Date().toISOString(),
-        platform: "Web3CyberServices"
+        generated_at: new Date().toISOString()
       }
     }, null, 2);
   };
@@ -102,16 +94,9 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
         const code = generateBotCode(blocks, botToken);
         downloadFile(code, 'bot.js', 'application/javascript');
       }
-      toast({ 
-        title: "Export Successful", 
-        description: `Your ${mode} ${mode === 'landing' ? 'HTML' : 'code'} has been downloaded.` 
-      });
+      toast({ title: "Export Successful" });
     } catch (error) {
-      toast({ 
-        title: "Export Failed", 
-        description: "An error occurred during file generation.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Export Failed", variant: "destructive" });
     }
   };
 
@@ -157,7 +142,7 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
       setTestMessages(prev => [...prev, { role: 'model', content: response }]);
     } catch (e) {
-      toast({ title: "Test Failed", description: "Could not connect to AI engine", variant: "destructive" });
+      toast({ title: "Test Failed", variant: "destructive" });
     } finally {
       setIsAiLoading(false);
     }
@@ -171,16 +156,16 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-bold uppercase tracking-widest">
             <Sparkles className="w-3 h-3" /> Workspace Selection
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-gradient">What are we building today?</h1>
+          <h1 className="text-4xl font-extrabold tracking-tight text-gradient">Build the future</h1>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
-          <ModeCard icon={Layout} title="Landing Page" desc="High-conversion sites with visual blocks." onClick={() => setMode('landing')} color="text-primary" bgColor="bg-primary/10" />
-          <ModeCard icon={Cpu} title="AI Agent" desc="Neural instructions & RAG knowledge." onClick={() => setMode('ai-agent')} color="text-emerald-400" bgColor="bg-emerald-400/10" />
-          <ModeCard icon={MessageSquare} title="Telegram Bot" desc="Telegraf.js logic & command trees." onClick={() => setMode('bot')} color="text-blue-400" bgColor="bg-blue-400/10" />
+          <ModeCard icon={Layout} title="Landing Page" desc="High-conversion sites." onClick={() => setMode('landing')} color="text-primary" bgColor="bg-primary/10" />
+          <ModeCard icon={Cpu} title="AI Agent" desc="Neural instructions & RAG." onClick={() => setMode('ai-agent')} color="text-emerald-400" bgColor="bg-emerald-400/10" />
+          <ModeCard icon={MessageSquare} title="Telegram Bot" desc="Telegraf.js logic." onClick={() => setMode('bot')} color="text-blue-400" bgColor="bg-blue-400/10" />
         </div>
         <Link href="/" className="mt-12">
           <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-primary transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Exit to Dashboard
+            <ArrowLeft className="w-4 h-4" /> Exit
           </Button>
         </Link>
       </div>
@@ -189,39 +174,38 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <header className="h-14 border-b flex items-center justify-between px-6 bg-card shrink-0 z-50">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={reset}><ArrowLeft className="w-4 h-4" /></Button>
-          <div className="flex items-center gap-2 pr-4 border-r h-6">
-            <h1 className="font-bold text-xs tracking-tight capitalize">{mode.replace('-', ' ')} Builder</h1>
+      <header className="h-12 border-b flex items-center justify-between px-4 bg-card shrink-0 z-50">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={reset}><ArrowLeft className="w-4 h-4" /></Button>
+          <div className="flex items-center gap-2 pr-3 border-r h-5">
+            <h1 className="font-bold text-[10px] uppercase tracking-wider">{mode.replace('-', ' ')}</h1>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={past.length === 0} onClick={undo} title="Undo (Ctrl+Z)"><Undo2 className="w-3.5 h-3.5" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={future.length === 0} onClick={redo} title="Redo (Ctrl+Y)"><Redo2 className="w-3.5 h-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={past.length === 0} onClick={undo}><Undo2 className="w-3.5 h-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={future.length === 0} onClick={redo}><Redo2 className="w-3.5 h-3.5" /></Button>
           </div>
         </div>
         
-        <div className="flex items-center bg-secondary/30 rounded-full p-0.5 border">
-          <Button variant={viewport === 'desktop' ? 'secondary' : 'ghost'} size="icon" className="rounded-full h-7 w-7" onClick={() => setViewport('desktop')}><Monitor className="w-3.5 h-3.5" /></Button>
-          <Button variant={viewport === 'tablet' ? 'secondary' : 'ghost'} size="icon" className="rounded-full h-7 w-7" onClick={() => setViewport('tablet')}><Tablet className="w-3.5 h-3.5" /></Button>
-          <Button variant={viewport === 'mobile' ? 'secondary' : 'ghost'} size="icon" className="rounded-full h-7 w-7" onClick={() => setViewport('mobile')}><Smartphone className="w-3.5 h-3.5" /></Button>
+        <div className="flex items-center bg-secondary/30 rounded-full p-0.5 border h-8">
+          <Button variant={viewport === 'desktop' ? 'secondary' : 'ghost'} size="icon" className="rounded-full h-6 w-6" onClick={() => setViewport('desktop')}><Monitor className="w-3 h-3" /></Button>
+          <Button variant={viewport === 'tablet' ? 'secondary' : 'ghost'} size="icon" className="rounded-full h-6 w-6" onClick={() => setViewport('tablet')}><Tablet className="w-3 h-3" /></Button>
+          <Button variant={viewport === 'mobile' ? 'secondary' : 'ghost'} size="icon" className="rounded-full h-6 w-6" onClick={() => setViewport('mobile')}><Smartphone className="w-3 h-3" /></Button>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-widest" onClick={handleCopyCode}>
-            {isCopied ? <Check className="w-3.5 h-3.5 mr-2" /> : <Copy className="w-3.5 h-3.5 mr-2" />}
-            Copy Code
+          <Button variant="outline" size="sm" className="h-8 text-[9px] font-bold uppercase tracking-widest px-3" onClick={handleCopyCode}>
+            {isCopied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+            Copy
           </Button>
           {mode === 'ai-agent' && (
-            <Button variant="outline" size="sm" onClick={() => setIsTestChatOpen(!isTestChatOpen)} className={`h-8 text-[10px] font-bold uppercase tracking-widest ${isTestChatOpen ? "bg-primary/10 text-primary border-primary" : ""}`}>
-              <Play className="w-3.5 h-3.5 mr-2" /> Test Agent
+            <Button variant="outline" size="sm" onClick={() => setIsTestChatOpen(!isTestChatOpen)} className={`h-8 text-[9px] font-bold uppercase tracking-widest px-3 ${isTestChatOpen ? "bg-primary/10 text-primary border-primary" : ""}`}>
+              <Play className="w-3 h-3 mr-1" /> Test
             </Button>
           )}
-          <Button variant="secondary" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-widest" onClick={handleExport}>
-            <Download className="w-3.5 h-3.5 mr-2" /> 
-            {mode === 'landing' ? 'Export HTML' : (mode === 'bot' ? 'Export JS' : 'Export JSON')}
+          <Button variant="secondary" size="sm" className="h-8 text-[9px] font-bold uppercase tracking-widest px-3" onClick={handleExport}>
+            <Download className="w-3 h-3 mr-1" /> Export
           </Button>
-          <Button size="sm" className="h-8 text-[10px] font-bold uppercase tracking-widest"><Globe className="w-3.5 h-3.5 mr-2" /> Deploy</Button>
+          <Button size="sm" className="h-8 text-[9px] font-bold uppercase tracking-widest px-3"><Globe className="w-3 h-3 mr-1" /> Deploy</Button>
         </div>
       </header>
 
@@ -229,42 +213,41 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
         <BuilderSidebar />
         <BuilderCanvas />
         
-        {/* AI TEST PANEL */}
         {isTestChatOpen && mode === 'ai-agent' && (
           <div className="w-80 border-l bg-card flex flex-col animate-in slide-in-from-right duration-300 shadow-2xl z-40">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><Bot className="w-3.5 h-3.5 text-primary" /> Test Agent</h3>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setTestMessages([])}><Trash2 className="w-3.5 h-3.5" /></Button>
+            <div className="p-3 border-b flex items-center justify-between">
+              <h3 className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Bot className="w-3 h-3 text-primary" /> Test Agent</h3>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setTestMessages([])}><Trash2 className="w-3 h-3" /></Button>
             </div>
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
                 {testMessages.length === 0 && (
-                  <div className="py-20 text-center opacity-20 italic text-[10px] uppercase tracking-widest">Waiting for neural input...</div>
+                  <div className="py-20 text-center opacity-20 italic text-[9px] uppercase tracking-widest">Waiting for input...</div>
                 )}
                 {testMessages.map((m, i) => (
                   <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[90%] p-3 rounded-2xl text-[11px] leading-relaxed ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary border border-white/5'}`}>
+                    <div className={`max-w-[90%] p-3 rounded-2xl text-[10px] leading-relaxed ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary border border-white/5'}`}>
                       {m.content}
                     </div>
                   </div>
                 ))}
                 {isAiLoading && (
                   <div className="flex items-start gap-2 animate-pulse">
-                    <div className="p-3 bg-secondary rounded-2xl text-[10px] uppercase tracking-widest font-bold opacity-40">Synthesizing...</div>
+                    <div className="p-3 bg-secondary rounded-2xl text-[9px] uppercase tracking-widest font-bold opacity-40">Processing...</div>
                   </div>
                 )}
               </div>
             </ScrollArea>
-            <div className="p-4 border-t bg-background/50">
+            <div className="p-3 border-t bg-background/50">
               <div className="flex gap-2">
                 <input 
                   value={testInput} 
                   onChange={(e) => setTestInput(e.target.value)} 
                   onKeyDown={(e) => e.key === 'Enter' && handleTestChat()}
-                  placeholder="Ask your agent..." 
-                  className="flex-1 bg-card border rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-1 focus:ring-primary/40 transition-all"
+                  placeholder="Ask agent..." 
+                  className="flex-1 bg-card border rounded-xl px-3 py-2 text-[10px] outline-none"
                 />
-                <Button size="icon" className="h-9 w-9" onClick={handleTestChat} disabled={isAiLoading}><Send className="w-4 h-4" /></Button>
+                <Button size="icon" className="h-8 w-8" onClick={handleTestChat} disabled={isAiLoading}><Send className="w-3 h-3" /></Button>
               </div>
             </div>
           </div>
@@ -276,12 +259,11 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
 function ModeCard({ icon: Icon, title, desc, onClick, color, bgColor }: any) {
   return (
-    <button onClick={onClick} className="group p-8 bg-card border rounded-[2.5rem] text-left hover:border-primary/50 transition-all flex flex-col items-start gap-4 shadow-sm hover:shadow-2xl bento-inner-glow overflow-hidden relative">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[80px] -z-10 group-hover:bg-primary/10 transition-all" />
-      <div className={`p-4 ${bgColor} rounded-2xl group-hover:scale-110 transition-transform duration-500`}><Icon className={`w-8 h-8 ${color}`} /></div>
+    <button onClick={onClick} className="group p-6 bg-card border rounded-[2rem] text-left hover:border-primary/50 transition-all flex flex-col items-start gap-3 shadow-sm relative overflow-hidden">
+      <div className={`p-3 ${bgColor} rounded-xl group-hover:scale-110 transition-transform`}><Icon className={`w-6 h-6 ${color}`} /></div>
       <div>
-        <h3 className="text-xl font-black tracking-tighter">{title}</h3>
-        <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed opacity-60 font-light">{desc}</p>
+        <h3 className="text-lg font-black tracking-tight">{title}</h3>
+        <p className="text-[10px] text-muted-foreground mt-1 opacity-60">{desc}</p>
       </div>
     </button>
   );
