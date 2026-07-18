@@ -20,8 +20,8 @@ export async function testAgent(input: z.infer<typeof TestAgentInputSchema>) {
   const { systemPrompt, userMessage, history = [] } = input;
 
   const { text } = await ai.generate({
-    system: systemPrompt,
     messages: [
+      { role: 'system', content: [{ text: systemPrompt }] },
       ...history.map(h => ({
         role: h.role as 'user' | 'model',
         content: [{ text: h.content }]

@@ -50,7 +50,7 @@ export default function ChatPage() {
   }, []);
 
   if (!hasMounted) {
-    return <div className="h-screen w-full bg-[#0d0d12]" />;
+    return <div className="h-screen w-full bg-[#020204]" />;
   }
 
   if (isInitializing) {
@@ -58,7 +58,7 @@ export default function ChatPage() {
       <div className="h-screen w-full bg-background flex flex-col items-center justify-center">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-[10px] uppercase tracking-widest text-muted-foreground animate-pulse">
-          Connecting to P2P Mesh...
+          Secure Handshake...
         </p>
       </div>
     );

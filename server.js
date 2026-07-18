@@ -19,7 +19,6 @@ const handle = app.getRequestHandler();
 // Настройка пула БД
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Добавляем таймаут, чтобы не ждать вечно в среде без БД
   connectionTimeoutMillis: 5000,
 });
 
@@ -42,7 +41,6 @@ async function initDB() {
     console.log('[DB] Database initialized');
   } catch (err) {
     console.error('[DB] Initialization error:', err.message);
-    // Не выбрасываем ошибку дальше, чтобы сервер мог запуститься без БД (для превью)
   }
 }
 
@@ -62,7 +60,19 @@ app.prepare().then(async () => {
   await initDB();
 
   const server = createServer((req, res) => {
+    // 2026 Cloud Proxy Compliance: Force headers for correct resource generation
+    const forwardedHost = req.headers['x-forwarded-host'];
+    if (forwardedHost) {
+      req.headers['host'] = forwardedHost;
+    }
+
     const parsedUrl = parse(req.url, true);
+    
+    // Set CORS headers for cloud workstation stability
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+
     handle(req, res, parsedUrl);
   });
 
@@ -77,7 +87,6 @@ app.prepare().then(async () => {
     socket.on('register', (userId) => {
       if (userId) {
         socket.join(userId);
-        console.log(`[Socket] User ${userId} joined room`);
       }
     });
 
