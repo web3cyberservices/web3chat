@@ -55,14 +55,18 @@ app.prepare().then(async () => {
   await initDB();
 
   const server = createServer((req, res) => {
-    // Cloud Proxy Stability 2026: Force correct host for static resources
+    // Cloud Proxy Stability: Handle forwarded headers for correct origin and protocol
     const forwardedHost = req.headers['x-forwarded-host'];
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    
     if (forwardedHost) {
       req.headers['host'] = forwardedHost;
     }
 
-    // Modern Security Headers
+    // Modern Security Headers & CORS support for cloud workstations
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
