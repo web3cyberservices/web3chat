@@ -18,7 +18,7 @@
     --primary-foreground: 144 30% 5%;
     --secondary: 240 4% 12%;
     --secondary-foreground: 0 0% 98%;
-    --accent: 240 4% 15%;
+    --accent: 210 80% 50%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
@@ -35,10 +35,6 @@ body {
 
 * {
   @apply border-border;
-}
-
-.glass {
-  @apply bg-white/[0.02] backdrop-blur-3xl border border-white/5;
 }
 
 .glass-morphism {
@@ -60,6 +56,7 @@ body {
 
 .premium-border {
   position: relative;
+  z-index: 1;
 }
 
 .premium-border::after {
@@ -74,32 +71,32 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+  z-index: -1;
+}
+
+.bento-inner-glow {
+  box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.02);
+}
+
+.neo-shadow {
+  box-shadow: 0 20px 80px -20px rgba(34, 197, 94, 0.15);
+}
+
+@keyframes progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.animate-progress {
+  animation: progress 2s ease-in-out infinite;
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
   @apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
   @apply bg-white/10 rounded-full hover:bg-white/20 transition-all;
-}
-
-@keyframes float {
-  0% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-15px) rotate(1deg); }
-  100% { transform: translateY(0px) rotate(0deg); }
-}
-
-.animate-float {
-  animation: float 8s ease-in-out infinite;
-}
-
-.neo-shadow {
-  box-shadow: 0 0 40px -10px rgba(34, 197, 94, 0.2);
-}
-
-.bento-inner-glow {
-  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02);
 }
