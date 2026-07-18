@@ -45,13 +45,11 @@ export default function ChatPage() {
     }
     
     loadIdentity();
-
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  if (!hasMounted) {
-    return <div className="h-screen w-full bg-[#020204]" />;
-  }
+  // Avoid Hydration Error: Use consistent loading text
+  if (!hasMounted) return <div className="h-screen w-full bg-[#020204]" />;
 
   if (isInitializing) {
     return (

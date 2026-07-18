@@ -4,7 +4,6 @@ const next = require('next');
 const { Server } = require('socket.io');
 const { Pool } = require('pg');
 
-// Парсинг аргументов командной строки (для Firebase Studio)
 const args = process.argv.slice(2);
 const portArg = args.indexOf('--port');
 const hostArg = args.indexOf('--hostname');
@@ -16,17 +15,13 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-// Настройка пула БД
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   connectionTimeoutMillis: 5000,
 });
 
 async function initDB() {
-  if (!process.env.DATABASE_URL) {
-    console.log('[DB] DATABASE_URL not set, skipping initialization');
-    return;
-  }
+  if (!process.env.DATABASE_URL) return;
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -38,9 +33,9 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
       CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_id);
     `);
-    console.log('[DB] Database initialized');
+    console.log('[DB] Core initialized');
   } catch (err) {
-    console.error('[DB] Initialization error:', err.message);
+    console.error('[DB Error]', err.message);
   }
 }
 
@@ -52,7 +47,7 @@ async function logMessageToDB(targetId, payload, timestamp) {
       [timestamp || Date.now(), targetId, payload]
     );
   } catch (err) {
-    console.error('[DB Error] Failed to log message:', err.message);
+    console.error('[DB Error] Log failure:', err.message);
   }
 }
 
@@ -60,19 +55,20 @@ app.prepare().then(async () => {
   await initDB();
 
   const server = createServer((req, res) => {
-    // 2026 Cloud Proxy Compliance: Force headers for correct resource generation
+    // Cloud Proxy Stability 2026: Force correct host for static resources
     const forwardedHost = req.headers['x-forwarded-host'];
     if (forwardedHost) {
       req.headers['host'] = forwardedHost;
     }
 
-    const parsedUrl = parse(req.url, true);
-    
-    // Set CORS headers for cloud workstation stability
+    // Modern Security Headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
+    const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
   });
 
@@ -85,9 +81,7 @@ app.prepare().then(async () => {
 
   io.on('connection', (socket) => {
     socket.on('register', (userId) => {
-      if (userId) {
-        socket.join(userId);
-      }
+      if (userId) socket.join(userId);
     });
 
     socket.on('send_message', async (data) => {
@@ -100,6 +94,6 @@ app.prepare().then(async () => {
 
   server.listen(PORT, HOSTNAME, (err) => {
     if (err) throw err;
-    console.log(`> Web3 Chat Ready: http://${HOSTNAME}:${PORT}`);
+    console.log(`> Web3 Service Active: http://${HOSTNAME}:${PORT}`);
   });
 });
