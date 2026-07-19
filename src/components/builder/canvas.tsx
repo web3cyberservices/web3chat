@@ -37,9 +37,9 @@ function ElementQuickSettings({
   onUpdate: (s: any, c?: any) => void;
 }) {
   return (
-    <div className="flex flex-col gap-5 p-5 w-[280px] max-h-[400px] overflow-y-auto bg-card/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl shadow-black/50 custom-scrollbar">
+    <div className="flex flex-col gap-5 p-5 w-[280px] max-h-[380px] overflow-y-auto bg-card/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl shadow-black/50 custom-scrollbar scrollbar-hide">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Свойства элемента</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Настройки элемента</span>
         <Sliders className="w-3 h-3 text-primary" />
       </div>
 
@@ -67,12 +67,12 @@ function ElementQuickSettings({
             }}
             className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none uppercase"
           >
-            {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12]">{f.toUpperCase()}</option>)}
+            {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12] text-white">{f.toUpperCase()}</option>)}
           </select>
         </div>
 
         <div className="space-y-2">
-          <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Прозрачность ({Math.round((type === 'title' ? (styles.titleOpacity ?? 1) : type === 'desc' ? (styles.descOpacity ?? 1) : (styles.buttonOpacity ?? 1)) * 100)}%)</label>
+          <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Прозрачность</label>
           <input 
             type="range" 
             min="0" max="1" step="0.1"
@@ -199,16 +199,22 @@ function DraggableElement({
       className={`${className} relative group/drag select-none transition-shadow duration-300 ${isDragging ? 'z-50' : ''}`}
       style={{ transform: `translate(${x}px, ${y}px)` }}
     >
-      <div className="drag-handle absolute -left-10 top-1/2 -translate-y-1/2 p-2 bg-primary/20 text-primary rounded-xl cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-all hover:bg-primary hover:text-white z-20 shadow-xl border border-primary/20">
+      {/* Ручка перемещения слева */}
+      <div className="drag-handle absolute -left-12 top-1/2 -translate-y-1/2 p-2.5 bg-primary/20 text-primary rounded-xl cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-all hover:bg-primary hover:text-white z-20 shadow-xl border border-primary/20">
         <GripHorizontal className="w-4 h-4" />
       </div>
 
-      <div className="absolute -right-10 top-1/2 -translate-y-1/2 p-2 bg-card/80 backdrop-blur-xl border border-white/10 text-white/40 rounded-xl cursor-pointer opacity-0 group-hover/drag:opacity-100 transition-all hover:bg-primary hover:text-white z-20 shadow-xl" onClick={() => setShowSettings(!showSettings)}>
+      {/* Иконка настроек справа */}
+      <div 
+        className={`absolute -right-12 top-1/2 -translate-y-1/2 p-2.5 border text-white/40 rounded-xl cursor-pointer opacity-0 group-hover/drag:opacity-100 transition-all z-20 shadow-xl ${showSettings ? 'bg-primary text-white border-primary' : 'bg-card/80 backdrop-blur-xl border-white/10 hover:bg-primary hover:text-white'}`} 
+        onClick={() => setShowSettings(!showSettings)}
+      >
         <Settings2 className="w-4 h-4" />
       </div>
 
+      {/* Окно быстрых настроек - Позиционируется НАД элементом, чтобы не обрезаться по бокам */}
       {showSettings && (
-        <div ref={settingsRef} className="absolute left-full ml-6 bottom-0 z-[100] animate-in fade-in zoom-in slide-in-from-left-2 duration-200">
+        <div ref={settingsRef} className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 z-[100] animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200">
           {settingsContent}
         </div>
       )}
@@ -453,7 +459,7 @@ export function BuilderCanvas() {
                                     onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, fontFamily: e.target.value as FontFamily } })}
                                     className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] font-black outline-none uppercase tracking-widest"
                                   >
-                                    {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12]">{f.toUpperCase()}</option>)}
+                                    {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12] text-white">{f.toUpperCase()}</option>)}
                                   </select>
                                   <div className="flex gap-2">
                                     {(['normal', 'large', 'huge'] as const).map(size => (
