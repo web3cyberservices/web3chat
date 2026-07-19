@@ -25,6 +25,12 @@ export interface BlockStyles {
   backgroundOpacity?: number;
   borderRadius?: string;
   
+  // Border & Glow
+  borderColor?: string;
+  borderWidth?: string;
+  borderGlow?: boolean;
+  borderGlowStrength?: number;
+
   // Элемент-специфичные стили
   titleColor?: string;
   titleFont?: FontFamily;
@@ -140,12 +146,16 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         backgroundColor: (type === 'header' || type === 'footer') ? '#020204' : '#ffffff',
         textColor: (type === 'header' || type === 'footer') ? '#ffffff' : '#1e293b',
         padding: isSpecialMode ? 'p-10' : 'py-32 px-10',
-        minHeight: type === 'header' ? '5rem' : (type === 'hero' ? '80vh' : 'auto'),
+        minHeight: type === 'header' ? '5rem' : (type === 'hero' ? '85vh' : 'auto'),
         fontFamily: 'sans',
         fontSize: 'large',
         overlayOpacity: 0.5,
         backgroundOpacity: 1,
         borderRadius: '0px',
+        borderColor: 'transparent',
+        borderWidth: '0px',
+        borderGlow: false,
+        borderGlowStrength: 10,
         titleX: 0, titleY: 0,
         descX: 0, descY: 0,
         btnX: 0, btnY: 0,

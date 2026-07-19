@@ -1,3 +1,4 @@
+
 import { PageBlock, FontFamily } from './builder-store';
 
 const FONT_MAP: Record<FontFamily, string> = {
@@ -24,6 +25,7 @@ function escapeHTML(str: string): string {
 }
 
 function hexToRgba(hex: string, opacity: number): string {
+  if (!hex) return 'transparent';
   let r = 0, g = 0, b = 0;
   if (hex.length === 4) {
     r = parseInt(hex[1] + hex[1], 16);
@@ -60,8 +62,10 @@ function renderBlock(block: PageBlock, isLast: boolean, nextBlockIsOverlay: bool
 
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : '';
+  const borderStyle = `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`;
+  const glowStyle = styles.borderGlow ? `box-shadow: 0 0 ${styles.borderGlowStrength || 15}px ${styles.borderColor || styles.textColor};` : '';
 
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''}`;
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; ${glowStyle} overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''}`;
   
   const bgImageStyle = styles.backgroundImage 
     ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
@@ -76,7 +80,7 @@ function renderBlock(block: PageBlock, isLast: boolean, nextBlockIsOverlay: bool
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
     return `
-      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${fontStack}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
+      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; border: ${borderStyle}; ${glowStyle} display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${fontStack}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
         <div style="font-weight: 900; font-size: 2rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
         <nav style="display: flex; gap: 40px;">
           ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3em; opacity: 0.7; transition: opacity 0.3s;">${escapeHTML(l.label)}</a>`).join('')}

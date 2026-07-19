@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -8,7 +9,7 @@ import {
   Layout, Type, Palette, Move, 
   Maximize2, MousePointer2, Sparkles, Sliders,
   Zap, PanelTop, PanelBottom, MousePointer, GripHorizontal,
-  Link, MousePointerClick, ChevronDown, Check, Eye
+  Link, MousePointerClick, ChevronDown, Check, Eye, Sun
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -27,6 +28,21 @@ const FONT_MAP: Record<FontFamily, string> = {
 interface EditingElement {
   blockId: string;
   type: 'title' | 'desc' | 'btn';
+}
+
+function hexToRgba(hex: string, opacity: number): string {
+  let r = 0, g = 0, b = 0;
+  if (!hex) return 'transparent';
+  if (hex.length === 4) {
+    r = parseInt(hex[1] + hex[1], 16);
+    g = parseInt(hex[2] + hex[2], 16);
+    b = parseInt(hex[3] + hex[3], 16);
+  } else if (hex.length === 7) {
+    r = parseInt(hex.substring(1, 3), 16);
+    g = parseInt(hex.substring(3, 5), 16);
+    b = parseInt(hex.substring(5, 7), 16);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
 function ElementSettingsPanel({ 
@@ -238,14 +254,19 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
     });
   };
 
+  const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
+  const glowStyle = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 15}px ${styles.borderColor || styles.textColor}` : 'none';
+
   if (type === 'header') {
     return (
       <header className="w-full flex items-center justify-between px-12 relative z-[100] transition-all duration-500" style={{ 
-        backgroundColor: styles.backgroundColor, 
+        backgroundColor: bgRgba, 
         minHeight: styles.minHeight,
         color: styles.textColor,
         fontFamily: FONT_MAP[styles.fontFamily],
-        borderRadius: styles.borderRadius || '0px'
+        borderRadius: styles.borderRadius || '0px',
+        border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
+        boxShadow: glowStyle
       }}>
         <DraggableElement 
           id="h-title" 
@@ -270,10 +291,12 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
 
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center ${isLast ? 'flex-grow' : ''}`} style={{ 
-      backgroundColor: styles.backgroundColor, 
+      backgroundColor: bgRgba, 
       borderRadius: styles.borderRadius || '0px', 
       minHeight: styles.minHeight,
-      marginTop: needsHeaderOffset ? `-${useBuilderStore.getState().blocks[0]?.styles.minHeight}` : '0'
+      marginTop: needsHeaderOffset ? `-${useBuilderStore.getState().blocks[0]?.styles.minHeight}` : '0',
+      border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
+      boxShadow: glowStyle
     }}>
       {styles.backgroundImage && (
         <div className="absolute inset-0 bg-cover bg-center" style={{ 
@@ -409,7 +432,7 @@ export function BuilderCanvas() {
                           marginBottom: (block.type === 'header' && block.styles.isOverlay) ? `-${block.styles.minHeight}` : '0'
                         }}
                       >
-                        {/* Панель управления блоком - Перемещена в правый нижний угол */}
+                        {/* Панель управления блоком - Перенесена в правый нижний угол */}
                         <div className="absolute right-12 bottom-12 flex gap-4 opacity-0 group-hover:opacity-100 transition-all z-[200]">
                           <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-5 bg-card/90 backdrop-blur-3xl border rounded-[2rem] hover:text-primary transition-all shadow-2xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
                             <Settings2 className="w-6 h-6" />
@@ -439,6 +462,17 @@ export function BuilderCanvas() {
                                       <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
                                     </div>
                                   </div>
+                                  
+                                  <div className="space-y-3">
+                                    <span className="text-[10px] uppercase font-bold opacity-50">Прозрачность фона</span>
+                                    <input 
+                                      type="range" min="0" max="1" step="0.05"
+                                      value={block.styles.backgroundOpacity ?? 1}
+                                      onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundOpacity: parseFloat(e.target.value) } })}
+                                      className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+                                    />
+                                  </div>
+
                                   <button onClick={() => fileInputRef.current?.click()} className="w-full py-5 bg-primary/10 text-primary rounded-[2rem] text-[11px] font-black uppercase flex items-center justify-center gap-4 hover:bg-primary/20 transition-all border border-primary/20 premium-border">
                                     <Upload className="w-5 h-5" /> Изменить медиа
                                   </button>
@@ -465,6 +499,43 @@ export function BuilderCanvas() {
                                       </button>
                                     ))}
                                   </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                  <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Zap className="w-5 h-5" /> Эффекты границы</label>
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Цвет ободка</span>
+                                      <input type="color" value={block.styles.borderColor || '#ffffff'} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderColor: e.target.value, borderWidth: block.styles.borderWidth === '0px' ? '1px' : block.styles.borderWidth } })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
+                                    </div>
+                                    <div className="space-y-3">
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Толщина (px)</span>
+                                      <input type="text" value={block.styles.borderWidth || '0px'} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderWidth: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[12px] font-bold outline-none" />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5">
+                                    <div className="flex items-center gap-3">
+                                      <Sun className="w-4 h-4 text-primary" />
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Эффект свечения</span>
+                                    </div>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={block.styles.borderGlow} 
+                                      onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderGlow: e.target.checked } })}
+                                      className="w-6 h-6 accent-primary cursor-pointer"
+                                    />
+                                  </div>
+                                  {block.styles.borderGlow && (
+                                    <div className="space-y-3">
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Сила свечения</span>
+                                      <input 
+                                        type="range" min="0" max="100" step="1"
+                                        value={block.styles.borderGlowStrength ?? 15}
+                                        onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderGlowStrength: parseInt(e.target.value) } })}
+                                        className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+                                      />
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div className="space-y-6">
@@ -504,7 +575,7 @@ export function BuilderCanvas() {
                           editingElement={editingElement}
                           onSetEditingElement={(el) => { setEditingElement(el); setEditingId(null); }}
                           isLast={index === blocks.length - 1}
-                          isFirst={index === 1}
+                          isFirst={index === 0}
                         />
                       </div>
                     )}
