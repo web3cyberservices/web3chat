@@ -220,12 +220,13 @@ function DraggableElement({
   );
 }
 
-function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingElement, isLast }: { 
+function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingElement, isLast, isFirst }: { 
   block: PageBlock; 
   onUpdate: (content: Partial<BlockContent>, styles?: any) => void;
   editingElement: EditingElement | null;
   onSetEditingElement: (el: EditingElement | null) => void;
   isLast: boolean;
+  isFirst: boolean;
 }) {
   const { styles, content, type } = block;
 
@@ -265,12 +266,15 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
     );
   }
 
+  // Для первого блока после оверлей-шапки убираем верхний отступ
+  const needsHeaderOffset = isFirst && useBuilderStore.getState().blocks[0]?.type === 'header' && useBuilderStore.getState().blocks[0]?.styles.isOverlay;
+
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center ${isLast ? 'flex-grow' : ''}`} style={{ 
       backgroundColor: styles.backgroundColor, 
       borderRadius: styles.borderRadius || '0px', 
       minHeight: styles.minHeight,
-      marginTop: (type !== 'header' && block.id === useBuilderStore.getState().blocks[1]?.id && useBuilderStore.getState().blocks[0]?.styles.isOverlay) ? `-${useBuilderStore.getState().blocks[0]?.styles.minHeight}` : '0'
+      marginTop: needsHeaderOffset ? `-${useBuilderStore.getState().blocks[0]?.styles.minHeight}` : '0'
     }}>
       {styles.backgroundImage && (
         <div className="absolute inset-0 bg-cover bg-center" style={{ 
@@ -380,8 +384,8 @@ export function BuilderCanvas() {
   };
 
   return (
-    <div className="flex-1 bg-[#050507] overflow-y-auto p-12 transition-all duration-1000 relative custom-scrollbar">
-      <div className={`${canvasWidth} mx-auto min-h-dvh bg-background shadow-2xl rounded-[4rem] flex flex-col transition-all duration-1000 relative border border-white/5`}>
+    <div className="flex-1 bg-[#050507] overflow-y-auto p-0 lg:p-8 lg:pt-0 transition-all duration-1000 relative custom-scrollbar flex flex-col items-center">
+      <div className={`${canvasWidth} w-full min-h-dvh bg-background shadow-2xl flex flex-col transition-all duration-1000 relative border-x border-b border-white/5 overflow-hidden`}>
         <DragDropContext onDragEnd={(res) => res.destination && reorderBlocks(res.source.index, res.destination.index)}>
           <Droppable droppableId="canvas">
             {(provided) => (
@@ -500,6 +504,7 @@ export function BuilderCanvas() {
                           editingElement={editingElement}
                           onSetEditingElement={(el) => { setEditingElement(el); setEditingId(null); }}
                           isLast={index === blocks.length - 1}
+                          isFirst={index === 1}
                         />
                       </div>
                     )}
