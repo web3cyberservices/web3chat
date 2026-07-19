@@ -1,13 +1,15 @@
 
 import { create } from 'zustand';
 
-export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | null;
+export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | 'whatsapp' | null;
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
 export type BlockType = 
-  | 'header' | 'hero' | 'features' | 'pricing' | 'contacts' | 'footer' | 'faq' | 'testimonials' | 'gallery' | 'custom-code' // Landing
+  | 'header' | 'hero' | 'features' | 'pricing' | 'contacts' | 'footer' | 'faq' | 'testimonials' | 'gallery' | 'custom-code'
+  | 'web3-wallet' | 'nft-gallery' | 'on-chain-form' // Web3 Blocks
   | 'system-prompt' | 'knowledge' | 'tools'      // AI Agent
-  | 'command' | 'menu' | 'reply';                // Bot
+  | 'command' | 'menu' | 'reply'                // Bot
+  | 'wa-template' | 'wa-config';                // WhatsApp
 
 export type FontFamily = 
   | 'sans' | 'serif' | 'mono' 
@@ -46,22 +48,17 @@ export interface BlockLink {
   url: string;
 }
 
-export interface FAQItem {
-  question: string;
-  answer: string;
-}
-
-export interface Testimonial {
-  name: string;
-  role: string;
-  text: string;
-  avatar?: string;
-}
-
 export interface ToolDefinition {
   name: string;
   description: string;
   endpoint: string;
+}
+
+export interface WATemplate {
+  name: string;
+  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+  text: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 export interface BlockContent {
@@ -71,16 +68,16 @@ export interface BlockContent {
   buttonUrl?: string;
   logoUrl?: string; 
   links?: BlockLink[];
-  faq?: FAQItem[];
-  testimonials?: Testimonial[];
-  gallery?: string[];
   customCode?: string;
-  // Agent/Bot specific
+  // Agent/Bot/WA specific
   systemPrompt?: string;
   knowledgeSources?: string[];
   tools?: ToolDefinition[];
   commandName?: string;
   botToken?: string;
+  waPhoneId?: string;
+  waToken?: string;
+  templates?: WATemplate[];
 }
 
 export interface PageBlock {
@@ -95,12 +92,14 @@ interface BuilderState {
   viewport: ViewportMode;
   blocks: PageBlock[];
   botToken: string;
+  waToken: string;
   past: PageBlock[][];
   future: PageBlock[][];
   
   setMode: (mode: BuilderMode) => void;
   setViewport: (viewport: ViewportMode) => void;
   setBotToken: (token: string) => void;
+  setWaToken: (token: string) => void;
   addBlock: (type: BlockType) => void;
   removeBlock: (id: string) => void;
   updateBlock: (id: string, updates: Partial<PageBlock>) => void;
@@ -115,13 +114,15 @@ export const useBuilderStore = create<BuilderState>((set) => ({
   viewport: 'desktop',
   blocks: [],
   botToken: '',
+  waToken: '',
   past: [],
   future: [],
 
-  setMode: (mode) => set({ mode, blocks: [], botToken: '', past: [], future: [] }),
+  setMode: (mode) => set({ mode, blocks: [], botToken: '', waToken: '', past: [], future: [] }),
   setViewport: (viewport) => set({ viewport }),
   setBotToken: (botToken) => set({ botToken }),
-  reset: () => set({ mode: null, blocks: [], botToken: '', past: [], future: [] }),
+  setWaToken: (waToken) => set({ waToken }),
+  reset: () => set({ mode: null, blocks: [], botToken: '', waToken: '', past: [], future: [] }),
 
   undo: () => set((state) => {
     if (state.past.length === 0) return state;
@@ -146,22 +147,21 @@ export const useBuilderStore = create<BuilderState>((set) => ({
   }),
 
   addBlock: (type) => set((state) => {
-    const isHeaderFooter = type === 'header' || type === 'footer';
-    const isSpecialMode = state.mode === 'ai-agent' || state.mode === 'bot';
+    const isSpecialMode = ['ai-agent', 'bot', 'whatsapp'].includes(state.mode || '');
     
     const newBlock: PageBlock = {
       id: Math.random().toString(36).substr(2, 9),
       type,
       styles: {
-        backgroundColor: isHeaderFooter ? '#1a1a24' : (state.mode === 'landing' ? '#ffffff' : '#0f172a'),
-        textColor: isHeaderFooter ? '#ffffff' : (state.mode === 'landing' ? '#1e293b' : '#f8fafc'),
-        padding: isHeaderFooter ? 'py-4' : (isSpecialMode ? 'p-8' : 'py-16'),
-        minHeight: type === 'header' ? '4rem' : (isSpecialMode ? 'auto' : 'auto'),
+        backgroundColor: (type === 'header' || type === 'footer') ? '#020204' : (state.mode === 'landing' ? '#ffffff' : '#0f172a'),
+        textColor: (type === 'header' || type === 'footer') ? '#ffffff' : (state.mode === 'landing' ? '#1e293b' : '#f8fafc'),
+        padding: isSpecialMode ? 'p-8' : 'py-20',
+        minHeight: type === 'header' ? '5rem' : 'auto',
         fontFamily: isSpecialMode ? 'mono' : 'sans',
         fontSize: 'normal',
         overlayOpacity: 0.4,
         backgroundOpacity: 1,
-        borderRadius: isSpecialMode ? '1.5rem' : '0px',
+        borderRadius: isSpecialMode ? '2rem' : '0px',
         titleX: 0, titleY: 0,
         descX: 0, descY: 0,
         btnX: 0, btnY: 0,
@@ -171,10 +171,8 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         buttonFontFamily: 'sans',
         buttonBgColor: '#22c55e',
         buttonTextColor: '#ffffff',
-        isSticky: type === 'header' ? false : undefined,
-        isOverlay: type === 'header' ? false : undefined,
       },
-      content: getDefaultContent(type, state.mode)
+      content: getDefaultContent(type)
     };
     
     return { 
@@ -192,9 +190,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
 
   updateBlock: (id, updates) => set((state) => {
     const newBlocks = state.blocks.map(b => b.id === id ? { ...b, ...updates } : b);
-    return { 
-      blocks: newBlocks,
-    };
+    return { blocks: newBlocks };
   }),
 
   reorderBlocks: (startIndex, endIndex) => set((state) => {
@@ -209,20 +205,14 @@ export const useBuilderStore = create<BuilderState>((set) => ({
   }),
 }));
 
-function getDefaultContent(type: BlockType, mode: BuilderMode): BlockContent {
+function getDefaultContent(type: BlockType): BlockContent {
   switch (type) {
-    case 'header': return { title: 'BrandLogo', links: [{label: 'Home', url: '#'}, {label: 'Features', url: '#features'}] };
-    case 'hero': return { title: 'Design Your Future', description: 'Build high-converting pages in minutes.' };
-    case 'faq': return { title: 'Frequently Asked Questions', faq: [{question: 'How it works?', answer: 'It is simple...'}] };
-    case 'testimonials': return { title: 'What clients say', testimonials: [{name: 'John Doe', role: 'CEO', text: 'Great service!', avatar: 'https://picsum.photos/seed/1/100/100'}] };
-    case 'gallery': return { title: 'Our Work', gallery: ['https://picsum.photos/seed/g1/600/400', 'https://picsum.photos/seed/g2/600/400'] };
-    case 'custom-code': return { customCode: '<!-- Insert custom HTML here -->\n<div class="p-8 bg-primary/20 rounded-[2rem] text-center font-bold">Custom Widget Area</div>' };
-    case 'system-prompt': return { systemPrompt: 'You are a helpful assistant specialized in Web3...' };
-    case 'knowledge': return { title: 'Knowledge Sources', knowledgeSources: ['https://docs.example.com', 'Internal Handbook v1'] };
-    case 'tools': return { title: 'Enabled Tools', tools: [{name: 'getWeather', description: 'Fetch weather data', endpoint: 'https://api.weather.com'}] };
-    case 'command': return { commandName: '/start', description: 'Welcome message for the user' };
-    case 'menu': return { title: 'Main Menu', links: [{label: 'Pricing', url: 'action_pricing'}, {label: 'Support', url: 'action_help'}] };
-    case 'reply': return { title: 'Auto Reply', description: 'Hello! How can I help you today?' };
-    default: return { title: `New ${type}`, description: 'Edit this block...' };
+    case 'header': return { title: 'Web3Brand', links: [{label: 'Главная', url: '#'}, {label: 'Сервисы', url: '#services'}] };
+    case 'hero': return { title: 'Будущее уже здесь', description: 'Создавайте Web3 сайты и AI агентов без единой строчки кода.' };
+    case 'web3-wallet': return { title: 'Подключите Кошелек', description: 'Интеграция с MetaMask, WalletConnect и Phantom.', buttonText: 'Connect Wallet' };
+    case 'wa-template': return { templates: [{ name: 'welcome_msg', category: 'UTILITY', text: 'Добро пожаловать в наш сервис!', status: 'APPROVED' }] };
+    case 'system-prompt': return { systemPrompt: 'Ты - профессиональный AI ассистент...' };
+    case 'command': return { commandName: '/start', description: 'Приветственное сообщение бота' };
+    default: return { title: 'Новый блок', description: 'Опишите ваш контент здесь...' };
   }
 }
