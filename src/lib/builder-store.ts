@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 
 export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | 'whatsapp' | null;
@@ -155,13 +154,13 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       styles: {
         backgroundColor: (type === 'header' || type === 'footer') ? '#020204' : (state.mode === 'landing' ? '#ffffff' : '#0f172a'),
         textColor: (type === 'header' || type === 'footer') ? '#ffffff' : (state.mode === 'landing' ? '#1e293b' : '#f8fafc'),
-        padding: isSpecialMode ? 'p-8' : 'py-20',
-        minHeight: type === 'header' ? '5rem' : 'auto',
+        padding: isSpecialMode ? 'p-10' : 'py-32 px-10',
+        minHeight: type === 'header' ? '6rem' : 'auto',
         fontFamily: isSpecialMode ? 'mono' : 'sans',
-        fontSize: 'normal',
-        overlayOpacity: 0.4,
+        fontSize: 'large',
+        overlayOpacity: 0.5,
         backgroundOpacity: 1,
-        borderRadius: isSpecialMode ? '2rem' : '0px',
+        borderRadius: isSpecialMode ? '3rem' : '0px',
         titleX: 0, titleY: 0,
         descX: 0, descY: 0,
         btnX: 0, btnY: 0,
@@ -207,12 +206,12 @@ export const useBuilderStore = create<BuilderState>((set) => ({
 
 function getDefaultContent(type: BlockType): BlockContent {
   switch (type) {
-    case 'header': return { title: 'Web3Brand', links: [{label: 'Главная', url: '#'}, {label: 'Сервисы', url: '#services'}] };
-    case 'hero': return { title: 'Будущее уже здесь', description: 'Создавайте Web3 сайты и AI агентов без единой строчки кода.' };
-    case 'web3-wallet': return { title: 'Подключите Кошелек', description: 'Интеграция с MetaMask, WalletConnect и Phantom.', buttonText: 'Connect Wallet' };
-    case 'wa-template': return { templates: [{ name: 'welcome_msg', category: 'UTILITY', text: 'Добро пожаловать в наш сервис!', status: 'APPROVED' }] };
-    case 'system-prompt': return { systemPrompt: 'Ты - профессиональный AI ассистент...' };
-    case 'command': return { commandName: '/start', description: 'Приветственное сообщение бота' };
-    default: return { title: 'Новый блок', description: 'Опишите ваш контент здесь...' };
+    case 'header': return { title: 'Web3Nexus', links: [{label: 'Home', url: '#'}, {label: 'Features', url: '#features'}, {label: 'DApp', url: '#dapp'}] };
+    case 'hero': return { title: 'Decentralized Future', description: 'Experience the next generation of web engineering with integrated AI and Blockchain protocol.' };
+    case 'web3-wallet': return { title: 'Connect to Nexus', description: 'Sync your digital identity via MetaMask, Phantom or Ledger securely.', buttonText: 'Connect Wallet' };
+    case 'wa-template': return { templates: [{ name: 'nexus_onboard', category: 'UTILITY', text: 'Welcome to the Decentralized Nexus. How can we assist?', status: 'APPROVED' }] };
+    case 'system-prompt': return { systemPrompt: 'You are an advanced Neural Sentinel for the Web3 ecosystem...' };
+    case 'command': return { commandName: '/start', description: 'Initialize Neural Link' };
+    default: return { title: 'New Synthesis Block', description: 'Configure your block parameters in the sidebar.' };
   }
 }

@@ -48,7 +48,6 @@ export default function ChatPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Avoid Hydration Error: Use consistent loading container during initial mount
   if (!hasMounted) {
     return <div className="h-screen w-full bg-[#020204]" />;
   }
