@@ -79,10 +79,8 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
-  const rawMinHeight = styles.minHeight || (isFirst && isOverlayHeaderActive ? '100dvh' : 'auto');
-  const minHeight = rawMinHeight.replace('vh', 'dvh');
+  const minHeight = styles.minHeight.replace('vh', 'dvh');
 
-  // Изолированные слои фона: Секция сама по себе прозрачная, чтобы видеть отрицательные z-index
   const bgBaseLayer = `<div style="position: absolute; inset: 0; background-color: ${bgRgba}; z-index: -2; pointer-events: none;"></div>`;
 
   const bgImageLayer = styles.backgroundImage 
@@ -110,7 +108,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
   return `
-    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeight}; border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
+    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeight}; border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; isolation: isolate; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
       ${bgBaseLayer}
       ${bgImageLayer}
       ${overlayLayer}

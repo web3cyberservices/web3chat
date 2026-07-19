@@ -436,13 +436,12 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
   return (
-    <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden ${isLast ? 'flex-grow' : ''}`} style={{ 
+    <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden z-[1] isolation-auto ${isLast ? 'flex-grow' : ''}`} style={{ 
       borderRadius: styles.borderRadius || '0px', 
-      minHeight: styles.minHeight.replace('vh', 'dvh'),
+      minHeight: styles.minHeight,
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>
-      {/* Слой с цветом фона */}
       <div style={{ position: 'absolute', inset: 0, backgroundColor: bgRgba, zIndex: -2, pointerEvents: 'none' }} />
       
       {styles.backgroundImage && (
@@ -700,7 +699,7 @@ export function BuilderCanvas() {
                                   <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Maximize2 className="w-5 h-5" /> Геометрия</label>
                                   <div className="space-y-6">
                                     <div className="space-y-3">
-                                      <span className="text-[10px] uppercase font-bold opacity-50">Минимальная высота (напр. 85dvh)</span>
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Минимальная высота (напр. 8dvh)</span>
                                       <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[12px] font-bold outline-none" />
                                     </div>
                                     <div className="space-y-3">
