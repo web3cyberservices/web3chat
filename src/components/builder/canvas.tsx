@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef } from 'react';
@@ -7,7 +6,8 @@ import { useBuilderStore, PageBlock, BlockContent, FontFamily } from '@/lib/buil
 import { 
   Trash2, GripVertical, Settings2, X, Upload, 
   Terminal, MessageSquare, Layout, Type, Palette, Move, 
-  Maximize2, MousePointer2, Sparkles, ChevronRight, Sliders
+  Maximize2, MousePointer2, Sparkles, ChevronRight, Sliders,
+  MousePointer, Zap, LayoutPanelTop
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,29 +55,37 @@ function BlockContentComponent({ block, onUpdate }: {
     transform: `translate(${styles.btnX || 0}px, ${styles.btnY || 0}px)`
   };
 
-  if (['system-prompt', 'knowledge', 'tools', 'command', 'menu', 'reply', 'wa-template', 'wa-config'].includes(type)) {
+  if (type === 'header') {
     return (
-      <div className="p-10 w-full bento-inner-glow bg-card/40 rounded-[3rem] border border-white/5">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-primary/10 rounded-2xl text-primary">
-            {type.includes('wa') ? <MessageSquare className="w-5 h-5" /> : <Terminal className="w-5 h-5" />}
-          </div>
-          <h4 className="text-lg font-black uppercase tracking-widest">{type.replace('-', ' ')}</h4>
+      <header className="w-full flex items-center justify-between px-10" style={{ 
+        backgroundColor: styles.backgroundColor, 
+        minHeight: styles.minHeight,
+        color: styles.textColor,
+        fontFamily: FONT_MAP[styles.fontFamily]
+      }}>
+        <div className="font-black text-xl tracking-tighter" style={{ transform: `translate(${styles.titleX || 0}px, ${styles.titleY || 0}px)` }}>
+          {content.title}
         </div>
-        <textarea 
-          value={content.systemPrompt || content.commandName || JSON.stringify(content.templates, null, 2)}
-          onChange={(e) => onUpdate(type === 'command' ? { commandName: e.target.value } : { systemPrompt: e.target.value })}
-          className="w-full h-48 bg-black/60 p-6 font-mono text-xs rounded-[2rem] border border-white/10 outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-          placeholder="Введите параметры здесь..."
-        />
-      </div>
+        <nav className="flex items-center gap-6">
+          {(content.links || []).map((l, i) => (
+            <span key={i} className="text-xs font-bold uppercase tracking-widest cursor-pointer hover:opacity-70">{l.label}</span>
+          ))}
+        </nav>
+      </header>
     );
   }
 
   return (
-    <div className="relative w-full overflow-hidden transition-all duration-500" style={{ backgroundColor: styles.backgroundColor, borderRadius: styles.borderRadius || '0px', minHeight: styles.minHeight }}>
+    <div className="relative w-full overflow-hidden transition-all duration-500" style={{ 
+      backgroundColor: styles.backgroundColor, 
+      borderRadius: styles.borderRadius || '0px', 
+      minHeight: styles.minHeight 
+    }}>
       {styles.backgroundImage && (
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${styles.backgroundImage})`, opacity: styles.backgroundOpacity || 1 }} />
+        <div className="absolute inset-0 bg-cover bg-center" style={{ 
+          backgroundImage: `url(${styles.backgroundImage})`, 
+          opacity: styles.backgroundOpacity || 1 
+        }} />
       )}
       {styles.overlayOpacity !== undefined && (
         <div className="absolute inset-0 bg-black" style={{ opacity: styles.overlayOpacity }} />
@@ -148,7 +156,6 @@ export function BuilderCanvas() {
                   <Draggable key={block.id} draggableId={block.id} index={index}>
                     {(provided) => (
                       <div ref={provided.innerRef} {...provided.draggableProps} className="group relative border-b border-white/5 last:border-b-0">
-                        {/* Панель быстрых действий */}
                         <div className="absolute right-8 top-8 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-50">
                           <button onClick={() => setEditingId(editingId === block.id ? null : block.id)} className={`p-3 bg-card/80 backdrop-blur-xl border rounded-2xl hover:text-primary transition-all ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
                             <Settings2 className="w-5 h-5" />
@@ -157,26 +164,24 @@ export function BuilderCanvas() {
                           <button onClick={() => removeBlock(block.id)} className="p-3 bg-card/80 backdrop-blur-xl border border-white/10 rounded-2xl hover:text-destructive"><Trash2 className="w-5 h-5" /></button>
                         </div>
 
-                        {/* Расширенная панель настроек */}
                         {editingId === block.id && (
                           <div className="absolute right-28 top-8 w-96 bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-8 z-[60] shadow-2xl animate-in fade-in zoom-in duration-300">
                             <div className="flex items-center justify-between mb-8">
-                              <h5 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Мастер Спилей</h5>
+                              <h5 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Настройки Блока</h5>
                               <button onClick={() => setEditingId(null)} className="p-2 hover:bg-white/5 rounded-full transition-all"><X className="w-4 h-4 opacity-40" /></button>
                             </div>
                             
                             <ScrollArea className="h-[60vh] pr-4">
                               <div className="space-y-8">
-                                {/* Группа: Цвета и Фон */}
                                 <div className="space-y-4">
-                                  <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Palette className="w-3 h-3" /> Фон и Цвета</label>
+                                  <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Palette className="w-3 h-3" /> Фон и Текст</label>
                                   <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                      <span className="text-[8px] uppercase font-bold opacity-50">Фон</span>
+                                      <span className="text-[8px] uppercase font-bold opacity-50">Цвет фона</span>
                                       <input type="color" value={block.styles.backgroundColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })} className="w-full h-10 rounded-xl bg-white/5 border-none cursor-pointer" />
                                     </div>
                                     <div className="space-y-2">
-                                      <span className="text-[8px] uppercase font-bold opacity-50">Текст</span>
+                                      <span className="text-[8px] uppercase font-bold opacity-50">Цвет текста</span>
                                       <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-10 rounded-xl bg-white/5 border-none cursor-pointer" />
                                     </div>
                                   </div>
@@ -186,7 +191,6 @@ export function BuilderCanvas() {
                                   <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
                                 </div>
 
-                                {/* Группа: Типографика */}
                                 <div className="space-y-4">
                                   <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Type className="w-3 h-3" /> Типографика</label>
                                   <select 
@@ -209,71 +213,46 @@ export function BuilderCanvas() {
                                   </div>
                                 </div>
 
-                                {/* Группа: Геометрия */}
                                 <div className="space-y-4">
                                   <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Maximize2 className="w-3 h-3" /> Геометрия</label>
                                   <div className="space-y-2">
-                                    <span className="text-[8px] uppercase font-bold opacity-50">Высота: {block.styles.minHeight}</span>
-                                    <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" placeholder="например, 500px или 80vh" />
+                                    <span className="text-[8px] uppercase font-bold opacity-50">Минимальная высота (например, 400px или 50vh)</span>
+                                    <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" />
                                   </div>
                                   <div className="space-y-2">
-                                    <span className="text-[8px] uppercase font-bold opacity-50">Скругление: {block.styles.borderRadius}</span>
-                                    <input type="text" value={block.styles.borderRadius} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderRadius: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" placeholder="например, 3rem или 20px" />
+                                    <span className="text-[8px] uppercase font-bold opacity-50">Скругление углов (например, 2rem)</span>
+                                    <input type="text" value={block.styles.borderRadius} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderRadius: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" />
                                   </div>
                                 </div>
 
-                                {/* Группа: Смещение элементов */}
                                 <div className="space-y-4">
-                                  <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Move className="w-3 h-3" /> Позиционирование</label>
+                                  <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Move className="w-3 h-3" /> Позиционирование элементов</label>
                                   <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                      <span className="text-[8px] uppercase font-bold opacity-50">Заголовок X/Y</span>
-                                      <div className="flex gap-2">
-                                        <input type="number" value={block.styles.titleX} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, titleX: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
-                                        <input type="number" value={block.styles.titleY} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, titleY: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
-                                      </div>
+                                      <span className="text-[8px] uppercase font-bold opacity-50">Заголовок X</span>
+                                      <input type="number" value={block.styles.titleX} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, titleX: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
                                     </div>
                                     <div className="space-y-2">
-                                      <span className="text-[8px] uppercase font-bold opacity-50">Кнопка X/Y</span>
-                                      <div className="flex gap-2">
+                                      <span className="text-[8px] uppercase font-bold opacity-50">Заголовок Y</span>
+                                      <input type="number" value={block.styles.titleY} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, titleY: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
+                                    </div>
+                                  </div>
+                                  {block.content.buttonText && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <span className="text-[8px] uppercase font-bold opacity-50">Кнопка X</span>
                                         <input type="number" value={block.styles.btnX} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, btnX: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <span className="text-[8px] uppercase font-bold opacity-50">Кнопка Y</span>
                                         <input type="number" value={block.styles.btnY} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, btnY: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
                                       </div>
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
-
-                                {/* Группа: Настройка кнопки */}
-                                {block.content.buttonText && (
-                                  <div className="space-y-4">
-                                    <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><MousePointer2 className="w-3 h-3" /> Стили Кнопки</label>
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <span className="text-[8px] uppercase font-bold opacity-50">Фон Кнопки</span>
-                                        <input type="color" value={block.styles.buttonBgColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonBgColor: e.target.value } })} className="w-full h-10 rounded-xl bg-white/5 border-none" />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <span className="text-[8px] uppercase font-bold opacity-50">Текст Кнопки</span>
-                                        <input type="color" value={block.styles.buttonTextColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonTextColor: e.target.value } })} className="w-full h-10 rounded-xl bg-white/5 border-none" />
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                      {(['none', 'md', 'full'] as const).map(radius => (
-                                        <button 
-                                          key={radius}
-                                          onClick={() => updateBlock(block.id, { styles: { ...block.styles, buttonRadius: radius } })}
-                                          className={`flex-1 py-2 text-[8px] font-black uppercase rounded-lg border transition-all ${block.styles.buttonRadius === radius ? 'bg-accent text-accent-foreground border-accent' : 'border-white/10 hover:bg-white/5'}`}
-                                        >
-                                          {radius}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                             </ScrollArea>
-
-                            <Button onClick={() => setEditingId(null)} className="w-full mt-8 rounded-[1.5rem] bg-primary/20 text-primary hover:bg-primary hover:text-primary-foreground font-black uppercase tracking-[0.2em] text-[10px]">Применить</Button>
+                            <Button onClick={() => setEditingId(null)} className="w-full mt-8 rounded-[1.5rem] bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-[10px]">Сохранить настройки</Button>
                           </div>
                         )}
 

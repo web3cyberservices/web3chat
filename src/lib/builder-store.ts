@@ -5,10 +5,7 @@ export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
 export type BlockType = 
   | 'header' | 'hero' | 'features' | 'pricing' | 'contacts' | 'footer' | 'faq' | 'testimonials' | 'gallery' | 'custom-code'
-  | 'web3-wallet' | 'nft-gallery' | 'on-chain-form' // Web3 Blocks
-  | 'system-prompt' | 'knowledge' | 'tools'      // AI Agent
-  | 'command' | 'menu' | 'reply'                // Bot
-  | 'wa-template' | 'wa-config';                // WhatsApp
+  | 'web3-wallet' | 'nft-gallery' | 'on-chain-form';
 
 export type FontFamily = 
   | 'sans' | 'serif' | 'mono' 
@@ -47,19 +44,6 @@ export interface BlockLink {
   url: string;
 }
 
-export interface ToolDefinition {
-  name: string;
-  description: string;
-  endpoint: string;
-}
-
-export interface WATemplate {
-  name: string;
-  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
-  text: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-}
-
 export interface BlockContent {
   title?: string;
   description?: string;
@@ -68,15 +52,9 @@ export interface BlockContent {
   logoUrl?: string; 
   links?: BlockLink[];
   customCode?: string;
-  // Agent/Bot/WA specific
   systemPrompt?: string;
-  knowledgeSources?: string[];
-  tools?: ToolDefinition[];
   commandName?: string;
-  botToken?: string;
-  waPhoneId?: string;
-  waToken?: string;
-  templates?: WATemplate[];
+  templates?: any[];
 }
 
 export interface PageBlock {
@@ -90,15 +68,11 @@ interface BuilderState {
   mode: BuilderMode;
   viewport: ViewportMode;
   blocks: PageBlock[];
-  botToken: string;
-  waToken: string;
   past: PageBlock[][];
   future: PageBlock[][];
   
   setMode: (mode: BuilderMode) => void;
   setViewport: (viewport: ViewportMode) => void;
-  setBotToken: (token: string) => void;
-  setWaToken: (token: string) => void;
   addBlock: (type: BlockType) => void;
   removeBlock: (id: string) => void;
   updateBlock: (id: string, updates: Partial<PageBlock>) => void;
@@ -112,16 +86,12 @@ export const useBuilderStore = create<BuilderState>((set) => ({
   mode: null,
   viewport: 'desktop',
   blocks: [],
-  botToken: '',
-  waToken: '',
   past: [],
   future: [],
 
-  setMode: (mode) => set({ mode, blocks: [], botToken: '', waToken: '', past: [], future: [] }),
+  setMode: (mode) => set({ mode, blocks: [], past: [], future: [] }),
   setViewport: (viewport) => set({ viewport }),
-  setBotToken: (botToken) => set({ botToken }),
-  setWaToken: (waToken) => set({ waToken }),
-  reset: () => set({ mode: null, blocks: [], botToken: '', waToken: '', past: [], future: [] }),
+  reset: () => set({ mode: null, blocks: [], past: [], future: [] }),
 
   undo: () => set((state) => {
     if (state.past.length === 0) return state;
@@ -152,15 +122,15 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       id: Math.random().toString(36).substr(2, 9),
       type,
       styles: {
-        backgroundColor: (type === 'header' || type === 'footer') ? '#020204' : (state.mode === 'landing' ? '#ffffff' : '#0f172a'),
-        textColor: (type === 'header' || type === 'footer') ? '#ffffff' : (state.mode === 'landing' ? '#1e293b' : '#f8fafc'),
+        backgroundColor: (type === 'header' || type === 'footer') ? '#020204' : '#ffffff',
+        textColor: (type === 'header' || type === 'footer') ? '#ffffff' : '#1e293b',
         padding: isSpecialMode ? 'p-10' : 'py-32 px-10',
-        minHeight: type === 'header' ? '6rem' : 'auto',
-        fontFamily: isSpecialMode ? 'mono' : 'sans',
+        minHeight: type === 'header' ? '5rem' : 'auto',
+        fontFamily: 'sans',
         fontSize: 'large',
         overlayOpacity: 0.5,
         backgroundOpacity: 1,
-        borderRadius: isSpecialMode ? '3rem' : '0px',
+        borderRadius: '0px',
         titleX: 0, titleY: 0,
         descX: 0, descY: 0,
         btnX: 0, btnY: 0,
@@ -170,6 +140,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         buttonFontFamily: 'sans',
         buttonBgColor: '#22c55e',
         buttonTextColor: '#ffffff',
+        isSticky: type === 'header',
       },
       content: getDefaultContent(type)
     };
@@ -209,9 +180,6 @@ function getDefaultContent(type: BlockType): BlockContent {
     case 'header': return { title: 'Web3Nexus', links: [{label: 'Home', url: '#'}, {label: 'Features', url: '#features'}, {label: 'DApp', url: '#dapp'}] };
     case 'hero': return { title: 'Decentralized Future', description: 'Experience the next generation of web engineering with integrated AI and Blockchain protocol.' };
     case 'web3-wallet': return { title: 'Connect to Nexus', description: 'Sync your digital identity via MetaMask, Phantom or Ledger securely.', buttonText: 'Connect Wallet' };
-    case 'wa-template': return { templates: [{ name: 'nexus_onboard', category: 'UTILITY', text: 'Welcome to the Decentralized Nexus. How can we assist?', status: 'APPROVED' }] };
-    case 'system-prompt': return { systemPrompt: 'You are an advanced Neural Sentinel for the Web3 ecosystem...' };
-    case 'command': return { commandName: '/start', description: 'Initialize Neural Link' };
     default: return { title: 'New Synthesis Block', description: 'Configure your block parameters in the sidebar.' };
   }
 }
