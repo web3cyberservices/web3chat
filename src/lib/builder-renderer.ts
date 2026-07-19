@@ -79,10 +79,8 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
-  let minHeight = styles.minHeight || 'auto';
-  if (isOverlayHeaderActive && isFirst) {
-    minHeight = '100vh';
-  }
+  // Убираем принудительное 100vh, чтобы избежать обрезки фона, если пользователь задал другое значение
+  const minHeight = styles.minHeight || (isFirst && isOverlayHeaderActive ? '100dvh' : 'auto');
 
   const bgLayer = styles.backgroundImage 
     ? `<div style="position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; z-index: 0; pointer-events: none;"></div>`
@@ -152,7 +150,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
         body {
           display: flex;
           flex-direction: column;
-          min-height: 100vh;
+          min-height: 100dvh;
         }
         main {
           flex: 1;
