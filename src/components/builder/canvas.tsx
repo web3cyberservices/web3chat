@@ -28,15 +28,15 @@ const FONT_MAP: Record<FontFamily, string> = {
 const TEXT_SHADOW_MAP = {
   none: 'none',
   soft: '0 0 15px rgba(0,0,0,0.3)',
-  medium: '0 0 30px rgba(0,0,0,0.5)',
-  hard: '0 0 50px rgba(0,0,0,0.7)'
+  medium: '0 0 35px rgba(0,0,0,0.5)',
+  hard: '0 0 60px rgba(0,0,0,0.7)'
 };
 
 const BOX_SHADOW_MAP = {
   none: 'none',
-  soft: '0 0 35px -5px rgba(0,0,0,0.2)',
-  medium: '0 0 60px -10px rgba(0,0,0,0.35)',
-  hard: '0 0 100px -15px rgba(0,0,0,0.5)'
+  soft: '0 0 40px -5px rgba(0,0,0,0.2)',
+  medium: '0 0 70px -10px rgba(0,0,0,0.4)',
+  hard: '0 0 120px -20px rgba(0,0,0,0.6)'
 };
 
 function hexToRgba(hex: string, opacity: number): string {
@@ -435,23 +435,30 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
-  // Sync minHeight if overlay header
-  const minHeight = styles.minHeight;
-
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden ${isLast ? 'flex-grow' : ''}`} style={{ 
       backgroundColor: bgRgba, 
-      backgroundImage: styles.backgroundImage ? `url(${styles.backgroundImage})` : 'none',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center center',
-      backgroundRepeat: 'no-repeat',
       borderRadius: styles.borderRadius || '0px', 
-      minHeight: minHeight,
+      minHeight: styles.minHeight,
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>
+      {styles.backgroundImage && (
+        <div 
+          style={{ 
+            position: 'absolute', 
+            inset: 0, 
+            backgroundImage: `url(${styles.backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat',
+            zIndex: 0,
+            pointerEvents: 'none'
+          }} 
+        />
+      )}
       {styles.backgroundImage && styles.overlayOpacity !== undefined && (
-        <div className="absolute inset-0 bg-black pointer-events-none" style={{ opacity: styles.overlayOpacity, borderRadius: styles.borderRadius || '0px', zIndex: 2 }} />
+        <div className="absolute inset-0 bg-black pointer-events-none" style={{ opacity: styles.overlayOpacity, borderRadius: styles.borderRadius || '0px', zIndex: 1 }} />
       )}
       <div className={`relative z-10 flex flex-col items-center justify-center text-center w-full h-full ${styles.padding || 'py-32 px-10'}`}>
         <DraggableElement 

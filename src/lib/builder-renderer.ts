@@ -15,15 +15,15 @@ const FONT_MAP: Record<FontFamily, string> = {
 const TEXT_SHADOW_MAP = {
   none: 'none',
   soft: '0 0 15px rgba(0,0,0,0.3)',
-  medium: '0 0 30px rgba(0,0,0,0.5)',
-  hard: '0 0 50px rgba(0,0,0,0.7)'
+  medium: '0 0 35px rgba(0,0,0,0.5)',
+  hard: '0 0 60px rgba(0,0,0,0.7)'
 };
 
 const BOX_SHADOW_MAP = {
   none: 'none',
-  soft: '0 0 35px -5px rgba(0,0,0,0.2)',
-  medium: '0 0 60px -10px rgba(0,0,0,0.35)',
-  hard: '0 0 100px -15px rgba(0,0,0,0.5)'
+  soft: '0 0 40px -5px rgba(0,0,0,0.2)',
+  medium: '0 0 70px -10px rgba(0,0,0,0.4)',
+  hard: '0 0 120px -20px rgba(0,0,0,0.6)'
 };
 
 function escapeHTML(str: string): string {
@@ -62,8 +62,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : '';
   const borderStyle = `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`;
-  
-  const blockGlow = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 30}px ${styles.borderColor || styles.textColor}` : 'none';
+  const blockGlow = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 40}px ${styles.borderColor || styles.textColor}` : 'none';
 
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
@@ -80,40 +79,40 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
-  // If overlay header is active and this is the first block, we ensure it takes full viewport height to look correct
   let minHeight = styles.minHeight || 'auto';
-  if (isOverlayHeaderActive && isFirst && minHeight.includes('vh')) {
+  if (isOverlayHeaderActive && isFirst && (minHeight.includes('vh') || minHeight === 'auto')) {
     minHeight = '100vh';
   }
 
-  const bgImageStyle = styles.backgroundImage 
-    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat;`
+  const bgLayer = styles.backgroundImage 
+    ? `<div style="position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; z-index: 0; pointer-events: none;"></div>`
     : '';
 
-  const containerStyle = `min-height: ${minHeight}; ${borderRadiusStyle} background-color: ${bgRgba}; ${bgImageStyle} border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; ${isLast ? 'flex-grow: 1;' : ''}`;
-  
-  const overlay = (styles.backgroundImage && styles.overlayOpacity !== undefined) ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity}; z-index: 2; pointer-events: none;"></div>` : '';
+  const overlayLayer = (styles.backgroundImage && styles.overlayOpacity !== undefined) 
+    ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity}; z-index: 1; pointer-events: none;"></div>` 
+    : '';
 
   const titleShadow = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
-  const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
+  const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 30}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
   const titleCombinedShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadow !== 'none' ? `, ${titleShadow}` : ''}` : titleShadow;
 
   const descShadow = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
-  const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
+  const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 30}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
   const descCombinedShadow = descGlow !== 'none' ? `${descGlow}${descShadow !== 'none' ? `, ${descShadow}` : ''}` : descShadow;
 
   const btnContainerShadow = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
-  const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
+  const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 50}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
   const btnCombinedShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadow !== 'none' ? `, ${btnContainerShadow}` : ''}` : btnContainerShadow;
 
   const btnTextShadow = TEXT_SHADOW_MAP[styles.buttonTextShadow || 'none'];
-  const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
+  const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 20}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
   return `
-    <section id="${id}" style="${containerStyle}">
-      ${overlay}
-      <div style="position: relative; z-index: 10; width: 100%; padding: 120px 50px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeight}; background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
+      ${bgLayer}
+      ${overlayLayer}
+      <div style="position: relative; z-index: 10; width: 100%; padding: 120px 50px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: ${FONT_MAP[styles.fontFamily]};">
         <h2 style="color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin: 0 0 40px 0; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleCombinedShadow};">${safeTitle}</h2>
         <p style="color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px auto; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descCombinedShadow};">${safeDesc}</p>
         ${safeBtn ? `<a href="${safeBtnUrl}" style="background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnCombinedShadow}; -webkit-text-stroke: ${styles.buttonTextBorderWidth || '0px'} ${styles.buttonTextBorderColor || 'transparent'}; text-shadow: ${btnTextCombinedShadow};">${safeBtn}</a>` : ''}
@@ -135,7 +134,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
 
   return `
 <!DOCTYPE html>
-<html lang="ru" style="height: 100%;">
+<html lang="ru" style="height: 100%; margin: 0; padding: 0;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -148,8 +147,6 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           background-color: #020204; 
           color: #ffffff; 
           font-family: 'Inter', sans-serif;
-          margin: 0;
-          padding: 0;
         }
         body {
           display: flex;
@@ -163,7 +160,6 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           flex-direction: column;
           width: 100%;
           position: relative;
-          min-height: 100vh;
         }
         section {
           width: 100%;
@@ -180,7 +176,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
       ${html}
     </main>
     ${footers.length === 0 ? `
-      <footer style="padding: 40px; background-color: #010101; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); width: 100%;">
+      <footer style="padding: 40px; background-color: #010101; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); width: 100%; flex-shrink: 0;">
         <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.3; letter-spacing: 0.4em; text-transform: uppercase;">
           &copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES • THE SOVEREIGN STANDARD
         </div>
