@@ -1,3 +1,4 @@
+
 import { PageBlock, FontFamily } from './builder-store';
 
 const FONT_MAP: Record<FontFamily, string> = {
@@ -74,8 +75,9 @@ function renderBlock(block: PageBlock, isLast: boolean): string {
   const overlay = styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity || 0.5}; z-index: 2; pointer-events: none;"></div>` : '';
 
   if (type === 'header') {
+    const position = styles.isSticky ? 'fixed' : (styles.isOverlay ? 'absolute' : 'relative');
     return `
-      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${styles.backgroundColor}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; font-family: ${fontStack}; ${styles.isSticky ? 'position: sticky; top: 0; z-index: 1000;' : 'position: relative;'} box-shadow: 0 4px 30px rgba(0,0,0,0.15);">
+      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; font-family: ${fontStack}; position: ${position}; top: 0; left: 0; z-index: 1000; box-shadow: 0 4px 30px rgba(0,0,0,0.15); ${borderRadiusStyle}">
         <div style="font-weight: 900; font-size: 1.75rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
         <nav style="display: flex; gap: 40px;">
           ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.7; transition: opacity 0.3s;">${escapeHTML(l.label)}</a>`).join('')}

@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 
 export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | 'whatsapp' | null;
@@ -155,6 +156,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         buttonBgColor: '#22c55e',
         buttonTextColor: '#ffffff',
         isSticky: type === 'header',
+        isOverlay: type === 'header',
         titleOpacity: 1,
         descOpacity: 1,
         buttonOpacity: 1

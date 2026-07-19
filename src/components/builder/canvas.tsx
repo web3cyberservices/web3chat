@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -37,7 +38,7 @@ function ElementQuickSettings({
   onUpdate: (s: any, c?: any) => void;
 }) {
   return (
-    <div className="flex flex-col gap-5 p-5 min-w-[240px] max-h-[400px] overflow-y-auto custom-scrollbar bg-card/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl shadow-black/50">
+    <div className="flex flex-col gap-5 p-5 min-w-[240px] max-h-[70vh] overflow-y-auto custom-scrollbar bg-card/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl shadow-black/50">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Параметры</span>
         <Sliders className="w-3 h-3 text-primary" />
@@ -236,11 +237,12 @@ function BlockContentComponent({ block, onUpdate }: {
 
   if (type === 'header') {
     return (
-      <header className="w-full flex items-center justify-between px-10" style={{ 
+      <header className="w-full flex items-center justify-between px-10 relative z-50" style={{ 
         backgroundColor: styles.backgroundColor, 
         minHeight: styles.minHeight,
         color: styles.textColor,
-        fontFamily: FONT_MAP[styles.fontFamily]
+        fontFamily: FONT_MAP[styles.fontFamily],
+        borderRadius: styles.borderRadius || '0px'
       }}>
         <DraggableElement id="h-title" x={styles.titleX} y={styles.titleY} onMove={(nx, ny) => handleMove('title', nx, ny)}>
           <div className="font-black text-2xl tracking-tighter">{content.title}</div>
@@ -402,8 +404,11 @@ export function BuilderCanvas() {
                       <div 
                         ref={provided.innerRef} 
                         {...provided.draggableProps} 
-                        className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 ${index === blocks.length - 1 ? 'flex-grow' : ''}`}
-                        style={{ ...provided.draggableProps.style }}
+                        className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' ? 'z-50' : ''}`}
+                        style={{ 
+                          ...provided.draggableProps.style,
+                          marginBottom: (block.type === 'header' && block.styles.isOverlay) ? `-${block.styles.minHeight}` : '0'
+                        }}
                       >
                         <div className="absolute right-10 top-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all z-50">
                           <button onClick={() => setEditingId(editingId === block.id ? null : block.id)} className={`p-4 bg-card/80 backdrop-blur-3xl border rounded-[1.5rem] hover:text-primary transition-all shadow-2xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
@@ -414,7 +419,7 @@ export function BuilderCanvas() {
                         </div>
 
                         {editingId === block.id && (
-                          <div className="fixed right-12 top-24 w-96 max-h-[75vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 z-[100] shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
+                          <div className="fixed right-12 top-24 w-96 max-h-[80vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 z-[100] shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
                             <div className="flex items-center justify-between mb-8 shrink-0">
                               <h5 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary">Редактор Блока</h5>
                               <button onClick={() => setEditingId(null)} className="p-2 hover:bg-white/5 rounded-full transition-all"><X className="w-5 h-5 opacity-40" /></button>
@@ -472,6 +477,15 @@ export function BuilderCanvas() {
                                     <div className="space-y-2">
                                       <span className="text-[9px] uppercase font-bold opacity-50">Радиус скругления (напр. 40px)</span>
                                       <input type="text" value={block.styles.borderRadius} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderRadius: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] font-bold outline-none" />
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
+                                      <span className="text-[9px] uppercase font-bold opacity-50">Поверх контента (Overlay)</span>
+                                      <input 
+                                        type="checkbox" 
+                                        checked={block.styles.isOverlay} 
+                                        onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, isOverlay: e.target.checked } })}
+                                        className="w-5 h-5 accent-primary"
+                                      />
                                     </div>
                                   </div>
                                 </div>
