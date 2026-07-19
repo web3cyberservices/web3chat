@@ -37,7 +37,7 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
-function renderBlock(block: PageBlock): string {
+function renderBlock(block: PageBlock, isLast: boolean): string {
   const { type, content, styles, id } = block;
   const safeTitle = escapeHTML(content.title || '');
   const safeDesc = escapeHTML(content.description || '');
@@ -54,14 +54,14 @@ function renderBlock(block: PageBlock): string {
 
   const btnRadiusClass = {
     none: 'rounded-none',
-    md: 'rounded-xl',
+    md: 'rounded-[1.5rem]',
     full: 'rounded-full'
   }[styles.buttonRadius || 'full'];
 
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : '';
 
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0;`;
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''}`;
   
   const bgImageStyle = styles.backgroundImage 
     ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
@@ -75,10 +75,10 @@ function renderBlock(block: PageBlock): string {
 
   if (type === 'header') {
     return `
-      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${styles.backgroundColor}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; font-family: ${fontStack}; ${styles.isSticky ? 'position: sticky; top: 0; z-index: 1000;' : 'position: relative;'} box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-        <div style="font-weight: 900; font-size: 1.5rem; letter-spacing: -0.05em;">${safeTitle}</div>
-        <nav style="display: flex; gap: 32px;">
-          ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">${escapeHTML(l.label)}</a>`).join('')}
+      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${styles.backgroundColor}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; font-family: ${fontStack}; ${styles.isSticky ? 'position: sticky; top: 0; z-index: 1000;' : 'position: relative;'} box-shadow: 0 4px 30px rgba(0,0,0,0.15);">
+        <div style="font-weight: 900; font-size: 1.75rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
+        <nav style="display: flex; gap: 40px;">
+          ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.7; transition: opacity 0.3s;">${escapeHTML(l.label)}</a>`).join('')}
         </nav>
       </header>
     `;
@@ -88,19 +88,21 @@ function renderBlock(block: PageBlock): string {
     <section id="${id}" class="builder-section" style="${containerStyle}">
       ${bgImageStyle ? `<div style="${bgImageStyle}"></div>` : ''}
       ${overlay}
-      <div style="position: relative; z-index: 10; width: 100%; max-width: 1200px; padding: 80px 40px; text-align: center;">
-        <h2 class="${sizeClass}" style="font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 24px; transition: transform 0.2s ease; ${titleFinalStyle}">${safeTitle}</h2>
-        <p style="font-size: 1.125rem; line-height: 1.6; max-width: 800px; margin: 0 auto 40px; transition: transform 0.2s ease; ${descFinalStyle}">${safeDesc}</p>
-        ${safeBtn ? `<a href="${safeBtnUrl}" class="${btnRadiusClass}" style="display: inline-block; padding: 16px 48px; text-decoration: none; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 10px 40px rgba(0,0,0,0.2); transition: all 0.3s ease; ${btnFinalStyle}">${safeBtn}</a>` : ''}
+      <div style="position: relative; z-index: 10; width: 100%; max-width: 1200px; padding: 100px 40px; text-align: center;">
+        <h2 class="${sizeClass}" style="font-weight: 900; letter-spacing: -0.03em; line-height: 1; margin-bottom: 30px; transition: transform 0.2s ease; ${titleFinalStyle}">${safeTitle}</h2>
+        <p style="font-size: 1.25rem; line-height: 1.6; max-width: 850px; margin: 0 auto 50px; transition: transform 0.2s ease; ${descFinalStyle}">${safeDesc}</p>
+        ${safeBtn ? `<a href="${safeBtnUrl}" class="${btnRadiusClass}" style="display: inline-block; padding: 20px 60px; text-decoration: none; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.2em; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); ${btnFinalStyle}">${safeBtn}</a>` : ''}
       </div>
     </section>
   `;
 }
 
 export function generateFullHTML(blocks: PageBlock[]): string {
-  const headers = blocks.filter(b => b.type === 'header').map(renderBlock).join('\n');
-  const footers = blocks.filter(b => b.type === 'footer').map(renderBlock).join('\n');
-  const content = blocks.filter(b => b.type !== 'header' && b.type !== 'footer').map(renderBlock).join('\n');
+  const headers = blocks.filter(b => b.type === 'header').map(b => renderBlock(b, false)).join('\n');
+  const footers = blocks.filter(b => b.type === 'footer').map(b => renderBlock(b, false)).join('\n');
+  const contentBlocks = blocks.filter(b => b.type !== 'header' && b.type !== 'footer');
+  
+  const content = contentBlocks.map((b, i) => renderBlock(b, i === contentBlocks.length - 1)).join('\n');
 
   return `
 <!DOCTYPE html>
@@ -108,16 +110,19 @@ export function generateFullHTML(blocks: PageBlock[]): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web3 Project Export</title>
+    <title>Web3 Synthesis Project</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
+        :root {
+          color-scheme: dark light;
+        }
         body { 
           font-family: 'Inter', sans-serif; 
           overflow-x: hidden; 
           scroll-behavior: smooth; 
-          background-color: #fcfcfc; 
-          color: #1a1a1a; 
+          background-color: #020204; 
+          color: #ffffff; 
           margin: 0; 
           display: flex; 
           flex-direction: column; 
@@ -128,13 +133,17 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           flex-grow: 1;
           display: flex;
           flex-direction: column;
+          width: 100%;
         }
-        main > .builder-section:last-of-type {
-          flex-grow: 1;
-        }
-        a:hover { opacity: 0.7; }
+        a:hover { opacity: 0.6; }
         .rounded-full { border-radius: 9999px; }
-        .rounded-xl { border-radius: 1rem; }
+        .rounded-xl { border-radius: 1.5rem; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body class="antialiased">
@@ -143,8 +152,10 @@ export function generateFullHTML(blocks: PageBlock[]): string {
       ${content}
     </main>
     ${footers || `
-      <footer style="padding: 60px 40px; background-color: #000; color: #fff; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;">
-        <p style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.4; letter-spacing: 0.3em; text-transform: uppercase;">&copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES • PRO ENGINE</p>
+      <footer style="padding: 80px 40px; background-color: #010101; color: #fff; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.3; letter-spacing: 0.4em; text-transform: uppercase;">
+          &copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES • THE SOVEREIGN STANDARD
+        </div>
       </footer>
     `}
 </body>
