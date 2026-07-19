@@ -11,7 +11,6 @@ import {
   Link, MousePointerClick, ChevronDown, Check, Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 const FONT_MAP: Record<FontFamily, string> = {
   sans: 'Inter, sans-serif',
@@ -25,104 +24,124 @@ const FONT_MAP: Record<FontFamily, string> = {
   inter: 'Inter, sans-serif'
 };
 
-function ElementQuickSettings({ 
-  type, 
-  styles, 
-  content,
-  onUpdate 
+interface EditingElement {
+  blockId: string;
+  type: 'title' | 'desc' | 'btn';
+}
+
+function ElementSettingsPanel({ 
+  element, 
+  block, 
+  onUpdate, 
+  onClose 
 }: { 
-  type: 'title' | 'desc' | 'btn'; 
-  styles: any; 
-  content?: any;
+  element: EditingElement; 
+  block: PageBlock;
   onUpdate: (s: any, c?: any) => void;
+  onClose: () => void;
 }) {
+  const { styles, content } = block;
+  const { type } = element;
+
   return (
-    <div className="flex flex-col gap-4 p-5 w-[280px] max-h-[400px] overflow-y-auto bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[9999] custom-scrollbar">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Свойства элемента</span>
-        <Sliders className="w-3.5 h-3.5 text-primary" />
+    <div className="fixed right-16 top-24 w-[400px] max-h-[80vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 z-[9999] shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
+      <div className="flex items-center justify-between mb-8 shrink-0">
+        <div className="flex flex-col">
+          <h5 className="text-[12px] font-black uppercase tracking-[0.5em] text-primary">Настройка элемента</h5>
+          <span className="text-[8px] font-bold opacity-30 uppercase mt-1">{type === 'title' ? 'Заголовок' : type === 'desc' ? 'Описание' : 'Кнопка'}</span>
+        </div>
+        <button onClick={onClose} className="p-3 hover:bg-white/5 rounded-full transition-all"><X className="w-6 h-6 opacity-40" /></button>
       </div>
 
-      <div className="space-y-4 pb-2">
-        <div className="space-y-2">
-          <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Цвет / Фон</label>
-          <input 
-            type="color" 
-            value={type === 'title' ? (styles.titleColor || styles.textColor) : type === 'desc' ? (styles.descColor || styles.textColor) : styles.buttonBgColor} 
-            onChange={(e) => {
-              const key = type === 'title' ? 'titleColor' : type === 'desc' ? 'descColor' : 'buttonBgColor';
-              onUpdate({ ...styles, [key]: e.target.value });
-            }}
-            className="w-full h-10 rounded-xl cursor-pointer bg-white/5 border-none" 
-          />
-        </div>
+      <div className="flex-1 overflow-y-auto pr-3 custom-scrollbar">
+        <div className="space-y-10 pb-10">
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center gap-2">
+              <Palette className="w-3.5 h-3.5" /> Цвет / Фон
+            </label>
+            <input 
+              type="color" 
+              value={type === 'title' ? (styles.titleColor || styles.textColor) : type === 'desc' ? (styles.descColor || styles.textColor) : styles.buttonBgColor} 
+              onChange={(e) => {
+                const key = type === 'title' ? 'titleColor' : type === 'desc' ? 'descColor' : 'buttonBgColor';
+                onUpdate({ ...styles, [key]: e.target.value });
+              }}
+              className="w-full h-12 rounded-2xl cursor-pointer bg-white/5 border-none p-1" 
+            />
+          </div>
 
-        <div className="space-y-2">
-          <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Шрифт</label>
-          <select 
-            value={type === 'title' ? styles.titleFont : type === 'desc' ? styles.descFont : styles.buttonFontFamily} 
-            onChange={(e) => {
-              const key = type === 'title' ? 'titleFont' : type === 'desc' ? 'descFont' : 'buttonFontFamily';
-              onUpdate({ ...styles, [key]: e.target.value });
-            }}
-            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none uppercase"
-          >
-            {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12] text-white">{f.toUpperCase()}</option>)}
-          </select>
-        </div>
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center gap-2">
+              <Type className="w-3.5 h-3.5" /> Шрифт
+            </label>
+            <select 
+              value={type === 'title' ? styles.titleFont : type === 'desc' ? styles.descFont : styles.buttonFontFamily} 
+              onChange={(e) => {
+                const key = type === 'title' ? 'titleFont' : type === 'desc' ? 'descFont' : 'buttonFontFamily';
+                onUpdate({ ...styles, [key]: e.target.value });
+              }}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[11px] font-black outline-none uppercase tracking-widest"
+            >
+              {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12] text-white">{f.toUpperCase()}</option>)}
+            </select>
+          </div>
 
-        <div className="space-y-2">
-          <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Прозрачность</label>
-          <input 
-            type="range" 
-            min="0" max="1" step="0.1"
-            value={type === 'title' ? (styles.titleOpacity ?? 1) : type === 'desc' ? (styles.descOpacity ?? 1) : (styles.buttonOpacity ?? 1)} 
-            onChange={(e) => {
-              const key = type === 'title' ? 'titleOpacity' : type === 'desc' ? 'descOpacity' : 'buttonOpacity';
-              onUpdate({ ...styles, [key]: parseFloat(e.target.value) });
-            }}
-            className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
-          />
-        </div>
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center gap-2">
+              <Sliders className="w-3.5 h-3.5" /> Прозрачность
+            </label>
+            <input 
+              type="range" 
+              min="0" max="1" step="0.1"
+              value={type === 'title' ? (styles.titleOpacity ?? 1) : type === 'desc' ? (styles.descOpacity ?? 1) : (styles.buttonOpacity ?? 1)} 
+              onChange={(e) => {
+                const key = type === 'title' ? 'titleOpacity' : type === 'desc' ? 'descOpacity' : 'buttonOpacity';
+                onUpdate({ ...styles, [key]: parseFloat(e.target.value) });
+              }}
+              className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+            />
+          </div>
 
-        {type === 'btn' && (
-          <>
-            <div className="space-y-2">
-              <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Текст кнопки</label>
-              <input 
-                type="text" 
-                value={content?.buttonText || ''} 
-                onChange={(e) => onUpdate(styles, { buttonText: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] outline-none" 
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Ссылка (URL)</label>
-              <input 
-                type="text" 
-                value={content?.buttonUrl || ''} 
-                onChange={(e) => onUpdate(styles, { buttonUrl: e.target.value })}
-                placeholder="https://..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] outline-none font-mono" 
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Скругление</label>
-              <div className="flex gap-1">
-                {(['none', 'md', 'full'] as const).map(r => (
-                  <button 
-                    key={r}
-                    onClick={() => onUpdate({ ...styles, buttonRadius: r })}
-                    className={`flex-1 py-2 text-[8px] font-black uppercase rounded-lg border transition-all ${styles.buttonRadius === r ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10 hover:bg-white/5'}`}
-                  >
-                    {r}
-                  </button>
-                ))}
+          {type === 'btn' && (
+            <>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Текст кнопки</label>
+                <input 
+                  type="text" 
+                  value={content?.buttonText || ''} 
+                  onChange={(e) => onUpdate(styles, { buttonText: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[11px] font-bold outline-none" 
+                />
               </div>
-            </div>
-          </>
-        )}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Ссылка (URL)</label>
+                <input 
+                  type="text" 
+                  value={content?.buttonUrl || ''} 
+                  onChange={(e) => onUpdate(styles, { buttonUrl: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[11px] outline-none font-mono" 
+                />
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Скругление углов</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['none', 'md', 'full'] as const).map(r => (
+                    <button 
+                      key={r}
+                      onClick={() => onUpdate({ ...styles, buttonRadius: r })}
+                      className={`py-4 text-[10px] font-black uppercase rounded-xl border transition-all ${styles.buttonRadius === r ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'border-white/10 hover:bg-white/5'}`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
+      <Button onClick={onClose} className="w-full mt-8 rounded-[2rem] bg-primary text-primary-foreground font-black uppercase tracking-[0.4em] text-[12px] h-16 shadow-2xl shadow-primary/40 shrink-0">Применить</Button>
     </div>
   );
 }
@@ -132,29 +151,27 @@ function DraggableElement({
   x, 
   y, 
   onMove, 
+  onSettingsClick,
+  isSettingsOpen,
   children, 
-  className,
-  settingsContent
+  className
 }: { 
   id: string; 
   x: number; 
   y: number; 
   onMove: (nx: number, ny: number) => void;
+  onSettingsClick: () => void;
+  isSettingsOpen: boolean;
   children: React.ReactNode;
   className?: string;
-  settingsContent?: React.ReactNode;
 }) {
   const [isDragging, setIsDragging] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const startPos = useRef({ x: 0, y: 0 });
   const startVal = useRef({ x, y });
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (!target.closest('.drag-handle')) return;
-
     e.preventDefault();
     setIsDragging(true);
     startPos.current = { x: e.clientX, y: e.clientY };
@@ -168,9 +185,7 @@ function DraggableElement({
       const dy = e.clientY - startPos.current.y;
       onMove(startVal.current.x + dx, startVal.current.y + dy);
     };
-
     const handleMouseUp = () => setIsDragging(false);
-
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -181,33 +196,8 @@ function DraggableElement({
     };
   }, [isDragging, onMove]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setShowSettings(false);
-      }
-    };
-    if (showSettings) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSettings]);
-
-  // Умное позиционирование: если элемент в нижней половине экрана, показываем настройки сверху
-  const [positionAbove, setPositionAbove] = useState(true);
-  
-  useEffect(() => {
-    if (showSettings && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      // Если до низа экрана меньше 450px, открываем наверх
-      setPositionAbove(viewportHeight - rect.bottom < 450);
-    }
-  }, [showSettings]);
-
   return (
     <div 
-      ref={containerRef}
       onMouseDown={handleMouseDown}
       className={`${className} relative group/drag select-none transition-shadow duration-300 ${isDragging ? 'z-[999]' : 'z-10'}`}
       style={{ transform: `translate(${x}px, ${y}px)` }}
@@ -217,20 +207,11 @@ function DraggableElement({
       </div>
 
       <div 
-        className={`absolute -right-12 top-1/2 -translate-y-1/2 p-3 border text-white/40 rounded-xl cursor-pointer opacity-0 group-hover/drag:opacity-100 transition-all z-20 shadow-xl ${showSettings ? 'bg-primary text-white border-primary' : 'bg-card/80 backdrop-blur-xl border-white/10 hover:bg-primary hover:text-white'}`} 
-        onClick={() => setShowSettings(!showSettings)}
+        className={`absolute -right-12 top-1/2 -translate-y-1/2 p-3 border text-white/40 rounded-xl cursor-pointer opacity-0 group-hover/drag:opacity-100 transition-all z-20 shadow-xl ${isSettingsOpen ? 'bg-primary text-white border-primary' : 'bg-card/80 backdrop-blur-xl border-white/10 hover:bg-primary hover:text-white'}`} 
+        onClick={onSettingsClick}
       >
         <Settings2 className="w-4 h-4" />
       </div>
-
-      {showSettings && (
-        <div 
-          ref={settingsRef} 
-          className={`absolute left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in zoom-in duration-200 ${positionAbove ? 'bottom-full mb-6' : 'top-full mt-6'}`}
-        >
-          {settingsContent}
-        </div>
-      )}
 
       <div className={`${isDragging ? 'ring-2 ring-primary ring-offset-4 ring-offset-transparent rounded-lg scale-[1.01] shadow-2xl' : ''} transition-all duration-300`}>
         {children}
@@ -239,10 +220,11 @@ function DraggableElement({
   );
 }
 
-function BlockContentComponent({ block, onUpdate, isEditing, isLast }: { 
+function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingElement, isLast }: { 
   block: PageBlock; 
   onUpdate: (content: Partial<BlockContent>, styles?: any) => void;
-  isEditing: boolean;
+  editingElement: EditingElement | null;
+  onSetEditingElement: (el: EditingElement | null) => void;
   isLast: boolean;
 }) {
   const { styles, content, type } = block;
@@ -264,7 +246,14 @@ function BlockContentComponent({ block, onUpdate, isEditing, isLast }: {
         fontFamily: FONT_MAP[styles.fontFamily],
         borderRadius: styles.borderRadius || '0px'
       }}>
-        <DraggableElement id="h-title" x={styles.titleX} y={styles.titleY} onMove={(nx, ny) => handleMove('title', nx, ny)}>
+        <DraggableElement 
+          id="h-title" 
+          x={styles.titleX} 
+          y={styles.titleY} 
+          onMove={(nx, ny) => handleMove('title', nx, ny)}
+          onSettingsClick={() => onSetEditingElement({ blockId: block.id, type: 'title' })}
+          isSettingsOpen={editingElement?.blockId === block.id && editingElement?.type === 'title'}
+        >
           <div className="font-black text-2xl tracking-tighter">{content.title}</div>
         </DraggableElement>
         <nav className="flex items-center gap-10">
@@ -277,7 +266,7 @@ function BlockContentComponent({ block, onUpdate, isEditing, isLast }: {
   }
 
   return (
-    <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center ${isLast ? 'flex-grow' : ''} ${!isEditing ? 'overflow-hidden' : ''}`} style={{ 
+    <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center ${isLast ? 'flex-grow' : ''}`} style={{ 
       backgroundColor: styles.backgroundColor, 
       borderRadius: styles.borderRadius || '0px', 
       minHeight: styles.minHeight,
@@ -300,13 +289,8 @@ function BlockContentComponent({ block, onUpdate, isEditing, isLast }: {
           y={styles.titleY} 
           onMove={(nx, ny) => handleMove('title', nx, ny)} 
           className="max-w-5xl mx-auto w-full"
-          settingsContent={
-            <ElementQuickSettings 
-              type="title" 
-              styles={styles} 
-              onUpdate={(s) => onUpdate({}, s)} 
-            />
-          }
+          onSettingsClick={() => onSetEditingElement({ blockId: block.id, type: 'title' })}
+          isSettingsOpen={editingElement?.blockId === block.id && editingElement?.type === 'title'}
         >
           <input 
             value={content.title} 
@@ -327,13 +311,8 @@ function BlockContentComponent({ block, onUpdate, isEditing, isLast }: {
           y={styles.descY} 
           onMove={(nx, ny) => handleMove('desc', nx, ny)} 
           className="max-w-4xl mx-auto w-full"
-          settingsContent={
-            <ElementQuickSettings 
-              type="desc" 
-              styles={styles} 
-              onUpdate={(s) => onUpdate({}, s)} 
-            />
-          }
+          onSettingsClick={() => onSetEditingElement({ blockId: block.id, type: 'desc' })}
+          isSettingsOpen={editingElement?.blockId === block.id && editingElement?.type === 'desc'}
         >
           <textarea 
             value={content.description} 
@@ -354,14 +333,8 @@ function BlockContentComponent({ block, onUpdate, isEditing, isLast }: {
             x={styles.btnX} 
             y={styles.btnY} 
             onMove={(nx, ny) => handleMove('btn', nx, ny)}
-            settingsContent={
-              <ElementQuickSettings 
-                type="btn" 
-                styles={styles} 
-                content={content}
-                onUpdate={(s, c) => onUpdate(c || {}, s)} 
-              />
-            }
+            onSettingsClick={() => onSetEditingElement({ blockId: block.id, type: 'btn' })}
+            isSettingsOpen={editingElement?.blockId === block.id && editingElement?.type === 'btn'}
           >
             <button 
               className="px-16 py-6 font-black uppercase tracking-[0.4em] text-[12px] shadow-2xl transition-all hover:scale-105 active:scale-95"
@@ -385,6 +358,7 @@ function BlockContentComponent({ block, onUpdate, isEditing, isLast }: {
 export function BuilderCanvas() {
   const { blocks, viewport, reorderBlocks, removeBlock, updateBlock } = useBuilderStore();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingElement, setEditingElement] = useState<EditingElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canvasWidth = {
@@ -407,7 +381,7 @@ export function BuilderCanvas() {
 
   return (
     <div className="flex-1 bg-[#050507] overflow-y-auto p-12 transition-all duration-1000 relative custom-scrollbar">
-      <div className={`${canvasWidth} mx-auto min-h-dvh bg-background shadow-2xl rounded-[4rem] flex flex-col transition-all duration-1000 relative border border-white/5 overflow-x-hidden`}>
+      <div className={`${canvasWidth} mx-auto min-h-dvh bg-background shadow-2xl rounded-[4rem] flex flex-col transition-all duration-1000 relative border border-white/5`}>
         <DragDropContext onDragEnd={(res) => res.destination && reorderBlocks(res.source.index, res.destination.index)}>
           <Droppable droppableId="canvas">
             {(provided) => (
@@ -433,7 +407,7 @@ export function BuilderCanvas() {
                         }}
                       >
                         <div className="absolute right-12 top-12 flex gap-4 opacity-0 group-hover:opacity-100 transition-all z-[200]">
-                          <button onClick={() => setEditingId(editingId === block.id ? null : block.id)} className={`p-5 bg-card/90 backdrop-blur-3xl border rounded-[2rem] hover:text-primary transition-all shadow-2xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
+                          <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-5 bg-card/90 backdrop-blur-3xl border rounded-[2rem] hover:text-primary transition-all shadow-2xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
                             <Settings2 className="w-6 h-6" />
                           </button>
                           <div {...provided.dragHandleProps} className="p-5 bg-card/90 backdrop-blur-3xl border border-white/10 rounded-[2rem] cursor-grab active:cursor-grabbing shadow-2xl"><GripVertical className="w-6 h-6" /></div>
@@ -523,7 +497,8 @@ export function BuilderCanvas() {
                             content: { ...block.content, ...c },
                             styles: s || block.styles
                           })}
-                          isEditing={editingId === block.id}
+                          editingElement={editingElement}
+                          onSetEditingElement={(el) => { setEditingElement(el); setEditingId(null); }}
                           isLast={index === blocks.length - 1}
                         />
                       </div>
@@ -535,6 +510,18 @@ export function BuilderCanvas() {
             )}
           </Droppable>
         </DragDropContext>
+        
+        {editingElement && (
+          <ElementSettingsPanel 
+            element={editingElement}
+            block={blocks.find(b => b.id === editingElement.blockId)!}
+            onUpdate={(s, c) => updateBlock(editingElement.blockId, { 
+              styles: s, 
+              content: c ? { ...blocks.find(b => b.id === editingElement.blockId)!.content, ...c } : blocks.find(b => b.id === editingElement.blockId)!.content 
+            })}
+            onClose={() => setEditingElement(null)}
+          />
+        )}
       </div>
     </div>
   );
