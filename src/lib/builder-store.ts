@@ -25,27 +25,39 @@ export interface BlockStyles {
   backgroundOpacity?: number;
   borderRadius?: string;
   
-  // Border & Glow
+  // Border & Glow for Block
   borderColor?: string;
   borderWidth?: string;
   borderGlow?: boolean;
   borderGlowStrength?: number;
 
-  // Элемент-специфичные стили
+  // Title specific
   titleColor?: string;
   titleFont?: FontFamily;
   titleSize?: 'normal' | 'large' | 'huge';
   titleOpacity?: number;
   titleX: number;
   titleY: number;
+  titleBorderColor?: string;
+  titleBorderWidth?: string;
+  titleBorderGlow?: boolean;
+  titleBorderGlowStrength?: number;
+  titleShadow?: 'none' | 'soft' | 'medium' | 'hard';
 
+  // Desc specific
   descColor?: string;
   descFont?: FontFamily;
   descSize?: 'normal' | 'large' | 'huge';
   descOpacity?: number;
   descX: number;
   descY: number;
+  descBorderColor?: string;
+  descBorderWidth?: string;
+  descBorderGlow?: boolean;
+  descBorderGlowStrength?: number;
+  descShadow?: 'none' | 'soft' | 'medium' | 'hard';
 
+  // Button specific
   btnX: number;
   btnY: number;
   buttonRadius: 'none' | 'md' | 'full';
@@ -53,6 +65,11 @@ export interface BlockStyles {
   buttonBgColor: string;
   buttonTextColor: string;
   buttonOpacity?: number;
+  buttonBorderColor?: string;
+  buttonBorderWidth?: string;
+  buttonBorderGlow?: boolean;
+  buttonBorderGlowStrength?: number;
+  buttonShadow?: 'none' | 'soft' | 'medium' | 'hard';
 
   isSticky?: boolean;
   isOverlay?: boolean;
@@ -169,7 +186,22 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         isOverlay: type === 'header',
         titleOpacity: 1,
         descOpacity: 1,
-        buttonOpacity: 1
+        buttonOpacity: 1,
+        titleBorderColor: 'transparent',
+        titleBorderWidth: '0px',
+        titleBorderGlow: false,
+        titleBorderGlowStrength: 10,
+        titleShadow: 'none',
+        descBorderColor: 'transparent',
+        descBorderWidth: '0px',
+        descBorderGlow: false,
+        descBorderGlowStrength: 10,
+        descShadow: 'none',
+        buttonBorderColor: 'transparent',
+        buttonBorderWidth: '0px',
+        buttonBorderGlow: false,
+        buttonBorderGlowStrength: 15,
+        buttonShadow: 'medium'
       },
       content: getDefaultContent(type)
     };

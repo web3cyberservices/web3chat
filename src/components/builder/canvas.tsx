@@ -9,7 +9,8 @@ import {
   Layout, Type, Palette, Move, 
   Maximize2, MousePointer2, Sparkles, Sliders,
   Zap, PanelTop, PanelBottom, MousePointer, GripHorizontal,
-  Link, MousePointerClick, ChevronDown, Check, Eye, Sun
+  Link, MousePointerClick, ChevronDown, Check, Eye, Sun,
+  Layers, Shadow
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -23,6 +24,13 @@ const FONT_MAP: Record<FontFamily, string> = {
   bebas: '"Bebas Neue", cursive',
   dancing: '"Dancing Script", cursive',
   inter: 'Inter, sans-serif'
+};
+
+const SHADOW_MAP = {
+  none: 'none',
+  soft: '0 4px 10px rgba(0,0,0,0.1)',
+  medium: '0 20px 40px rgba(0,0,0,0.3)',
+  hard: '0 40px 80px rgba(0,0,0,0.5)'
 };
 
 interface EditingElement {
@@ -59,6 +67,8 @@ function ElementSettingsPanel({
   const { styles, content } = block;
   const { type } = element;
 
+  const prefix = type === 'title' ? 'title' : type === 'desc' ? 'desc' : 'button';
+
   return (
     <div className="fixed right-16 top-24 w-[400px] max-h-[80vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 z-[9999] shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
       <div className="flex items-center justify-between mb-8 shrink-0">
@@ -73,15 +83,12 @@ function ElementSettingsPanel({
         <div className="space-y-10 pb-10">
           <div className="space-y-4">
             <label className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center gap-2">
-              <Palette className="w-3.5 h-3.5" /> Цвет / Фон
+              <Palette className="w-3.5 h-3.5" /> Цвет текста
             </label>
             <input 
               type="color" 
-              value={type === 'title' ? (styles.titleColor || styles.textColor) : type === 'desc' ? (styles.descColor || styles.textColor) : styles.buttonBgColor} 
-              onChange={(e) => {
-                const key = type === 'title' ? 'titleColor' : type === 'desc' ? 'descColor' : 'buttonBgColor';
-                onUpdate({ ...styles, [key]: e.target.value });
-              }}
+              value={(styles as any)[`${prefix}Color`] || styles.textColor} 
+              onChange={(e) => onUpdate({ ...styles, [`${prefix}Color`]: e.target.value })}
               className="w-full h-12 rounded-2xl cursor-pointer bg-white/5 border-none p-1" 
             />
           </div>
@@ -91,9 +98,9 @@ function ElementSettingsPanel({
               <Type className="w-3.5 h-3.5" /> Шрифт
             </label>
             <select 
-              value={type === 'title' ? styles.titleFont : type === 'desc' ? styles.descFont : styles.buttonFontFamily} 
+              value={(styles as any)[`${prefix}Font`] || (styles as any)[`${prefix}FontFamily`] || styles.fontFamily} 
               onChange={(e) => {
-                const key = type === 'title' ? 'titleFont' : type === 'desc' ? 'descFont' : 'buttonFontFamily';
+                const key = type === 'btn' ? 'buttonFontFamily' : `${prefix}Font`;
                 onUpdate({ ...styles, [key]: e.target.value });
               }}
               className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[11px] font-black outline-none uppercase tracking-widest"
@@ -109,13 +116,62 @@ function ElementSettingsPanel({
             <input 
               type="range" 
               min="0" max="1" step="0.1"
-              value={type === 'title' ? (styles.titleOpacity ?? 1) : type === 'desc' ? (styles.descOpacity ?? 1) : (styles.buttonOpacity ?? 1)} 
-              onChange={(e) => {
-                const key = type === 'title' ? 'titleOpacity' : type === 'desc' ? 'descOpacity' : 'buttonOpacity';
-                onUpdate({ ...styles, [key]: parseFloat(e.target.value) });
-              }}
+              value={(styles as any)[`${prefix}Opacity`] ?? 1} 
+              onChange={(e) => onUpdate({ ...styles, [`${prefix}Opacity`]: parseFloat(e.target.value) })}
               className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
             />
+          </div>
+
+          <div className="space-y-6">
+            <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Zap className="w-5 h-5" /> Границы и Свечение</label>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <span className="text-[10px] uppercase font-bold opacity-50">Цвет ободка</span>
+                <input type="color" value={(styles as any)[`${prefix}BorderColor`] || '#ffffff'} onChange={(e) => onUpdate({ ...styles, [`${prefix}BorderColor`]: e.target.value })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
+              </div>
+              <div className="space-y-3">
+                <span className="text-[10px] uppercase font-bold opacity-50">Толщина (px)</span>
+                <input type="text" value={(styles as any)[`${prefix}BorderWidth`] || '0px'} onChange={(e) => onUpdate({ ...styles, [`${prefix}BorderWidth`]: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[12px] font-bold outline-none" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <Sun className="w-4 h-4 text-primary" />
+                <span className="text-[10px] uppercase font-bold opacity-50">Эффект свечения</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={(styles as any)[`${prefix}BorderGlow`] || false} 
+                onChange={(e) => onUpdate({ ...styles, [`${prefix}BorderGlow`]: e.target.checked })}
+                className="w-6 h-6 accent-primary cursor-pointer"
+              />
+            </div>
+            {(styles as any)[`${prefix}BorderGlow`] && (
+              <div className="space-y-3">
+                <span className="text-[10px] uppercase font-bold opacity-50">Сила свечения</span>
+                <input 
+                  type="range" min="0" max="100" step="1"
+                  value={(styles as any)[`${prefix}BorderGlowStrength`] ?? 15}
+                  onChange={(e) => onUpdate({ ...styles, [`${prefix}BorderGlowStrength`]: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Shadow className="w-5 h-5" /> Тень</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['none', 'soft', 'medium', 'hard'] as const).map(s => (
+                <button 
+                  key={s}
+                  onClick={() => onUpdate({ ...styles, [`${prefix}Shadow`]: s })}
+                  className={`py-3 text-[9px] font-black uppercase rounded-xl border transition-all ${(styles as any)[`${prefix}Shadow`] === s ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10 hover:bg-white/5'}`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
 
           {type === 'btn' && (
@@ -287,15 +343,29 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
     );
   }
 
-  const needsHeaderOffset = isFirst && useBuilderStore.getState().blocks[0]?.type === 'header' && useBuilderStore.getState().blocks[0]?.styles.isOverlay;
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
+
+  // Calculations for Title styles
+  const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 15}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
+  const titleShadowValue = SHADOW_MAP[styles.titleShadow || 'none'];
+  const titleCombinedShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowValue !== 'none' ? `, ${titleShadowValue}` : ''}` : titleShadowValue;
+
+  // Calculations for Desc styles
+  const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 15}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
+  const descShadowValue = SHADOW_MAP[styles.descShadow || 'none'];
+  const descCombinedShadow = descGlow !== 'none' ? `${descGlow}${descShadowValue !== 'none' ? `, ${descShadowValue}` : ''}` : descShadowValue;
+
+  // Calculations for Button styles
+  const btnGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 15}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
+  const btnShadowValue = SHADOW_MAP[styles.buttonShadow || 'none'];
+  const btnCombinedShadow = btnGlow !== 'none' ? `${btnGlow}${btnShadowValue !== 'none' ? `, ${btnShadowValue}` : ''}` : btnShadowValue;
 
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center ${isLast ? 'flex-grow' : ''}`} style={{ 
       backgroundColor: bgRgba, 
       borderRadius: styles.borderRadius || '0px', 
       minHeight: styles.minHeight,
-      marginTop: needsHeaderOffset ? `-${useBuilderStore.getState().blocks[0]?.styles.minHeight}` : '0',
+      marginTop: (isFirst && useBuilderStore.getState().blocks[0]?.type === 'header' && useBuilderStore.getState().blocks[0]?.styles.isOverlay) ? `-${useBuilderStore.getState().blocks[0]?.styles.minHeight}` : '0',
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>
@@ -327,7 +397,9 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
               color: styles.titleColor || styles.textColor,
               fontFamily: FONT_MAP[styles.titleFont || styles.fontFamily],
               fontSize: fontSizeValue,
-              opacity: styles.titleOpacity ?? 1
+              opacity: styles.titleOpacity ?? 1,
+              WebkitTextStroke: `${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}`,
+              textShadow: titleCombinedShadow
             }}
           />
         </DraggableElement>
@@ -348,7 +420,9 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
             style={{
               color: styles.descColor || styles.textColor,
               fontFamily: FONT_MAP[styles.descFont || styles.fontFamily],
-              opacity: styles.descOpacity ?? 0.8
+              opacity: styles.descOpacity ?? 0.8,
+              WebkitTextStroke: `${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}`,
+              textShadow: descCombinedShadow
             }}
             rows={2}
           />
@@ -364,13 +438,15 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
             isSettingsOpen={editingElement?.blockId === block.id && editingElement?.type === 'btn'}
           >
             <button 
-              className="px-16 py-6 font-black uppercase tracking-[0.4em] text-[12px] shadow-2xl transition-all hover:scale-105 active:scale-95"
+              className="px-16 py-6 font-black uppercase tracking-[0.4em] text-[12px] transition-all hover:scale-105 active:scale-95"
               style={{ 
                 backgroundColor: styles.buttonBgColor,
                 color: styles.buttonTextColor,
                 borderRadius: styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px',
                 fontFamily: FONT_MAP[styles.buttonFontFamily || 'sans'],
-                opacity: styles.buttonOpacity ?? 1
+                opacity: styles.buttonOpacity ?? 1,
+                border: `${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}`,
+                boxShadow: btnCombinedShadow
               }}
             >
               {content.buttonText}
