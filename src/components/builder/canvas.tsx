@@ -266,7 +266,6 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
     );
   }
 
-  // Для первого блока после оверлей-шапки убираем верхний отступ
   const needsHeaderOffset = isFirst && useBuilderStore.getState().blocks[0]?.type === 'header' && useBuilderStore.getState().blocks[0]?.styles.isOverlay;
 
   return (
@@ -410,7 +409,8 @@ export function BuilderCanvas() {
                           marginBottom: (block.type === 'header' && block.styles.isOverlay) ? `-${block.styles.minHeight}` : '0'
                         }}
                       >
-                        <div className="absolute right-12 top-12 flex gap-4 opacity-0 group-hover:opacity-100 transition-all z-[200]">
+                        {/* Панель управления блоком - Перемещена в правый нижний угол */}
+                        <div className="absolute right-12 bottom-12 flex gap-4 opacity-0 group-hover:opacity-100 transition-all z-[200]">
                           <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-5 bg-card/90 backdrop-blur-3xl border rounded-[2rem] hover:text-primary transition-all shadow-2xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
                             <Settings2 className="w-6 h-6" />
                           </button>
