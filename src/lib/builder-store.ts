@@ -5,7 +5,8 @@ export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
 export type BlockType = 
   | 'header' | 'hero' | 'features' | 'pricing' | 'contacts' | 'footer' | 'faq' | 'testimonials' | 'gallery' | 'custom-code'
-  | 'web3-wallet' | 'nft-gallery' | 'on-chain-form';
+  | 'web3-wallet' | 'nft-gallery' | 'on-chain-form'
+  | 'system-prompt' | 'knowledge' | 'tools' | 'reply' | 'command' | 'menu' | 'wa-config' | 'wa-template';
 
 export type FontFamily = 
   | 'sans' | 'serif' | 'mono' 
@@ -169,7 +170,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         backgroundColor: (type === 'header' || type === 'footer') ? '#020204' : '#ffffff',
         textColor: (type === 'header' || type === 'footer') ? '#ffffff' : '#1e293b',
         padding: isSpecialMode ? 'p-10' : 'py-32 px-10',
-        minHeight: type === 'header' ? '10dvh' : (type === 'hero' ? '85dvh' : 'auto'),
+        minHeight: type === 'header' ? '10dvh' : (type === 'hero' ? '100dvh' : '85dvh'),
         fontFamily: 'sans',
         fontSize: 'large',
         overlayOpacity: 0.5,
@@ -252,6 +253,7 @@ function getDefaultContent(type: BlockType): BlockContent {
     case 'header': return { title: 'Web3Nexus', links: [{label: 'Home', url: '#'}, {label: 'Features', url: '#features'}, {label: 'DApp', url: '#dapp'}] };
     case 'hero': return { title: 'Decentralized Future', description: 'Experience the next generation of web engineering with integrated AI and Blockchain protocol.', buttonText: 'Get Started', buttonUrl: '#' };
     case 'web3-wallet': return { title: 'Connect to Nexus', description: 'Sync your digital identity via MetaMask, Phantom or Ledger securely.', buttonText: 'Connect Wallet', buttonUrl: '#' };
+    case 'system-prompt': return { title: 'AI Identity Node', description: 'Define the neural signature and behavior protocols for your autonomous agent.', buttonText: 'Initialize Agent', buttonUrl: '#' };
     default: return { title: 'New Synthesis Block', description: 'Configure your block parameters in the sidebar.', buttonText: 'Action', buttonUrl: '#' };
   }
 }

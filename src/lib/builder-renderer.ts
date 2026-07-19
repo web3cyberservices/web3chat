@@ -64,8 +64,8 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const borderStyle = `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`;
   const blockGlow = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 40}px ${styles.borderColor || styles.textColor}` : 'none';
 
-  // Современный стандарт высоты
-  const minHeight = styles.minHeight.replace('vh', 'dvh');
+  // Современный стандарт высоты DVH
+  const minHeight = styles.minHeight.replace(/vh|dvh/, 'dvh');
 
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
@@ -99,7 +99,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
   const bgImageLayer = styles.backgroundImage 
-    ? `<div style="position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; background-repeat: no-repeat; z-index: -1; pointer-events: none;"></div>`
+    ? `<div style="position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; z-index: -1; pointer-events: none;"></div>`
     : '';
 
   const overlayLayer = (styles.backgroundImage && styles.overlayOpacity !== undefined) 
@@ -107,8 +107,8 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
     : '';
 
   return `
-    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeight}; border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; isolation: isolate; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
-      <div style="position: absolute; inset: 0; background-color: ${bgRgba}; z-index: -2; pointer-events: none;"></div>
+    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeight}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; isolation: isolate; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
+      <div style="position: absolute; inset: 0; background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockGlow}; z-index: -2; pointer-events: none; ${borderRadiusStyle}"></div>
       ${bgImageLayer}
       ${overlayLayer}
       <div style="position: relative; z-index: 10; width: 100%; padding: 120px 50px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: ${FONT_MAP[styles.fontFamily]};">
