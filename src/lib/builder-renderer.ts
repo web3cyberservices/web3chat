@@ -64,12 +64,11 @@ function renderBlock(block: PageBlock, isLast: boolean): string {
   const borderStyle = `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`;
   
   const blockGlow = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 30}px ${styles.borderColor || styles.textColor}` : 'none';
-  const blockCombinedShadow = blockGlow !== 'none' ? blockGlow : 'none';
 
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
     return `
-      <header id="${id}" style="width: 100%; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; border: ${borderStyle}; box-shadow: ${blockCombinedShadow}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${FONT_MAP[styles.fontFamily]}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
+      <header id="${id}" style="width: 100%; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; border: ${borderStyle}; box-shadow: ${blockGlow}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${FONT_MAP[styles.fontFamily]}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
         <div style="font-weight: 900; font-size: 1.5rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
         <nav style="display: flex; gap: 40px;">
           ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.7;">${escapeHTML(l.label)}</a>`).join('')}
@@ -81,44 +80,38 @@ function renderBlock(block: PageBlock, isLast: boolean): string {
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockCombinedShadow}; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; ${isLast ? 'flex-grow: 1;' : ''}`;
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; ${isLast ? 'flex-grow: 1;' : ''}`;
   
   const bgImageStyle = styles.backgroundImage 
-    ? `position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
+    ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
     : '';
 
   const overlay = (styles.backgroundImage && styles.overlayOpacity !== undefined) ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity}; z-index: 2; pointer-events: none;"></div>` : '';
 
+  const titleShadow = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
   const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
-  const titleShadowVal = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
-  const titleTextShadow = titleGlow !== 'none' ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}${titleShadowVal !== 'none' ? `, ${titleShadowVal}` : ''}` : titleShadowVal;
+  const titleCombinedShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadow !== 'none' ? `, ${titleShadow}` : ''}` : titleShadow;
 
-  const titleStyle = `color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleTextShadow};`;
-
+  const descShadow = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
   const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
-  const descShadowVal = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
-  const descTextShadow = descGlow !== 'none' ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}${descShadowVal !== 'none' ? `, ${descShadowVal}` : ''}` : descShadowVal;
+  const descCombinedShadow = descGlow !== 'none' ? `${descGlow}${descShadow !== 'none' ? `, ${descShadow}` : ''}` : descShadow;
 
-  const descStyle = `color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descTextShadow};`;
-
+  const btnContainerShadow = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
   const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
-  const btnContainerShadowVal = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
-  const btnBoxShadow = btnContainerGlow !== 'none' ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}${btnContainerShadowVal !== 'none' ? `, ${btnContainerShadowVal}` : ''}` : btnContainerShadowVal;
+  const btnCombinedShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadow !== 'none' ? `, ${btnContainerShadow}` : ''}` : btnContainerShadow;
 
+  const btnTextShadow = TEXT_SHADOW_MAP[styles.buttonTextShadow || 'none'];
   const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
-  const btnTextShadowVal = TEXT_SHADOW_MAP[styles.buttonTextShadow || 'none'];
-  const btnTextShadow = btnTextGlow !== 'none' ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}${btnTextShadowVal !== 'none' ? `, ${btnTextShadowVal}` : ''}` : btnTextShadowVal;
-
-  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnBoxShadow}; -webkit-text-stroke: ${styles.buttonTextBorderWidth || '0px'} ${styles.buttonTextBorderColor || 'transparent'}; text-shadow: ${btnTextShadow};`;
+  const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
   return `
     <section id="${id}" style="${containerStyle}">
       ${bgImageStyle ? `<div style="${bgImageStyle}"></div>` : ''}
       ${overlay}
       <div style="position: relative; z-index: 10; width: 100%; padding: 120px 50px; text-align: center;">
-        <h2 style="${titleStyle}">${safeTitle}</h2>
-        <p style="${descStyle}">${safeDesc}</p>
-        ${safeBtn ? `<a href="${safeBtnUrl}" style="${btnStyle}">${safeBtn}</a>` : ''}
+        <h2 style="color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleCombinedShadow};">${safeTitle}</h2>
+        <p style="color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descCombinedShadow};">${safeDesc}</p>
+        ${safeBtn ? `<a href="${safeBtnUrl}" style="background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnCombinedShadow}; -webkit-text-stroke: ${styles.buttonTextBorderWidth || '0px'} ${styles.buttonTextBorderColor || 'transparent'}; text-shadow: ${btnTextCombinedShadow};">${safeBtn}</a>` : ''}
       </div>
     </section>
   `;
@@ -144,13 +137,15 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; }
-        body { 
-          font-family: 'Inter', sans-serif; 
+        html, body { 
+          height: 100%; 
           background-color: #020204; 
           color: #ffffff; 
-          display: flex; 
-          flex-direction: column; 
+          font-family: 'Inter', sans-serif;
+        }
+        body {
+          display: flex;
+          flex-direction: column;
           min-height: 100dvh;
           overflow-x: hidden;
         }
@@ -172,7 +167,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
       ${html}
     </main>
     ${footers.length === 0 ? `
-      <footer style="padding: 40px; background-color: #010101; text-align: center; border-top: 1px solid rgba(255,255,255,0.05);">
+      <footer style="padding: 40px; background-color: #010101; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); shrink-0;">
         <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.3; letter-spacing: 0.4em; text-transform: uppercase;">
           &copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES • THE SOVEREIGN STANDARD
         </div>

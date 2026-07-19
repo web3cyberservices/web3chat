@@ -419,21 +419,21 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
 
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
 
+  const titleShadow = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
   const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
-  const titleShadowValue = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
-  const titleCombinedShadow = titleGlow !== 'none' ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}${titleShadowValue !== 'none' ? `, ${titleShadowValue}` : ''}` : titleShadowValue;
+  const titleCombinedShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadow !== 'none' ? `, ${titleShadow}` : ''}` : titleShadow;
 
+  const descShadow = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
   const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
-  const descShadowValue = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
-  const descCombinedShadow = descGlow !== 'none' ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}${descShadowValue !== 'none' ? `, ${descShadowValue}` : ''}` : descShadowValue;
+  const descCombinedShadow = descGlow !== 'none' ? `${descGlow}${descShadow !== 'none' ? `, ${descShadow}` : ''}` : descShadow;
 
+  const btnContainerShadow = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
   const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
-  const btnContainerShadowValue = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
-  const btnContainerCombinedShadow = btnContainerGlow !== 'none' ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}${btnContainerShadowValue !== 'none' ? `, ${btnContainerShadowValue}` : ''}` : btnContainerShadowValue;
+  const btnContainerCombinedShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadow !== 'none' ? `, ${btnContainerShadow}` : ''}` : btnContainerShadow;
 
+  const btnTextShadow = TEXT_SHADOW_MAP[styles.buttonTextShadow || 'none'];
   const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
-  const btnTextShadowValue = TEXT_SHADOW_MAP[styles.buttonTextShadow || 'none'];
-  const btnTextCombinedShadow = btnTextGlow !== 'none' ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}${btnTextShadowValue !== 'none' ? `, ${btnTextShadowValue}` : ''}` : btnTextShadowValue;
+  const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden ${isLast ? 'flex-grow' : ''}`} style={{ 
@@ -444,7 +444,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
       boxShadow: glowStyle
     }}>
       {styles.backgroundImage && (
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ 
+        <div className="absolute inset-0 pointer-events-none" style={{ 
           backgroundImage: `url(${styles.backgroundImage})`, 
           backgroundSize: 'cover',
           backgroundPosition: 'center center',
