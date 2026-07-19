@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -10,7 +9,7 @@ import {
   Maximize2, MousePointer2, Sparkles, Sliders,
   Zap, PanelTop, PanelBottom, MousePointer, GripHorizontal,
   Link, MousePointerClick, ChevronDown, Check, Eye, Sun,
-  Layers, Shadow
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -33,11 +32,6 @@ const SHADOW_MAP = {
   hard: '0 40px 80px rgba(0,0,0,0.5)'
 };
 
-interface EditingElement {
-  blockId: string;
-  type: 'title' | 'desc' | 'btn';
-}
-
 function hexToRgba(hex: string, opacity: number): string {
   let r = 0, g = 0, b = 0;
   if (!hex || hex === 'transparent') return 'transparent';
@@ -51,6 +45,11 @@ function hexToRgba(hex: string, opacity: number): string {
     b = parseInt(hex.substring(5, 7), 16);
   }
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+interface EditingElement {
+  blockId: string;
+  type: 'title' | 'desc' | 'btn';
 }
 
 function ElementSettingsPanel({ 
@@ -160,7 +159,7 @@ function ElementSettingsPanel({
           </div>
 
           <div className="space-y-6">
-            <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Shadow className="w-5 h-5" /> Тень</label>
+            <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Layers className="w-5 h-5" /> Тень</label>
             <div className="grid grid-cols-2 gap-2">
               {(['none', 'soft', 'medium', 'hard'] as const).map(s => (
                 <button 

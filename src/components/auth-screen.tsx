@@ -92,8 +92,8 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
   };
 
   const copyMnemonic = async () => {
+    const text = mnemonic.join(' ');
     try {
-      const text = mnemonic.join(' ');
       if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
         setCopied(true);
@@ -103,9 +103,10 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
         throw new Error('Clipboard API unavailable');
       }
     } catch (err) {
+      console.warn('Clipboard write failed:', err);
       toast({ 
-        title: "Copy Blocked", 
-        description: "Your browser restricted clipboard access. Please select and copy manually.", 
+        title: "Copy Restricted", 
+        description: "Please select and copy the words manually from the screen.", 
         variant: "destructive" 
       });
     }
@@ -167,7 +168,7 @@ export function AuthScreen({ onIdentityCreated }: AuthScreenProps) {
 
           {mode === 'generate' && (
             <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 select-all">
                 {mnemonic.map((word, i) => (
                   <div key={i} className="bg-secondary p-2 rounded-lg border text-[10px] flex gap-2">
                     <span className="opacity-30 font-mono">{i + 1}</span>
