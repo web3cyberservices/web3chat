@@ -454,7 +454,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
             inset: 0, 
             backgroundImage: `url(${styles.backgroundImage})`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
             zIndex: -1,
             pointerEvents: 'none'
