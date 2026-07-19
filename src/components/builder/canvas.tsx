@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -31,7 +32,7 @@ interface EditingElement {
 
 function hexToRgba(hex: string, opacity: number): string {
   let r = 0, g = 0, b = 0;
-  if (!hex) return 'transparent';
+  if (!hex || hex === 'transparent') return 'transparent';
   if (hex.length === 4) {
     r = parseInt(hex[1] + hex[1], 16);
     g = parseInt(hex[2] + hex[2], 16);
@@ -287,6 +288,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   }
 
   const needsHeaderOffset = isFirst && useBuilderStore.getState().blocks[0]?.type === 'header' && useBuilderStore.getState().blocks[0]?.styles.isOverlay;
+  const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
 
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center ${isLast ? 'flex-grow' : ''}`} style={{ 
@@ -324,7 +326,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
             style={{ 
               color: styles.titleColor || styles.textColor,
               fontFamily: FONT_MAP[styles.titleFont || styles.fontFamily],
-              fontSize: styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem',
+              fontSize: fontSizeValue,
               opacity: styles.titleOpacity ?? 1
             }}
           />
@@ -431,7 +433,6 @@ export function BuilderCanvas() {
                           marginBottom: (block.type === 'header' && block.styles.isOverlay) ? `-${block.styles.minHeight}` : '0'
                         }}
                       >
-                        {/* Панель управления блоком - Перенесена в правый НИЖНИЙ угол */}
                         <div className="absolute right-4 bottom-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-[200]">
                           <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-3 bg-card/90 backdrop-blur-3xl border rounded-2xl hover:text-primary transition-all shadow-xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
                             <Settings2 className="w-5 h-5" />
