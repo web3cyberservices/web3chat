@@ -82,7 +82,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const rawMinHeight = styles.minHeight || (isFirst && isOverlayHeaderActive ? '100dvh' : 'auto');
   const minHeight = rawMinHeight.replace('vh', 'dvh');
 
-  // Мы используем слои с z-index, чтобы фон не перекрывался цветом родителя
+  // Изолированные слои фона: Секция сама по себе прозрачная, чтобы видеть отрицательные z-index
   const bgBaseLayer = `<div style="position: absolute; inset: 0; background-color: ${bgRgba}; z-index: -2; pointer-events: none;"></div>`;
 
   const bgImageLayer = styles.backgroundImage 
