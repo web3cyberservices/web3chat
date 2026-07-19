@@ -169,7 +169,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         backgroundColor: (type === 'header' || type === 'footer') ? '#020204' : '#ffffff',
         textColor: (type === 'header' || type === 'footer') ? '#ffffff' : '#1e293b',
         padding: isSpecialMode ? 'p-10' : 'py-32 px-10',
-        minHeight: type === 'header' ? '8dvh' : (type === 'hero' ? '85dvh' : 'auto'),
+        minHeight: type === 'header' ? '10dvh' : (type === 'hero' ? '85dvh' : 'auto'),
         fontFamily: 'sans',
         fontSize: 'large',
         overlayOpacity: 0.5,

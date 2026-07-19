@@ -383,12 +383,15 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const glowStyle = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 15}px ${styles.borderColor || styles.textColor}` : 'none';
 
+  // Современный стандарт высоты
+  const minHeight = styles.minHeight.replace('vh', 'dvh');
+
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
     return (
       <header className={`w-full flex items-center justify-between px-12 z-[100] transition-all duration-500`} style={{ 
         backgroundColor: bgRgba, 
-        minHeight: styles.minHeight,
+        minHeight: minHeight,
         color: styles.textColor,
         fontFamily: FONT_MAP[styles.fontFamily],
         borderRadius: styles.borderRadius || '0px',
@@ -438,7 +441,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden z-[1] isolation-auto ${isLast ? 'flex-grow' : ''}`} style={{ 
       borderRadius: styles.borderRadius || '0px', 
-      minHeight: styles.minHeight,
+      minHeight: minHeight,
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>
@@ -590,6 +593,7 @@ export function BuilderCanvas() {
                         className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' ? 'z-[100]' : 'z-10'}`}
                         style={{ ...provided.draggableProps.style }}
                       >
+                        {/* Кнопки управления - видны при наведении на любой блок включая шапку */}
                         <div className="absolute right-4 bottom-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-[200]">
                           <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-3 bg-card/90 backdrop-blur-3xl border rounded-2xl hover:text-primary transition-all shadow-xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
                             <Settings2 className="w-5 h-5" />
@@ -699,7 +703,7 @@ export function BuilderCanvas() {
                                   <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Maximize2 className="w-5 h-5" /> Геометрия</label>
                                   <div className="space-y-6">
                                     <div className="space-y-3">
-                                      <span className="text-[10px] uppercase font-bold opacity-50">Минимальная высота (напр. 8dvh)</span>
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Минимальная высота (напр. 10dvh)</span>
                                       <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[12px] font-bold outline-none" />
                                     </div>
                                     <div className="space-y-3">
