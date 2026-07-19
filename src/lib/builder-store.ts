@@ -23,16 +23,30 @@ export interface BlockStyles {
   minHeight: string;
   backgroundOpacity?: number;
   borderRadius?: string;
+  
+  // Элемент-специфичные стили
+  titleColor?: string;
+  titleFont?: FontFamily;
+  titleSize?: 'normal' | 'large' | 'huge';
+  titleOpacity?: number;
   titleX: number;
   titleY: number;
+
+  descColor?: string;
+  descFont?: FontFamily;
+  descSize?: 'normal' | 'large' | 'huge';
+  descOpacity?: number;
   descX: number;
   descY: number;
+
   btnX: number;
   btnY: number;
   buttonRadius: 'none' | 'md' | 'full';
   buttonFontFamily: FontFamily;
   buttonBgColor: string;
   buttonTextColor: string;
+  buttonOpacity?: number;
+
   isSticky?: boolean;
   isOverlay?: boolean;
   translateX: number;
@@ -141,6 +155,9 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         buttonBgColor: '#22c55e',
         buttonTextColor: '#ffffff',
         isSticky: type === 'header',
+        titleOpacity: 1,
+        descOpacity: 1,
+        buttonOpacity: 1
       },
       content: getDefaultContent(type)
     };

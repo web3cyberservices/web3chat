@@ -67,16 +67,16 @@ function renderBlock(block: PageBlock): string {
     ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
     : '';
 
-  const btnFinalStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px);`;
-  const titleFinalStyle = `color: ${styles.textColor}; font-family: ${fontStack}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px);`;
-  const descFinalStyle = `color: ${styles.textColor}; font-family: ${fontStack}; opacity: 0.85; transform: translate(${styles.descX || 0}px, ${styles.descY || 0}px);`;
+  const titleFinalStyle = `color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; transform: translate(${styles.titleX || 0}px, ${styles.titleY || 0}px); opacity: ${styles.titleOpacity ?? 1};`;
+  const descFinalStyle = `color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; transform: translate(${styles.descX || 0}px, ${styles.descY || 0}px); opacity: ${styles.descOpacity ?? 0.85};`;
+  const btnFinalStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; transform: translate(${styles.btnX || 0}px, ${styles.btnY || 0}px); opacity: ${styles.buttonOpacity ?? 1};`;
 
   const overlay = styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity || 0.5}; z-index: 2; pointer-events: none;"></div>` : '';
 
   if (type === 'header') {
     return `
       <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${styles.backgroundColor}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; font-family: ${fontStack}; ${styles.isSticky ? 'position: sticky; top: 0; z-index: 1000;' : 'position: relative;'} box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-        <div style="font-weight: 900; font-size: 1.5rem; letter-spacing: -0.05em; ${titleFinalStyle}">${safeTitle}</div>
+        <div style="font-weight: 900; font-size: 1.5rem; letter-spacing: -0.05em;">${safeTitle}</div>
         <nav style="display: flex; gap: 32px;">
           ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">${escapeHTML(l.label)}</a>`).join('')}
         </nav>
@@ -129,7 +129,6 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           display: flex;
           flex-direction: column;
         }
-        /* Международный стандарт: последний блок заполняет пустое пространство */
         main > .builder-section:last-of-type {
           flex-grow: 1;
         }
