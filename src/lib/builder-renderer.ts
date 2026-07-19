@@ -52,7 +52,7 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
-function renderBlock(block: PageBlock, isLast: boolean): string {
+function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: boolean, isFirst: boolean): string {
   const { type, content, styles, id } = block;
   const safeTitle = escapeHTML(content.title || '');
   const safeDesc = escapeHTML(content.description || '');
@@ -80,12 +80,18 @@ function renderBlock(block: PageBlock, isLast: boolean): string {
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; ${isLast ? 'flex-grow: 1;' : ''}`;
-  
+  // If overlay header is active and this is the first block, we ensure it takes full viewport height to look correct
+  let minHeight = styles.minHeight || 'auto';
+  if (isOverlayHeaderActive && isFirst && minHeight.includes('vh')) {
+    minHeight = '100vh';
+  }
+
   const bgImageStyle = styles.backgroundImage 
-    ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
+    ? `background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat;`
     : '';
 
+  const containerStyle = `min-height: ${minHeight}; ${borderRadiusStyle} background-color: ${bgRgba}; ${bgImageStyle} border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; ${isLast ? 'flex-grow: 1;' : ''}`;
+  
   const overlay = (styles.backgroundImage && styles.overlayOpacity !== undefined) ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity}; z-index: 2; pointer-events: none;"></div>` : '';
 
   const titleShadow = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
@@ -106,11 +112,10 @@ function renderBlock(block: PageBlock, isLast: boolean): string {
 
   return `
     <section id="${id}" style="${containerStyle}">
-      ${bgImageStyle ? `<div style="${bgImageStyle}"></div>` : ''}
       ${overlay}
-      <div style="position: relative; z-index: 10; width: 100%; padding: 120px 50px; text-align: center;">
-        <h2 style="color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleCombinedShadow};">${safeTitle}</h2>
-        <p style="color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descCombinedShadow};">${safeDesc}</p>
+      <div style="position: relative; z-index: 10; width: 100%; padding: 120px 50px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <h2 style="color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin: 0 0 40px 0; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleCombinedShadow};">${safeTitle}</h2>
+        <p style="color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px auto; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descCombinedShadow};">${safeDesc}</p>
         ${safeBtn ? `<a href="${safeBtnUrl}" style="background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnCombinedShadow}; -webkit-text-stroke: ${styles.buttonTextBorderWidth || '0px'} ${styles.buttonTextBorderColor || 'transparent'}; text-shadow: ${btnTextCombinedShadow};">${safeBtn}</a>` : ''}
       </div>
     </section>
@@ -121,15 +126,16 @@ export function generateFullHTML(blocks: PageBlock[]): string {
   const headers = blocks.filter(b => b.type === 'header');
   const footers = blocks.filter(b => b.type === 'footer');
   const contentBlocks = blocks.filter(b => b.type !== 'header' && b.type !== 'footer');
+  const isOverlayHeaderActive = headers.some(h => h.styles.isOverlay);
   
   let html = '';
-  headers.forEach(h => { html += renderBlock(h, false); });
-  contentBlocks.forEach((b, i) => { html += renderBlock(b, i === contentBlocks.length - 1); });
-  footers.forEach(f => { html += renderBlock(f, false); });
+  headers.forEach(h => { html += renderBlock(h, false, false, false); });
+  contentBlocks.forEach((b, i) => { html += renderBlock(b, i === contentBlocks.length - 1, isOverlayHeaderActive, i === 0); });
+  footers.forEach(f => { html += renderBlock(f, false, false, false); });
 
   return `
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" style="height: 100%;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -142,6 +148,8 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           background-color: #020204; 
           color: #ffffff; 
           font-family: 'Inter', sans-serif;
+          margin: 0;
+          padding: 0;
         }
         body {
           display: flex;
@@ -155,6 +163,11 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           flex-direction: column;
           width: 100%;
           position: relative;
+          min-height: 100vh;
+        }
+        section {
+          width: 100%;
+          flex-shrink: 0;
         }
         a { transition: all 0.3s ease; }
         ::-webkit-scrollbar { width: 8px; }
@@ -167,7 +180,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
       ${html}
     </main>
     ${footers.length === 0 ? `
-      <footer style="padding: 40px; background-color: #010101; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); shrink-0;">
+      <footer style="padding: 40px; background-color: #010101; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); width: 100%;">
         <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.3; letter-spacing: 0.4em; text-transform: uppercase;">
           &copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES • THE SOVEREIGN STANDARD
         </div>

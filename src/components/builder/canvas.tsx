@@ -435,25 +435,21 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
+  // Sync minHeight if overlay header
+  const minHeight = styles.minHeight;
+
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden ${isLast ? 'flex-grow' : ''}`} style={{ 
       backgroundColor: bgRgba, 
+      backgroundImage: styles.backgroundImage ? `url(${styles.backgroundImage})` : 'none',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center center',
+      backgroundRepeat: 'no-repeat',
       borderRadius: styles.borderRadius || '0px', 
-      minHeight: styles.minHeight,
+      minHeight: minHeight,
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>
-      {styles.backgroundImage && (
-        <div className="absolute inset-0 pointer-events-none" style={{ 
-          backgroundImage: `url(${styles.backgroundImage})`, 
-          backgroundSize: 'cover',
-          backgroundPosition: 'center center',
-          backgroundRepeat: 'no-repeat',
-          opacity: styles.backgroundOpacity || 1,
-          borderRadius: styles.borderRadius || '0px',
-          zIndex: 1
-        }} />
-      )}
       {styles.backgroundImage && styles.overlayOpacity !== undefined && (
         <div className="absolute inset-0 bg-black pointer-events-none" style={{ opacity: styles.overlayOpacity, borderRadius: styles.borderRadius || '0px', zIndex: 2 }} />
       )}
