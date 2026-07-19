@@ -80,29 +80,29 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
   const marginTop = (isFirstContent && headerOverlay) ? `margin-top: -${headerHeight};` : '';
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; ${glowStyle !== 'none' ? glowStyle : ''} overflow: visible; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''} ${marginTop}`;
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; ${glowStyle !== 'none' ? glowStyle : ''} overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''} ${marginTop}`;
   
   const bgImageStyle = styles.backgroundImage 
-    ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
+    ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
     : '';
 
   const overlay = styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity || 0.5}; z-index: 2; pointer-events: none;"></div>` : '';
 
-  // Title Effects
+  // Title Effects (Uniform Glow/Shadow)
   const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
   const titleShadowVal = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
   const titleTextShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowVal !== 'none' ? `, ${titleShadowVal}` : ''}` : titleShadowVal;
 
   const titleStyle = `color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleTextShadow};`;
 
-  // Desc Effects
+  // Desc Effects (Uniform Glow/Shadow)
   const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
   const descShadowVal = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
   const descTextShadow = descGlow !== 'none' ? `${descGlow}${descShadowVal !== 'none' ? `, ${descShadowVal}` : ''}` : descShadowVal;
 
   const descStyle = `color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descTextShadow};`;
 
-  // Button Container Effects
+  // Button Container Effects (Uniform Blur with Negative Spread)
   const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
   const btnContainerShadowVal = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
   const btnBoxShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadowVal !== 'none' ? `, ${btnContainerShadowVal}` : ''}` : btnContainerShadowVal;

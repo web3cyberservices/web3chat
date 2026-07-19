@@ -93,7 +93,7 @@ function ElementSettingsPanel({
             </label>
             <input 
               type="color" 
-              value={type === 'btn' ? styles.buttonTextColor : ((styles as any)[`${prefix}Color`] || styles.textColor)} 
+              value={type === 'btn' ? (styles.buttonTextColor || '#ffffff') : ((styles as any)[`${prefix}Color`] || styles.textColor)} 
               onChange={(e) => {
                 if (type === 'btn') onUpdate({ ...styles, buttonTextColor: e.target.value });
                 else onUpdate({ ...styles, [`${prefix}Color`]: e.target.value });
@@ -432,7 +432,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadowValue !== 'none' ? `, ${btnTextShadowValue}` : ''}` : btnTextShadowValue;
 
   return (
-    <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center ${isLast ? 'flex-grow' : ''}`} style={{ 
+    <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden ${isLast ? 'flex-grow' : ''}`} style={{ 
       backgroundColor: bgRgba, 
       borderRadius: styles.borderRadius || '0px', 
       minHeight: styles.minHeight,
@@ -441,14 +441,17 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
       boxShadow: glowStyle
     }}>
       {styles.backgroundImage && (
-        <div className="absolute inset-0 bg-cover bg-center" style={{ 
+        <div className="absolute inset-0 pointer-events-none" style={{ 
           backgroundImage: `url(${styles.backgroundImage})`, 
+          backgroundSize: 'cover',
+          backgroundPosition: 'center center',
+          backgroundRepeat: 'no-repeat',
           opacity: styles.backgroundOpacity || 1,
           borderRadius: styles.borderRadius || '0px'
         }} />
       )}
       {styles.overlayOpacity !== undefined && (
-        <div className="absolute inset-0 bg-black" style={{ opacity: styles.overlayOpacity, borderRadius: styles.borderRadius || '0px' }} />
+        <div className="absolute inset-0 bg-black pointer-events-none" style={{ opacity: styles.overlayOpacity, borderRadius: styles.borderRadius || '0px' }} />
       )}
       <div className={`relative z-10 flex flex-col items-center justify-center text-center w-full h-full ${styles.padding || 'py-32 px-10'}`}>
         <DraggableElement 
