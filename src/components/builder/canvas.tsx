@@ -7,7 +7,8 @@ import {
   Trash2, GripVertical, Settings2, X, Upload, 
   Layout, Type, Palette, Move, 
   Maximize2, MousePointer2, Sparkles, Sliders,
-  Zap, PanelTop, PanelBottom, MousePointer, GripHorizontal
+  Zap, PanelTop, PanelBottom, MousePointer, GripHorizontal,
+  Link, MousePointerClick
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,7 +45,6 @@ function DraggableElement({
   const startVal = useRef({ x: 0, y: 0 });
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Начинаем перетаскивание только если нажали на ручку (handle)
     const target = e.target as HTMLElement;
     if (!target.closest('.drag-handle')) return;
 
@@ -239,14 +239,14 @@ export function BuilderCanvas() {
                         </div>
 
                         {editingId === block.id && (
-                          <div className="absolute right-28 top-8 w-96 bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-8 z-[60] shadow-2xl animate-in fade-in zoom-in duration-300">
+                          <div className="absolute right-28 top-8 w-96 bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-8 z-[100] shadow-2xl animate-in fade-in zoom-in duration-300">
                             <div className="flex items-center justify-between mb-8">
                               <h5 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Настройки Блока</h5>
                               <button onClick={() => setEditingId(null)} className="p-2 hover:bg-white/5 rounded-full transition-all"><X className="w-4 h-4 opacity-40" /></button>
                             </div>
                             
-                            <ScrollArea className="h-[60vh] pr-4">
-                              <div className="space-y-8">
+                            <ScrollArea className="h-[65vh] pr-4">
+                              <div className="space-y-8 pb-10">
                                 <div className="space-y-4">
                                   <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Palette className="w-3 h-3" /> Фон и Текст</label>
                                   <div className="grid grid-cols-2 gap-4">
@@ -288,23 +288,73 @@ export function BuilderCanvas() {
                                 </div>
 
                                 <div className="space-y-4">
+                                  <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><MousePointerClick className="w-3 h-3" /> Настройка Кнопки</label>
+                                  <div className="space-y-3">
+                                    <div className="space-y-2">
+                                      <span className="text-[8px] uppercase font-bold opacity-50">Текст кнопки</span>
+                                      <input 
+                                        type="text" 
+                                        value={block.content.buttonText || ''} 
+                                        onChange={(e) => updateBlock(block.id, { content: { ...block.content, buttonText: e.target.value } })} 
+                                        placeholder="Напр: Узнать больше"
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" 
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <span className="text-[8px] uppercase font-bold opacity-50">Ссылка (URL)</span>
+                                      <input 
+                                        type="text" 
+                                        value={block.content.buttonUrl || ''} 
+                                        onChange={(e) => updateBlock(block.id, { content: { ...block.content, buttonUrl: e.target.value } })} 
+                                        placeholder="https://..."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" 
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <span className="text-[8px] uppercase font-bold opacity-50">Фон кнопки</span>
+                                        <input type="color" value={block.styles.buttonBgColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonBgColor: e.target.value } })} className="w-full h-10 rounded-xl bg-white/5 border-none cursor-pointer" />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <span className="text-[8px] uppercase font-bold opacity-50">Текст на кнопке</span>
+                                        <input type="color" value={block.styles.buttonTextColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, buttonTextColor: e.target.value } })} className="w-full h-10 rounded-xl bg-white/5 border-none cursor-pointer" />
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <span className="text-[8px] uppercase font-bold opacity-50">Скругление кнопки</span>
+                                      <div className="flex gap-2">
+                                        {(['none', 'md', 'full'] as const).map(radius => (
+                                          <button 
+                                            key={radius}
+                                            onClick={() => updateBlock(block.id, { styles: { ...block.styles, buttonRadius: radius } })}
+                                            className={`flex-1 py-2 text-[8px] font-black uppercase rounded-lg border transition-all ${block.styles.buttonRadius === radius ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10 hover:bg-white/5'}`}
+                                          >
+                                            {radius}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
                                   <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Maximize2 className="w-3 h-3" /> Геометрия</label>
                                   <div className="space-y-2">
                                     <span className="text-[8px] uppercase font-bold opacity-50">Мин. высота</span>
                                     <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" />
                                   </div>
                                   <div className="space-y-2">
-                                    <span className="text-[8px] uppercase font-bold opacity-50">Скругление (px)</span>
+                                    <span className="text-[8px] uppercase font-bold opacity-50">Скругление блока (px)</span>
                                     <input type="text" value={block.styles.borderRadius} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderRadius: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" />
                                   </div>
                                 </div>
                                 <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20 flex items-start gap-3">
                                   <MousePointer className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                                  <p className="text-[8px] font-black uppercase tracking-widest leading-relaxed text-primary">Используйте иконку ручки (слева от текста), чтобы свободно перемещать элементы мышкой.</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest leading-relaxed text-primary">Используйте иконку ручки (слева от элементов), чтобы свободно перемещать их по блоку.</p>
                                 </div>
                               </div>
                             </ScrollArea>
-                            <Button onClick={() => setEditingId(null)} className="w-full mt-8 rounded-[1.5rem] bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-[10px]">Сохранить настройки</Button>
+                            <Button onClick={() => setEditingId(null)} className="w-full mt-4 rounded-[1.5rem] bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-[10px] h-12 shadow-xl shadow-primary/20">Сохранить</Button>
                           </div>
                         )}
 
