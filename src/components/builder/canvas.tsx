@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -406,7 +405,7 @@ export function BuilderCanvas() {
   };
 
   return (
-    <div className="flex-1 bg-[#050507] overflow-y-auto p-0 lg:p-8 lg:pt-0 transition-all duration-1000 relative custom-scrollbar flex flex-col items-center">
+    <div className="flex-1 bg-[#050507] overflow-y-auto p-0 transition-all duration-1000 relative custom-scrollbar flex flex-col items-center">
       <div className={`${canvasWidth} w-full min-h-dvh bg-background shadow-2xl flex flex-col transition-all duration-1000 relative border-x border-b border-white/5 overflow-hidden`}>
         <DragDropContext onDragEnd={(res) => res.destination && reorderBlocks(res.source.index, res.destination.index)}>
           <Droppable droppableId="canvas">
@@ -432,13 +431,13 @@ export function BuilderCanvas() {
                           marginBottom: (block.type === 'header' && block.styles.isOverlay) ? `-${block.styles.minHeight}` : '0'
                         }}
                       >
-                        {/* Панель управления блоком - Перенесена в правый нижний угол */}
-                        <div className="absolute right-12 bottom-12 flex gap-4 opacity-0 group-hover:opacity-100 transition-all z-[200]">
-                          <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-5 bg-card/90 backdrop-blur-3xl border rounded-[2rem] hover:text-primary transition-all shadow-2xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
-                            <Settings2 className="w-6 h-6" />
+                        {/* Панель управления блоком - Перенесена в правый НИЖНИЙ угол */}
+                        <div className="absolute right-4 bottom-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-[200]">
+                          <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-3 bg-card/90 backdrop-blur-3xl border rounded-2xl hover:text-primary transition-all shadow-xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
+                            <Settings2 className="w-5 h-5" />
                           </button>
-                          <div {...provided.dragHandleProps} className="p-5 bg-card/90 backdrop-blur-3xl border border-white/10 rounded-[2rem] cursor-grab active:cursor-grabbing shadow-2xl"><GripVertical className="w-6 h-6" /></div>
-                          <button onClick={() => removeBlock(block.id)} className="p-5 bg-card/90 backdrop-blur-3xl border border-white/10 rounded-[2rem] hover:text-destructive transition-all shadow-2xl"><Trash2 className="w-6 h-6" /></button>
+                          <div {...provided.dragHandleProps} className="p-3 bg-card/90 backdrop-blur-3xl border border-white/10 rounded-2xl cursor-grab active:cursor-grabbing shadow-xl"><GripVertical className="w-5 h-5" /></div>
+                          <button onClick={() => removeBlock(block.id)} className="p-3 bg-card/90 backdrop-blur-3xl border border-white/10 rounded-2xl hover:text-destructive transition-all shadow-xl"><Trash2 className="w-5 h-5" /></button>
                         </div>
 
                         {editingId === block.id && (
