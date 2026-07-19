@@ -15,9 +15,9 @@ const FONT_MAP: Record<FontFamily, string> = {
 
 const SHADOW_MAP = {
   none: 'none',
-  soft: '0 4px 10px rgba(0,0,0,0.1)',
-  medium: '0 20px 40px rgba(0,0,0,0.3)',
-  hard: '0 40px 80px rgba(0,0,0,0.5)'
+  soft: '0 10px 30px rgba(0,0,0,0.3)',
+  medium: '0 20px 60px rgba(0,0,0,0.5)',
+  hard: '0 40px 100px rgba(0,0,0,0.7)'
 };
 
 function escapeHTML(str: string): string {
@@ -82,26 +82,31 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
 
   const overlay = styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity || 0.5}; z-index: 2; pointer-events: none;"></div>` : '';
 
-  // Title Effects
+  // Title Effects (Text Shadow used for uniform blur)
   const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 15}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
   const titleShadowVal = SHADOW_MAP[styles.titleShadow || 'none'];
   const titleTextShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowVal !== 'none' ? `, ${titleShadowVal}` : ''}` : titleShadowVal;
 
   const titleStyle = `color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleTextShadow};`;
 
-  // Desc Effects
+  // Desc Effects (Text Shadow used for uniform blur)
   const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 15}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
   const descShadowVal = SHADOW_MAP[styles.descShadow || 'none'];
   const descTextShadow = descGlow !== 'none' ? `${descGlow}${descShadowVal !== 'none' ? `, ${descShadowVal}` : ''}` : descShadowVal;
 
   const descStyle = `color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descTextShadow};`;
 
-  // Button Effects
-  const btnGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 15}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
-  const btnShadowVal = SHADOW_MAP[styles.buttonShadow || 'none'];
-  const btnBoxShadow = btnGlow !== 'none' ? `${btnGlow}${btnShadowVal !== 'none' ? `, ${btnShadowVal}` : ''}` : btnShadowVal;
+  // Button Container Effects
+  const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 15}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
+  const btnContainerShadowVal = SHADOW_MAP[styles.buttonShadow || 'none'];
+  const btnBoxShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadowVal !== 'none' ? `, ${btnContainerShadowVal}` : ''}` : btnContainerShadowVal;
 
-  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnBoxShadow};`;
+  // Button Text Effects
+  const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
+  const btnTextShadowVal = SHADOW_MAP[styles.buttonTextShadow || 'none'];
+  const btnTextShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadowVal !== 'none' ? `, ${btnTextShadowVal}` : ''}` : btnTextShadowVal;
+
+  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnBoxShadow}; -webkit-text-stroke: ${styles.buttonTextBorderWidth || '0px'} ${styles.buttonTextBorderColor || 'transparent'}; text-shadow: ${btnTextShadow};`;
 
   return `
     <section id="${id}" style="${containerStyle}">

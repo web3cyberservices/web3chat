@@ -70,6 +70,13 @@ export interface BlockStyles {
   buttonBorderGlow?: boolean;
   buttonBorderGlowStrength?: number;
   buttonShadow?: 'none' | 'soft' | 'medium' | 'hard';
+  
+  // Button Text specific
+  buttonTextBorderColor?: string;
+  buttonTextBorderWidth?: string;
+  buttonTextBorderGlow?: boolean;
+  buttonTextBorderGlowStrength?: number;
+  buttonTextShadow?: 'none' | 'soft' | 'medium' | 'hard';
 
   isSticky?: boolean;
   isOverlay?: boolean;
@@ -201,7 +208,12 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         buttonBorderWidth: '0px',
         buttonBorderGlow: false,
         buttonBorderGlowStrength: 15,
-        buttonShadow: 'medium'
+        buttonShadow: 'medium',
+        buttonTextBorderColor: 'transparent',
+        buttonTextBorderWidth: '0px',
+        buttonTextBorderGlow: false,
+        buttonTextBorderGlowStrength: 10,
+        buttonTextShadow: 'none'
       },
       content: getDefaultContent(type)
     };
