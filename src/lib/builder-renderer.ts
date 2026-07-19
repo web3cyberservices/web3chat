@@ -61,7 +61,7 @@ function renderBlock(block: PageBlock): string {
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : '';
 
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%;`;
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0;`;
   
   const bgImageStyle = styles.backgroundImage 
     ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
@@ -85,12 +85,12 @@ function renderBlock(block: PageBlock): string {
   }
 
   return `
-    <section id="${id}" style="${containerStyle}">
+    <section id="${id}" class="builder-section" style="${containerStyle}">
       ${bgImageStyle ? `<div style="${bgImageStyle}"></div>` : ''}
       ${overlay}
       <div style="position: relative; z-index: 10; width: 100%; max-width: 1200px; padding: 80px 40px; text-align: center;">
-        <h2 class="${sizeClass}" style="font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 24px; ${titleFinalStyle}">${safeTitle}</h2>
-        <p style="font-size: 1.125rem; line-height: 1.6; max-width: 800px; margin: 0 auto 40px; ${descFinalStyle}">${safeDesc}</p>
+        <h2 class="${sizeClass}" style="font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 24px; transition: transform 0.2s ease; ${titleFinalStyle}">${safeTitle}</h2>
+        <p style="font-size: 1.125rem; line-height: 1.6; max-width: 800px; margin: 0 auto 40px; transition: transform 0.2s ease; ${descFinalStyle}">${safeDesc}</p>
         ${safeBtn ? `<a href="${safeBtnUrl}" class="${btnRadiusClass}" style="display: inline-block; padding: 16px 48px; text-decoration: none; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 10px 40px rgba(0,0,0,0.2); transition: all 0.3s ease; ${btnFinalStyle}">${safeBtn}</a>` : ''}
       </div>
     </section>
@@ -112,8 +112,27 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; overflow-x: hidden; scroll-behavior: smooth; background-color: #fcfcfc; color: #1a1a1a; margin: 0; display: flex; flex-direction: column; min-height: 100dvh; }
+        body { 
+          font-family: 'Inter', sans-serif; 
+          overflow-x: hidden; 
+          scroll-behavior: smooth; 
+          background-color: #fcfcfc; 
+          color: #1a1a1a; 
+          margin: 0; 
+          display: flex; 
+          flex-direction: column; 
+          min-height: 100dvh; 
+        }
         header, section, footer { box-sizing: border-box; }
+        main {
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+        }
+        /* Международный стандарт: последний блок заполняет пустое пространство */
+        main > .builder-section:last-of-type {
+          flex-grow: 1;
+        }
         a:hover { opacity: 0.7; }
         .rounded-full { border-radius: 9999px; }
         .rounded-xl { border-radius: 1rem; }
@@ -121,7 +140,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
 </head>
 <body class="antialiased">
     ${headers}
-    <main style="flex-grow: 1;">
+    <main>
       ${content}
     </main>
     ${footers || `

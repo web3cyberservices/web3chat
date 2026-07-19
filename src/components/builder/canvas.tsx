@@ -7,7 +7,7 @@ import {
   Trash2, GripVertical, Settings2, X, Upload, 
   Layout, Type, Palette, Move, 
   Maximize2, MousePointer2, Sparkles, Sliders,
-  Zap, PanelTop, PanelBottom, MousePointer
+  Zap, PanelTop, PanelBottom, MousePointer, GripHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,6 +44,10 @@ function DraggableElement({
   const startVal = useRef({ x: 0, y: 0 });
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Начинаем перетаскивание только если нажали на ручку (handle)
+    const target = e.target as HTMLElement;
+    if (!target.closest('.drag-handle')) return;
+
     e.preventDefault();
     setIsDragging(true);
     startPos.current = { x: e.clientX, y: e.clientY };
@@ -73,10 +77,15 @@ function DraggableElement({
   return (
     <div 
       onMouseDown={handleMouseDown}
-      className={`${className} cursor-move select-none active:scale-[0.98] transition-transform duration-75 ${isDragging ? 'opacity-50 ring-2 ring-primary ring-offset-4 ring-offset-transparent rounded-lg' : ''}`}
+      className={`${className} relative group/drag select-none transition-shadow duration-300 ${isDragging ? 'z-50' : ''}`}
       style={{ transform: `translate(${x}px, ${y}px)` }}
     >
-      {children}
+      <div className="drag-handle absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 bg-primary/20 text-primary rounded-lg cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-all hover:bg-primary hover:text-white z-20">
+        <GripHorizontal className="w-4 h-4" />
+      </div>
+      <div className={`${isDragging ? 'ring-2 ring-primary ring-offset-4 ring-offset-transparent rounded-xl' : ''}`}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -121,7 +130,7 @@ function BlockContentComponent({ block, onUpdate }: {
   }
 
   return (
-    <div className="relative w-full overflow-hidden transition-all duration-500" style={{ 
+    <div className="relative w-full overflow-hidden transition-all duration-500 flex flex-col items-center justify-center flex-1" style={{ 
       backgroundColor: styles.backgroundColor, 
       borderRadius: styles.borderRadius || '0px', 
       minHeight: styles.minHeight 
@@ -135,8 +144,8 @@ function BlockContentComponent({ block, onUpdate }: {
       {styles.overlayOpacity !== undefined && (
         <div className="absolute inset-0 bg-black" style={{ opacity: styles.overlayOpacity }} />
       )}
-      <div className={`relative z-10 flex flex-col items-center justify-center text-center ${styles.padding || 'py-20 px-10'}`}>
-        <DraggableElement id="title" x={styles.titleX} y={styles.titleY} onMove={(nx, ny) => handleMove('title', nx, ny)} className="w-full">
+      <div className={`relative z-10 flex flex-col items-center justify-center text-center w-full h-full ${styles.padding || 'py-20 px-10'}`}>
+        <DraggableElement id="title" x={styles.titleX} y={styles.titleY} onMove={(nx, ny) => handleMove('title', nx, ny)} className="max-w-4xl mx-auto">
           <input 
             value={content.title} 
             onChange={(e) => onUpdate({ title: e.target.value })}
@@ -145,7 +154,7 @@ function BlockContentComponent({ block, onUpdate }: {
           />
         </DraggableElement>
         
-        <DraggableElement id="desc" x={styles.descX} y={styles.descY} onMove={(nx, ny) => handleMove('desc', nx, ny)} className="w-full">
+        <DraggableElement id="desc" x={styles.descX} y={styles.descY} onMove={(nx, ny) => handleMove('desc', nx, ny)} className="max-w-2xl mx-auto">
           <textarea 
             value={content.description} 
             onChange={(e) => onUpdate({ description: e.target.value })}
@@ -204,7 +213,7 @@ export function BuilderCanvas() {
         <DragDropContext onDragEnd={(res) => res.destination && reorderBlocks(res.source.index, res.destination.index)}>
           <Droppable droppableId="canvas">
             {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1">
+              <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 flex flex-col">
                 {blocks.length === 0 && (
                   <div className="flex-1 flex flex-col items-center justify-center py-60 opacity-20 text-center">
                     <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 animate-pulse">
@@ -216,7 +225,11 @@ export function BuilderCanvas() {
                 {blocks.map((block, index) => (
                   <Draggable key={block.id} draggableId={block.id} index={index}>
                     {(provided) => (
-                      <div ref={provided.innerRef} {...provided.draggableProps} className="group relative border-b border-white/5 last:border-b-0">
+                      <div 
+                        ref={provided.innerRef} 
+                        {...provided.draggableProps} 
+                        className={`group relative border-b border-white/5 last:border-b-0 flex flex-col ${index === blocks.length - 1 ? 'flex-1' : ''}`}
+                      >
                         <div className="absolute right-8 top-8 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-50">
                           <button onClick={() => setEditingId(editingId === block.id ? null : block.id)} className={`p-3 bg-card/80 backdrop-blur-xl border rounded-2xl hover:text-primary transition-all ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
                             <Settings2 className="w-5 h-5" />
@@ -287,7 +300,7 @@ export function BuilderCanvas() {
                                 </div>
                                 <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20 flex items-start gap-3">
                                   <MousePointer className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                                  <p className="text-[8px] font-black uppercase tracking-widest leading-relaxed text-primary">Вы можете свободно передвигать текст и кнопки прямо мышкой внутри блока.</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest leading-relaxed text-primary">Используйте иконку ручки (слева от текста), чтобы свободно перемещать элементы мышкой.</p>
                                 </div>
                               </div>
                             </ScrollArea>
