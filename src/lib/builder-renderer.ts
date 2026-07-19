@@ -15,9 +15,9 @@ const FONT_MAP: Record<FontFamily, string> = {
 
 const SHADOW_MAP = {
   none: 'none',
-  soft: '0 10px 30px rgba(0,0,0,0.3)',
-  medium: '0 20px 60px rgba(0,0,0,0.5)',
-  hard: '0 40px 100px rgba(0,0,0,0.7)'
+  soft: '0 10px 40px -10px rgba(0,0,0,0.2)',
+  medium: '0 20px 60px -15px rgba(0,0,0,0.4)',
+  hard: '0 30px 100px -20px rgba(0,0,0,0.6)'
 };
 
 function escapeHTML(str: string): string {
@@ -56,7 +56,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : '';
   const borderStyle = `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`;
-  const glowStyle = styles.borderGlow ? `box-shadow: 0 0 ${styles.borderGlowStrength || 15}px ${styles.borderColor || styles.textColor};` : 'none';
+  const glowStyle = styles.borderGlow ? `box-shadow: 0 0 ${styles.borderGlowStrength || 30}px ${styles.borderColor || styles.textColor};` : 'none';
 
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
@@ -83,21 +83,21 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   const overlay = styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity || 0.5}; z-index: 2; pointer-events: none;"></div>` : '';
 
   // Title Effects (Text Shadow used for uniform blur)
-  const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 15}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
+  const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
   const titleShadowVal = SHADOW_MAP[styles.titleShadow || 'none'];
   const titleTextShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowVal !== 'none' ? `, ${titleShadowVal}` : ''}` : titleShadowVal;
 
   const titleStyle = `color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleTextShadow};`;
 
   // Desc Effects (Text Shadow used for uniform blur)
-  const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 15}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
+  const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
   const descShadowVal = SHADOW_MAP[styles.descShadow || 'none'];
   const descTextShadow = descGlow !== 'none' ? `${descGlow}${descShadowVal !== 'none' ? `, ${descShadowVal}` : ''}` : descShadowVal;
 
   const descStyle = `color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descTextShadow};`;
 
   // Button Container Effects
-  const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 15}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
+  const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
   const btnContainerShadowVal = SHADOW_MAP[styles.buttonShadow || 'none'];
   const btnBoxShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadowVal !== 'none' ? `, ${btnContainerShadowVal}` : ''}` : btnContainerShadowVal;
 

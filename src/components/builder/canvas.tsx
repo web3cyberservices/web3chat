@@ -28,9 +28,9 @@ const FONT_MAP: Record<FontFamily, string> = {
 
 const SHADOW_MAP = {
   none: 'none',
-  soft: '0 10px 30px rgba(0,0,0,0.3)',
-  medium: '0 20px 60px rgba(0,0,0,0.5)',
-  hard: '0 40px 100px rgba(0,0,0,0.7)'
+  soft: '0 10px 40px -10px rgba(0,0,0,0.2)',
+  medium: '0 20px 60px -15px rgba(0,0,0,0.4)',
+  hard: '0 30px 100px -20px rgba(0,0,0,0.6)'
 };
 
 function hexToRgba(hex: string, opacity: number): string {
@@ -87,8 +87,11 @@ function ElementSettingsPanel({
             </label>
             <input 
               type="color" 
-              value={(styles as any)[`${prefix}Color`] || styles.textColor} 
-              onChange={(e) => onUpdate({ ...styles, [`${prefix}Color`]: e.target.value })}
+              value={type === 'btn' ? styles.buttonTextColor : ((styles as any)[`${prefix}Color`] || styles.textColor)} 
+              onChange={(e) => {
+                if (type === 'btn') onUpdate({ ...styles, buttonTextColor: e.target.value });
+                else onUpdate({ ...styles, [`${prefix}Color`]: e.target.value });
+              }}
               className="w-full h-12 rounded-2xl cursor-pointer bg-white/5 border-none p-1" 
             />
           </div>
@@ -122,54 +125,6 @@ function ElementSettingsPanel({
             />
           </div>
 
-          {/* Текст внутри кнопки (индивидуальные настройки) */}
-          {type === 'btn' && (
-            <div className="space-y-6 pt-6 border-t border-white/5">
-              <label className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-4"><Type className="w-5 h-5" /> Текст внутри кнопки</label>
-              
-              <div className="space-y-3">
-                <span className="text-[10px] uppercase font-bold opacity-50">Цвет текста кнопки</span>
-                <input type="color" value={styles.buttonTextColor} onChange={(e) => onUpdate({ ...styles, buttonTextColor: e.target.value })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <span className="text-[10px] uppercase font-bold opacity-50">Ободок букв</span>
-                  <input type="color" value={styles.buttonTextBorderColor || '#ffffff'} onChange={(e) => onUpdate({ ...styles, buttonTextBorderColor: e.target.value })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
-                </div>
-                <div className="space-y-3">
-                  <span className="text-[10px] uppercase font-bold opacity-50">Толщина (px)</span>
-                  <input type="text" value={styles.buttonTextBorderWidth || '0px'} onChange={(e) => onUpdate({ ...styles, buttonTextBorderWidth: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[12px] font-bold outline-none" />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5">
-                <div className="flex items-center gap-3">
-                  <Sun className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] uppercase font-bold opacity-50">Свечение текста</span>
-                </div>
-                <input 
-                  type="checkbox" 
-                  checked={styles.buttonTextBorderGlow} 
-                  onChange={(e) => onUpdate({ ...styles, buttonTextBorderGlow: e.target.checked })}
-                  className="w-6 h-6 accent-primary cursor-pointer"
-                />
-              </div>
-
-              {styles.buttonTextBorderGlow && (
-                <div className="space-y-3">
-                  <span className="text-[10px] uppercase font-bold opacity-50">Сила свечения текста</span>
-                  <input 
-                    type="range" min="0" max="100" step="1"
-                    value={styles.buttonTextBorderGlowStrength ?? 15}
-                    onChange={(e) => onUpdate({ ...styles, buttonTextBorderGlowStrength: parseInt(e.target.value) })}
-                    className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="space-y-6">
             <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Zap className="w-5 h-5" /> {type === 'btn' ? 'Границы Кнопки' : 'Ободок и Свечение'}</label>
             <div className="grid grid-cols-2 gap-6">
@@ -198,8 +153,8 @@ function ElementSettingsPanel({
               <div className="space-y-3">
                 <span className="text-[10px] uppercase font-bold opacity-50">Сила свечения</span>
                 <input 
-                  type="range" min="0" max="100" step="1"
-                  value={(styles as any)[`${prefix}BorderGlowStrength`] ?? 15}
+                  type="range" min="0" max="150" step="1"
+                  value={(styles as any)[`${prefix}BorderGlowStrength`] ?? 30}
                   onChange={(e) => onUpdate({ ...styles, [`${prefix}BorderGlowStrength`]: parseInt(e.target.value) })}
                   className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
                 />
@@ -220,45 +175,87 @@ function ElementSettingsPanel({
                 </button>
               ))}
             </div>
-            {type === 'btn' && (
-              <>
-                <span className="text-[10px] uppercase font-bold opacity-30 mt-4 block">Тень Текста Кнопки</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['none', 'soft', 'medium', 'hard'] as const).map(s => (
-                    <button 
-                      key={s}
-                      onClick={() => onUpdate({ ...styles, buttonTextShadow: s })}
-                      className={`py-3 text-[9px] font-black uppercase rounded-xl border transition-all ${styles.buttonTextShadow === s ? 'bg-accent text-accent-foreground border-accent' : 'border-white/10 hover:bg-white/5'}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
 
           {type === 'btn' && (
-            <>
-              <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Текст кнопки</label>
-                <input 
-                  type="text" 
-                  value={content?.buttonText || ''} 
-                  onChange={(e) => onUpdate(styles, { buttonText: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[11px] font-bold outline-none" 
-                />
+            <div className="space-y-10 pt-10 border-t border-white/5">
+              <div className="space-y-6">
+                <label className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-4"><Type className="w-5 h-5" /> Текст кнопки</label>
+                
+                <div className="space-y-3">
+                  <span className="text-[10px] uppercase font-bold opacity-50">Надпись на кнопке</span>
+                  <input 
+                    type="text" 
+                    value={content?.buttonText || ''} 
+                    onChange={(e) => onUpdate(styles, { buttonText: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[11px] font-bold outline-none" 
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <span className="text-[10px] uppercase font-bold opacity-50">Ссылка (URL)</span>
+                  <input 
+                    type="text" 
+                    value={content?.buttonUrl || ''} 
+                    onChange={(e) => onUpdate(styles, { buttonUrl: e.target.value })}
+                    placeholder="https://..."
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[11px] outline-none font-mono" 
+                  />
+                </div>
               </div>
-              <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Ссылка (URL)</label>
-                <input 
-                  type="text" 
-                  value={content?.buttonUrl || ''} 
-                  onChange={(e) => onUpdate(styles, { buttonUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[11px] outline-none font-mono" 
-                />
+
+              <div className="space-y-6">
+                <label className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-4"><Zap className="w-5 h-5" /> Эффекты Текста Кнопки</label>
+                
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <span className="text-[10px] uppercase font-bold opacity-50">Ободок букв</span>
+                    <input type="color" value={styles.buttonTextBorderColor || '#ffffff'} onChange={(e) => onUpdate({ ...styles, buttonTextBorderColor: e.target.value })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
+                  </div>
+                  <div className="space-y-3">
+                    <span className="text-[10px] uppercase font-bold opacity-50">Толщина (px)</span>
+                    <input type="text" value={styles.buttonTextBorderWidth || '0px'} onChange={(e) => onUpdate({ ...styles, buttonTextBorderWidth: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[12px] font-bold outline-none" />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5">
+                  <span className="text-[10px] uppercase font-bold opacity-50">Свечение текста</span>
+                  <input 
+                    type="checkbox" 
+                    checked={styles.buttonTextBorderGlow} 
+                    onChange={(e) => onUpdate({ ...styles, buttonTextBorderGlow: e.target.checked })}
+                    className="w-6 h-6 accent-primary cursor-pointer"
+                  />
+                </div>
+
+                {styles.buttonTextBorderGlow && (
+                  <div className="space-y-3">
+                    <span className="text-[10px] uppercase font-bold opacity-50">Сила свечения</span>
+                    <input 
+                      type="range" min="0" max="100" step="1"
+                      value={styles.buttonTextBorderGlowStrength ?? 15}
+                      onChange={(e) => onUpdate({ ...styles, buttonTextBorderGlowStrength: parseInt(e.target.value) })}
+                      className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <span className="text-[10px] uppercase font-bold opacity-50">Тень текста кнопки</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['none', 'soft', 'medium', 'hard'] as const).map(s => (
+                      <button 
+                        key={s}
+                        onClick={() => onUpdate({ ...styles, buttonTextShadow: s })}
+                        className={`py-3 text-[9px] font-black uppercase rounded-xl border transition-all ${styles.buttonTextShadow === s ? 'bg-accent text-accent-foreground border-accent' : 'border-white/10 hover:bg-white/5'}`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
+
               <div className="space-y-4">
                 <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Скругление углов</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -273,7 +270,7 @@ function ElementSettingsPanel({
                   ))}
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -409,18 +406,18 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
 
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
 
-  // Calculations for Title styles
-  const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 15}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
+  // Title Effects (Text Shadow used for uniform blur)
+  const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
   const titleShadowValue = SHADOW_MAP[styles.titleShadow || 'none'];
   const titleCombinedShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowValue !== 'none' ? `, ${titleShadowValue}` : ''}` : titleShadowValue;
 
-  // Calculations for Desc styles
-  const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 15}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
+  // Desc Effects (Text Shadow used for uniform blur)
+  const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
   const descShadowValue = SHADOW_MAP[styles.descShadow || 'none'];
   const descCombinedShadow = descGlow !== 'none' ? `${descGlow}${descShadowValue !== 'none' ? `, ${descShadowValue}` : ''}` : descShadowValue;
 
   // Calculations for Button Container styles
-  const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 15}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
+  const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
   const btnContainerShadowValue = SHADOW_MAP[styles.buttonShadow || 'none'];
   const btnContainerCombinedShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadowValue !== 'none' ? `, ${btnContainerShadowValue}` : ''}` : btnContainerShadowValue;
 
@@ -676,8 +673,8 @@ export function BuilderCanvas() {
                                     <div className="space-y-3">
                                       <span className="text-[10px] uppercase font-bold opacity-50">Сила свечения</span>
                                       <input 
-                                        type="range" min="0" max="100" step="1"
-                                        value={block.styles.borderGlowStrength ?? 15}
+                                        type="range" min="0" max="200" step="1"
+                                        value={block.styles.borderGlowStrength ?? 30}
                                         onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderGlowStrength: parseInt(e.target.value) } })}
                                         className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
                                       />
