@@ -50,18 +50,18 @@ export default function Home() {
     setHasMounted(true);
   }, []);
 
-  if (!hasMounted) return <div className="min-h-screen bg-[#020204]" />;
+  if (!hasMounted) return <div className="min-h-dvh bg-[#020204]" />;
 
   const t = translations[lang];
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden glow-mesh selection:bg-primary/30">
+    <div className="min-h-dvh bg-background text-foreground flex flex-col overflow-x-hidden glow-mesh selection:bg-primary/30">
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[180px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/5 blur-[180px] rounded-full" />
       </div>
 
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-4">
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-4 flex-shrink-0">
         <header className="h-14 glass-morphism premium-border rounded-full flex items-center justify-between px-6 md:px-8 bg-background/40 backdrop-blur-3xl border border-white/10 ring-1 ring-primary/20 neo-shadow">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 glass-morphism premium-border rounded-lg flex items-center justify-center shadow-2xl shadow-primary/20">
@@ -89,7 +89,7 @@ export default function Home() {
         </header>
       </div>
 
-      <main className="flex-1">
+      <main className="flex-grow">
         <section className="relative pt-32 pb-16 px-6 text-center max-w-7xl mx-auto min-h-[90vh] flex flex-col justify-center">
           <div className="flex justify-center mb-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 glass-morphism premium-border rounded-full text-[9px] font-bold uppercase tracking-[0.4em] text-primary animate-float">
@@ -161,7 +161,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="py-16 border-t border-white/5 px-8 bg-[#010101]/95 text-center">
+      <footer className="py-16 border-t border-white/5 px-8 bg-[#010101]/95 text-center flex-shrink-0">
         <div className="max-w-7xl mx-auto space-y-8">
           <div className="flex items-center justify-center gap-3">
             <Shield className="w-6 h-6 text-primary" />

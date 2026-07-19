@@ -75,10 +75,10 @@ function renderBlock(block: PageBlock): string {
 
   if (type === 'header') {
     return `
-      <header id="${id}" style="width: 100%; background-color: ${styles.backgroundColor}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; font-family: ${fontStack}; ${styles.isSticky ? 'position: sticky; top: 0; z-index: 1000;' : 'position: relative;'} shadow: 0 4px 20px rgba(0,0,0,0.1);">
+      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${styles.backgroundColor}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; font-family: ${fontStack}; ${styles.isSticky ? 'position: sticky; top: 0; z-index: 1000;' : 'position: relative;'} box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
         <div style="font-weight: 900; font-size: 1.5rem; letter-spacing: -0.05em; ${titleStyle}">${safeTitle}</div>
         <nav style="display: flex; gap: 32px;">
-          ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8; hover: opacity: 1;">${escapeHTML(l.label)}</a>`).join('')}
+          ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">${escapeHTML(l.label)}</a>`).join('')}
         </nav>
       </header>
     `;
@@ -98,7 +98,9 @@ function renderBlock(block: PageBlock): string {
 }
 
 export function generateFullHTML(blocks: PageBlock[]): string {
-  const content = blocks.map(renderBlock).join('\n');
+  const headers = blocks.filter(b => b.type === 'header').map(renderBlock).join('\n');
+  const footers = blocks.filter(b => b.type === 'footer').map(renderBlock).join('\n');
+  const content = blocks.filter(b => b.type !== 'header' && b.type !== 'footer').map(renderBlock).join('\n');
 
   return `
 <!DOCTYPE html>
@@ -110,7 +112,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; overflow-x: hidden; scroll-behavior: smooth; background-color: #fcfcfc; color: #1a1a1a; margin: 0; }
+        body { font-family: 'Inter', sans-serif; overflow-x: hidden; scroll-behavior: smooth; background-color: #fcfcfc; color: #1a1a1a; margin: 0; display: flex; flex-direction: column; min-height: 100dvh; }
         header, section, footer { box-sizing: border-box; }
         a:hover { opacity: 0.7; }
         .rounded-full { border-radius: 9999px; }
@@ -118,12 +120,15 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     </style>
 </head>
 <body class="antialiased">
-    <div style="display: flex; flex-direction: column; min-height: 100vh;">
+    ${headers}
+    <main style="flex-grow: 1;">
       ${content}
-      <footer style="padding: 60px 40px; background-color: #000; color: #fff; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto;">
+    </main>
+    ${footers || `
+      <footer style="padding: 60px 40px; background-color: #000; color: #fff; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;">
         <p style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.4; letter-spacing: 0.3em; text-transform: uppercase;">&copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES • PRO ENGINE</p>
       </footer>
-    </div>
+    `}
 </body>
 </html>
   `;
