@@ -80,37 +80,33 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
   const marginTop = (isFirstContent && headerOverlay) ? `margin-top: -${headerHeight};` : '';
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; ${glowStyle !== 'none' ? glowStyle : ''} overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''} ${marginTop}`;
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; ${glowStyle !== 'none' ? glowStyle : ''} overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''} ${marginTop}`;
   
   const bgImageStyle = styles.backgroundImage 
-    ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
+    ? `position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
     : '';
 
   const overlay = styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity || 0.5}; z-index: 2; pointer-events: none;"></div>` : '';
 
-  // Title Effects (Uniform Glow/Shadow)
   const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
   const titleShadowVal = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
-  const titleTextShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowVal !== 'none' ? `, ${titleShadowVal}` : ''}` : titleShadowVal;
+  const titleTextShadow = titleGlow !== 'none' ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}${titleShadowVal !== 'none' ? `, ${titleShadowVal}` : ''}` : titleShadowVal;
 
   const titleStyle = `color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleTextShadow};`;
 
-  // Desc Effects (Uniform Glow/Shadow)
   const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
   const descShadowVal = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
-  const descTextShadow = descGlow !== 'none' ? `${descGlow}${descShadowVal !== 'none' ? `, ${descShadowVal}` : ''}` : descShadowVal;
+  const descTextShadow = descGlow !== 'none' ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}${descShadowVal !== 'none' ? `, ${descShadowVal}` : ''}` : descShadowVal;
 
   const descStyle = `color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descTextShadow};`;
 
-  // Button Container Effects (Uniform Blur with Negative Spread)
   const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
   const btnContainerShadowVal = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
-  const btnBoxShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadowVal !== 'none' ? `, ${btnContainerShadowVal}` : ''}` : btnContainerShadowVal;
+  const btnBoxShadow = btnContainerGlow !== 'none' ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}${btnContainerShadowVal !== 'none' ? `, ${btnContainerShadowVal}` : ''}` : btnContainerShadowVal;
 
-  // Button Text Effects
   const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
   const btnTextShadowVal = TEXT_SHADOW_MAP[styles.buttonTextShadow || 'none'];
-  const btnTextShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadowVal !== 'none' ? `, ${btnTextShadowVal}` : ''}` : btnTextShadowVal;
+  const btnTextShadow = btnTextGlow !== 'none' ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}${btnTextShadowVal !== 'none' ? `, ${btnTextShadowVal}` : ''}` : btnTextShadowVal;
 
   const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnBoxShadow}; -webkit-text-stroke: ${styles.buttonTextBorderWidth || '0px'} ${styles.buttonTextBorderColor || 'transparent'}; text-shadow: ${btnTextShadow}; transition: all 0.3s ease;`;
 
@@ -160,19 +156,24 @@ export function generateFullHTML(blocks: PageBlock[]): string {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
+        html, body {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+        }
         body { 
           font-family: 'Inter', sans-serif; 
           overflow-x: hidden; 
           scroll-behavior: smooth; 
           background-color: #020204; 
           color: #ffffff; 
-          margin: 0; 
           display: flex; 
           flex-direction: column; 
-          min-height: 100dvh; 
+          min-height: 100vh;
+          min-height: 100dvh;
         }
         main {
-          flex-grow: 1;
+          flex: 1 0 auto;
           display: flex;
           flex-direction: column;
           width: 100%;
