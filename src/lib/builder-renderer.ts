@@ -1,4 +1,3 @@
-
 import { PageBlock, FontFamily } from './builder-store';
 
 const FONT_MAP: Record<FontFamily, string> = {
@@ -15,16 +14,16 @@ const FONT_MAP: Record<FontFamily, string> = {
 
 const TEXT_SHADOW_MAP = {
   none: 'none',
-  soft: '0 4px 15px rgba(0,0,0,0.3)',
-  medium: '0 8px 30px rgba(0,0,0,0.5)',
-  hard: '0 12px 50px rgba(0,0,0,0.8)'
+  soft: '0 0 15px rgba(0,0,0,0.3)',
+  medium: '0 0 30px rgba(0,0,0,0.5)',
+  hard: '0 0 50px rgba(0,0,0,0.7)'
 };
 
 const BOX_SHADOW_MAP = {
   none: 'none',
-  soft: '0 15px 35px -5px rgba(0,0,0,0.25)',
-  medium: '0 25px 60px -10px rgba(0,0,0,0.4)',
-  hard: '0 40px 100px -15px rgba(0,0,0,0.6)'
+  soft: '0 0 35px -5px rgba(0,0,0,0.2)',
+  medium: '0 0 60px -10px rgba(0,0,0,0.35)',
+  hard: '0 0 100px -15px rgba(0,0,0,0.5)'
 };
 
 function escapeHTML(str: string): string {

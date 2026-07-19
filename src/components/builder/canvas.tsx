@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -28,16 +27,16 @@ const FONT_MAP: Record<FontFamily, string> = {
 
 const TEXT_SHADOW_MAP = {
   none: 'none',
-  soft: '0 4px 15px rgba(0,0,0,0.3)',
-  medium: '0 8px 30px rgba(0,0,0,0.5)',
-  hard: '0 12px 50px rgba(0,0,0,0.8)'
+  soft: '0 0 15px rgba(0,0,0,0.3)',
+  medium: '0 0 30px rgba(0,0,0,0.5)',
+  hard: '0 0 50px rgba(0,0,0,0.7)'
 };
 
 const BOX_SHADOW_MAP = {
   none: 'none',
-  soft: '0 15px 35px -5px rgba(0,0,0,0.25)',
-  medium: '0 25px 60px -10px rgba(0,0,0,0.4)',
-  hard: '0 40px 100px -15px rgba(0,0,0,0.6)'
+  soft: '0 0 35px -5px rgba(0,0,0,0.2)',
+  medium: '0 0 60px -10px rgba(0,0,0,0.35)',
+  hard: '0 0 100px -15px rgba(0,0,0,0.5)'
 };
 
 function hexToRgba(hex: string, opacity: number): string {
@@ -90,7 +89,7 @@ function ElementSettingsPanel({
         <div className="space-y-10 pb-10">
           <div className="space-y-4">
             <label className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center gap-2">
-              <Palette className="w-3.5 h-3.5" /> Цвет текста
+              <Palette className="w-3.5 h-3.5" /> {type === 'btn' ? 'Цвет текста кнопки' : 'Цвет текста'}
             </label>
             <input 
               type="color" 
@@ -108,7 +107,7 @@ function ElementSettingsPanel({
               <Type className="w-3.5 h-3.5" /> Шрифт
             </label>
             <select 
-              value={(styles as any)[`${prefix}Font`] || (styles as any)[`${prefix}FontFamily`] || styles.fontFamily} 
+              value={type === 'btn' ? (styles.buttonFontFamily || 'sans') : ((styles as any)[`${prefix}Font`] || styles.fontFamily)} 
               onChange={(e) => {
                 const key = type === 'btn' ? 'buttonFontFamily' : `${prefix}Font`;
                 onUpdate({ ...styles, [key]: e.target.value });
@@ -126,8 +125,11 @@ function ElementSettingsPanel({
             <input 
               type="range" 
               min="0" max="1" step="0.1"
-              value={(styles as any)[`${prefix}Opacity`] ?? 1} 
-              onChange={(e) => onUpdate({ ...styles, [`${prefix}Opacity`]: parseFloat(e.target.value) })}
+              value={type === 'btn' ? (styles.buttonOpacity ?? 1) : ((styles as any)[`${prefix}Opacity`] ?? 1)} 
+              onChange={(e) => {
+                const key = type === 'btn' ? 'buttonOpacity' : `${prefix}Opacity`;
+                onUpdate({ ...styles, [key]: parseFloat(e.target.value) });
+              }}
               className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
             />
           </div>
@@ -413,22 +415,18 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
 
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
 
-  // Title Effects (Text Shadow used for uniform blur)
   const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
   const titleShadowValue = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
   const titleCombinedShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowValue !== 'none' ? `, ${titleShadowValue}` : ''}` : titleShadowValue;
 
-  // Desc Effects (Text Shadow used for uniform blur)
   const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
   const descShadowValue = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
   const descCombinedShadow = descGlow !== 'none' ? `${descGlow}${descShadowValue !== 'none' ? `, ${descShadowValue}` : ''}` : descShadowValue;
 
-  // Calculations for Button Container styles
   const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
   const btnContainerShadowValue = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
   const btnContainerCombinedShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadowValue !== 'none' ? `, ${btnContainerShadowValue}` : ''}` : btnContainerShadowValue;
 
-  // Calculations for Button Text styles
   const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
   const btnTextShadowValue = TEXT_SHADOW_MAP[styles.buttonTextShadow || 'none'];
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadowValue !== 'none' ? `, ${btnTextShadowValue}` : ''}` : btnTextShadowValue;
