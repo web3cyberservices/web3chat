@@ -80,7 +80,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
   let minHeight = styles.minHeight || 'auto';
-  if (isOverlayHeaderActive && isFirst && (minHeight.includes('vh') || minHeight === 'auto')) {
+  if (isOverlayHeaderActive && isFirst) {
     minHeight = '100vh';
   }
 
@@ -147,12 +147,12 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           background-color: #020204; 
           color: #ffffff; 
           font-family: 'Inter', sans-serif;
+          overflow-x: hidden;
         }
         body {
           display: flex;
           flex-direction: column;
-          min-height: 100dvh;
-          overflow-x: hidden;
+          min-height: 100vh;
         }
         main {
           flex: 1;
@@ -164,6 +164,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
         section {
           width: 100%;
           flex-shrink: 0;
+          overflow: hidden;
         }
         a { transition: all 0.3s ease; }
         ::-webkit-scrollbar { width: 8px; }
