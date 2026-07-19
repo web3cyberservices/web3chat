@@ -52,7 +52,7 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
-function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean, headerHeight: string = '0px', headerOverlay: boolean = false): string {
+function renderBlock(block: PageBlock, isLast: boolean): string {
   const { type, content, styles, id } = block;
   const safeTitle = escapeHTML(content.title || '');
   const safeDesc = escapeHTML(content.description || '');
@@ -62,15 +62,17 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   const bgRgba = hexToRgba(styles.backgroundColor, styles.backgroundOpacity ?? 1);
   const borderRadiusStyle = styles.borderRadius ? `border-radius: ${styles.borderRadius};` : '';
   const borderStyle = `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`;
-  const glowStyle = styles.borderGlow ? `box-shadow: 0 0 ${styles.borderGlowStrength || 30}px ${styles.borderColor || styles.textColor};` : 'none';
+  
+  const blockGlow = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 30}px ${styles.borderColor || styles.textColor}` : 'none';
+  const blockCombinedShadow = blockGlow !== 'none' ? glowToShadow(blockGlow) : 'none';
 
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
     return `
-      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; border: ${borderStyle}; ${glowStyle !== 'none' ? glowStyle : ''} display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${FONT_MAP[styles.fontFamily]}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
-        <div style="font-weight: 900; font-size: 2rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
+      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; border: ${borderStyle}; box-shadow: ${blockCombinedShadow}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${FONT_MAP[styles.fontFamily]}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
+        <div style="font-weight: 900; font-size: 1.5rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
         <nav style="display: flex; gap: 40px;">
-          ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3em; opacity: 0.7; transition: opacity 0.3s;">${escapeHTML(l.label)}</a>`).join('')}
+          ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.7;">${escapeHTML(l.label)}</a>`).join('')}
         </nav>
       </header>
     `;
@@ -79,8 +81,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
-  const marginTop = (isFirstContent && headerOverlay) ? `margin-top: -${headerHeight};` : '';
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; ${glowStyle !== 'none' ? glowStyle : ''} overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''} ${marginTop}`;
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockCombinedShadow}; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''}`;
   
   const bgImageStyle = styles.backgroundImage 
     ? `position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
@@ -123,43 +124,41 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   `;
 }
 
+function glowToShadow(glow: string): string {
+  return glow;
+}
+
 export function generateFullHTML(blocks: PageBlock[]): string {
   const headers = blocks.filter(b => b.type === 'header');
   const footers = blocks.filter(b => b.type === 'footer');
   const contentBlocks = blocks.filter(b => b.type !== 'header' && b.type !== 'footer');
   
-  const activeHeader = headers[0];
-  const headerHeight = activeHeader?.styles.minHeight || '0px';
-  const headerOverlay = activeHeader?.styles.isOverlay || false;
-
   let html = '';
   
   headers.forEach(h => {
-    html += renderBlock(h, false, false);
+    html += renderBlock(h, false);
   });
 
   contentBlocks.forEach((b, i) => {
-    html += renderBlock(b, i === contentBlocks.length - 1, i === 0, headerHeight, headerOverlay);
+    html += renderBlock(b, i === contentBlocks.length - 1);
   });
 
   footers.forEach(f => {
-    html += renderBlock(f, false, false);
+    html += renderBlock(f, false);
   });
 
   return `
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" style="height: 100%;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Synthesis Web3 Project</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; }
-        html, body {
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html {
           height: 100%;
-          margin: 0;
-          padding: 0;
         }
         body { 
           font-family: 'Inter', sans-serif; 
@@ -169,7 +168,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           color: #ffffff; 
           display: flex; 
           flex-direction: column; 
-          min-height: 100vh;
+          min-height: 100%;
           min-height: 100dvh;
         }
         main {
@@ -177,9 +176,9 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           display: flex;
           flex-direction: column;
           width: 100%;
+          position: relative;
         }
         a { transition: all 0.3s ease; }
-        a:hover { opacity: 0.95; transform: translateY(-2px); }
         
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
@@ -192,8 +191,8 @@ export function generateFullHTML(blocks: PageBlock[]): string {
       ${html}
     </main>
     ${footers.length === 0 ? `
-      <footer style="padding: 100px 50px; background-color: #010101; color: #fff; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;">
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; opacity: 0.3; letter-spacing: 0.5em; text-transform: uppercase;">
+      <footer style="padding: 60px 50px; background-color: #010101; color: #fff; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.3; letter-spacing: 0.4em; text-transform: uppercase;">
           &copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES • THE SOVEREIGN STANDARD
         </div>
       </footer>

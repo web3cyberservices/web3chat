@@ -384,15 +384,19 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   const glowStyle = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 15}px ${styles.borderColor || styles.textColor}` : 'none';
 
   if (type === 'header') {
+    const position = styles.isOverlay ? 'absolute' : 'relative';
     return (
-      <header className="w-full flex items-center justify-between px-12 relative z-[100] transition-all duration-500" style={{ 
+      <header className={`w-full flex items-center justify-between px-12 z-[100] transition-all duration-500`} style={{ 
         backgroundColor: bgRgba, 
         minHeight: styles.minHeight,
         color: styles.textColor,
         fontFamily: FONT_MAP[styles.fontFamily],
         borderRadius: styles.borderRadius || '0px',
         border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
-        boxShadow: glowStyle
+        boxShadow: glowStyle,
+        position: position as any,
+        top: 0,
+        left: 0
       }}>
         <DraggableElement 
           id="h-title" 
@@ -436,7 +440,6 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
       backgroundColor: bgRgba, 
       borderRadius: styles.borderRadius || '0px', 
       minHeight: styles.minHeight,
-      marginTop: (isFirst && useBuilderStore.getState().blocks[0]?.type === 'header' && useBuilderStore.getState().blocks[0]?.styles.isOverlay) ? `-${useBuilderStore.getState().blocks[0]?.styles.minHeight}` : '0',
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>
