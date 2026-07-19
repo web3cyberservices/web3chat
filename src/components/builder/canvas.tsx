@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useBuilderStore, PageBlock, BlockContent, FontFamily } from '@/lib/builder-store';
 import { 
   Trash2, GripVertical, Settings2, X, Upload, 
-  Terminal, MessageSquare, Layout, Type, Palette, Move, 
-  Maximize2, MousePointer2, Sparkles, ChevronRight, Sliders,
-  MousePointer, Zap, LayoutPanelTop
+  Layout, Type, Palette, Move, 
+  Maximize2, MousePointer2, Sparkles, Sliders,
+  Zap, PanelTop, PanelBottom, MousePointer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,35 +24,80 @@ const FONT_MAP: Record<FontFamily, string> = {
   inter: 'Inter, sans-serif'
 };
 
+function DraggableElement({ 
+  id, 
+  x, 
+  y, 
+  onMove, 
+  children, 
+  className 
+}: { 
+  id: string; 
+  x: number; 
+  y: number; 
+  onMove: (nx: number, ny: number) => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const startPos = useRef({ x: 0, y: 0 });
+  const startVal = useRef({ x: 0, y: 0 });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    startPos.current = { x: e.clientX, y: e.clientY };
+    startVal.current = { x, y };
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startPos.current.x;
+      const dy = e.clientY - startPos.current.y;
+      onMove(startVal.current.x + dx, startVal.current.y + dy);
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, onMove]);
+
+  return (
+    <div 
+      onMouseDown={handleMouseDown}
+      className={`${className} cursor-move select-none active:scale-[0.98] transition-transform duration-75 ${isDragging ? 'opacity-50 ring-2 ring-primary ring-offset-4 ring-offset-transparent rounded-lg' : ''}`}
+      style={{ transform: `translate(${x}px, ${y}px)` }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function BlockContentComponent({ block, onUpdate }: { 
   block: PageBlock; 
-  onUpdate: (content: Partial<BlockContent>) => void;
+  onUpdate: (content: Partial<BlockContent>, styles?: any) => void;
 }) {
   const { styles, content, type } = block;
+
+  const handleMove = (keyPrefix: string, nx: number, ny: number) => {
+    onUpdate({}, { 
+      ...styles, 
+      [`${keyPrefix}X`]: nx, 
+      [`${keyPrefix}Y`]: ny 
+    });
+  };
 
   const baseStyle = {
     color: styles.textColor,
     fontFamily: FONT_MAP[styles.fontFamily]
-  };
-
-  const titleFinalStyle = {
-    ...baseStyle,
-    transform: `translate(${styles.titleX || 0}px, ${styles.titleY || 0}px)`,
-    fontSize: styles.fontSize === 'huge' ? '4rem' : styles.fontSize === 'large' ? '3rem' : '2.25rem'
-  };
-
-  const descFinalStyle = {
-    ...baseStyle,
-    transform: `translate(${styles.descX || 0}px, ${styles.descY || 0}px)`,
-    opacity: 0.8
-  };
-
-  const btnFinalStyle = {
-    backgroundColor: styles.buttonBgColor,
-    color: styles.buttonTextColor,
-    borderRadius: styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '1rem' : '0px',
-    fontFamily: FONT_MAP[styles.buttonFontFamily || 'sans'],
-    transform: `translate(${styles.btnX || 0}px, ${styles.btnY || 0}px)`
   };
 
   if (type === 'header') {
@@ -63,9 +108,9 @@ function BlockContentComponent({ block, onUpdate }: {
         color: styles.textColor,
         fontFamily: FONT_MAP[styles.fontFamily]
       }}>
-        <div className="font-black text-xl tracking-tighter" style={{ transform: `translate(${styles.titleX || 0}px, ${styles.titleY || 0}px)` }}>
-          {content.title}
-        </div>
+        <DraggableElement id="h-title" x={styles.titleX} y={styles.titleY} onMove={(nx, ny) => handleMove('title', nx, ny)}>
+          <div className="font-black text-xl tracking-tighter">{content.title}</div>
+        </DraggableElement>
         <nav className="flex items-center gap-6">
           {(content.links || []).map((l, i) => (
             <span key={i} className="text-xs font-bold uppercase tracking-widest cursor-pointer hover:opacity-70">{l.label}</span>
@@ -90,24 +135,40 @@ function BlockContentComponent({ block, onUpdate }: {
       {styles.overlayOpacity !== undefined && (
         <div className="absolute inset-0 bg-black" style={{ opacity: styles.overlayOpacity }} />
       )}
-      <div className={`relative z-10 flex flex-col items-center justify-center text-center ${styles.padding || 'py-20 px-10'}`} style={{ transform: `translate(${styles.translateX || 0}px, ${styles.translateY || 0}px)` }}>
-        <input 
-          value={content.title} 
-          onChange={(e) => onUpdate({ title: e.target.value })}
-          className="bg-transparent border-none font-black text-center w-full outline-none tracking-tighter mb-6"
-          style={titleFinalStyle}
-        />
-        <textarea 
-          value={content.description} 
-          onChange={(e) => onUpdate({ description: e.target.value })}
-          className="bg-transparent border-none text-lg text-center w-full outline-none resize-none mb-8"
-          style={descFinalStyle}
-          rows={2}
-        />
+      <div className={`relative z-10 flex flex-col items-center justify-center text-center ${styles.padding || 'py-20 px-10'}`}>
+        <DraggableElement id="title" x={styles.titleX} y={styles.titleY} onMove={(nx, ny) => handleMove('title', nx, ny)} className="w-full">
+          <input 
+            value={content.title} 
+            onChange={(e) => onUpdate({ title: e.target.value })}
+            className="bg-transparent border-none font-black text-center w-full outline-none tracking-tighter mb-6"
+            style={{ ...baseStyle, fontSize: styles.fontSize === 'huge' ? '4rem' : styles.fontSize === 'large' ? '3rem' : '2.25rem' }}
+          />
+        </DraggableElement>
+        
+        <DraggableElement id="desc" x={styles.descX} y={styles.descY} onMove={(nx, ny) => handleMove('desc', nx, ny)} className="w-full">
+          <textarea 
+            value={content.description} 
+            onChange={(e) => onUpdate({ description: e.target.value })}
+            className="bg-transparent border-none text-lg text-center w-full outline-none resize-none mb-8 opacity-80"
+            style={baseStyle}
+            rows={2}
+          />
+        </DraggableElement>
+
         {content.buttonText && (
-          <button className="px-10 py-4 font-bold uppercase tracking-widest text-[10px] shadow-2xl transition-all hover:scale-105 active:scale-95" style={btnFinalStyle}>
-            {content.buttonText}
-          </button>
+          <DraggableElement id="btn" x={styles.btnX} y={styles.btnY} onMove={(nx, ny) => handleMove('btn', nx, ny)}>
+            <button 
+              className="px-10 py-4 font-bold uppercase tracking-widest text-[10px] shadow-2xl transition-all"
+              style={{ 
+                backgroundColor: styles.buttonBgColor,
+                color: styles.buttonTextColor,
+                borderRadius: styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '1rem' : '0px',
+                fontFamily: FONT_MAP[styles.buttonFontFamily || 'sans']
+              }}
+            >
+              {content.buttonText}
+            </button>
+          </DraggableElement>
         )}
       </div>
     </div>
@@ -216,39 +277,17 @@ export function BuilderCanvas() {
                                 <div className="space-y-4">
                                   <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Maximize2 className="w-3 h-3" /> Геометрия</label>
                                   <div className="space-y-2">
-                                    <span className="text-[8px] uppercase font-bold opacity-50">Минимальная высота (например, 400px или 50vh)</span>
+                                    <span className="text-[8px] uppercase font-bold opacity-50">Мин. высота</span>
                                     <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" />
                                   </div>
                                   <div className="space-y-2">
-                                    <span className="text-[8px] uppercase font-bold opacity-50">Скругление углов (например, 2rem)</span>
+                                    <span className="text-[8px] uppercase font-bold opacity-50">Скругление (px)</span>
                                     <input type="text" value={block.styles.borderRadius} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderRadius: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none" />
                                   </div>
                                 </div>
-
-                                <div className="space-y-4">
-                                  <label className="text-[9px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Move className="w-3 h-3" /> Позиционирование элементов</label>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <span className="text-[8px] uppercase font-bold opacity-50">Заголовок X</span>
-                                      <input type="number" value={block.styles.titleX} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, titleX: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <span className="text-[8px] uppercase font-bold opacity-50">Заголовок Y</span>
-                                      <input type="number" value={block.styles.titleY} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, titleY: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
-                                    </div>
-                                  </div>
-                                  {block.content.buttonText && (
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <span className="text-[8px] uppercase font-bold opacity-50">Кнопка X</span>
-                                        <input type="number" value={block.styles.btnX} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, btnX: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <span className="text-[8px] uppercase font-bold opacity-50">Кнопка Y</span>
-                                        <input type="number" value={block.styles.btnY} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, btnY: parseInt(e.target.value) } })} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px]" />
-                                      </div>
-                                    </div>
-                                  )}
+                                <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20 flex items-start gap-3">
+                                  <MousePointer className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                                  <p className="text-[8px] font-black uppercase tracking-widest leading-relaxed text-primary">Вы можете свободно передвигать текст и кнопки прямо мышкой внутри блока.</p>
                                 </div>
                               </div>
                             </ScrollArea>
@@ -256,7 +295,13 @@ export function BuilderCanvas() {
                           </div>
                         )}
 
-                        <BlockContentComponent block={block} onUpdate={(content) => updateBlock(block.id, { content })} />
+                        <BlockContentComponent 
+                          block={block} 
+                          onUpdate={(c, s) => updateBlock(block.id, { 
+                            content: { ...block.content, ...c },
+                            styles: s || block.styles
+                          })} 
+                        />
                       </div>
                     )}
                   </Draggable>

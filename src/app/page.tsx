@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Zap, ArrowRight, Globe, ChevronRight, Sparkles, Orbit, Hexagon, Terminal, Layers, Database } from 'lucide-react';
+import { Shield, Zap, ArrowRight, Globe, ChevronRight, Sparkles, Orbit, Hexagon, Terminal, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -89,7 +89,7 @@ export default function Home() {
         </header>
       </div>
 
-      <main className="flex-grow">
+      <main className="flex-grow flex flex-col justify-center">
         <section className="relative pt-32 pb-16 px-6 text-center max-w-7xl mx-auto min-h-[90vh] flex flex-col justify-center">
           <div className="flex justify-center mb-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 glass-morphism premium-border rounded-full text-[9px] font-bold uppercase tracking-[0.4em] text-primary animate-float">
@@ -168,7 +168,7 @@ export default function Home() {
             <span className="font-black text-2xl tracking-tighter uppercase text-gradient">Web3CyberServices</span>
           </div>
           <div className="opacity-20 text-[9px] font-bold tracking-[0.4em] uppercase">
-            &copy; 2026 Web3CyberServices • THE SOVEREIGN STANDARD
+            &copy; {new Date().getFullYear()} Web3CyberServices • THE SOVEREIGN STANDARD
           </div>
         </div>
       </footer>
