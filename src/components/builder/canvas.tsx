@@ -37,15 +37,15 @@ function ElementQuickSettings({
   onUpdate: (s: any, c?: any) => void;
 }) {
   return (
-    <div className="flex flex-col gap-5 p-5 w-[280px] max-h-[380px] overflow-y-auto bg-card/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl shadow-black/50 custom-scrollbar scrollbar-hide">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Настройки элемента</span>
+    <div className="flex flex-col gap-4 p-5 w-[260px] max-h-[320px] overflow-y-auto bg-card/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl shadow-black/80 custom-scrollbar scrollbar-hide">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">Настройка</span>
         <Sliders className="w-3 h-3 text-primary" />
       </div>
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Цвет</label>
+          <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Цвет / Фон</label>
           <input 
             type="color" 
             value={type === 'title' ? (styles.titleColor || styles.textColor) : type === 'desc' ? (styles.descColor || styles.textColor) : styles.buttonBgColor} 
@@ -53,7 +53,7 @@ function ElementQuickSettings({
               const key = type === 'title' ? 'titleColor' : type === 'desc' ? 'descColor' : 'buttonBgColor';
               onUpdate({ ...styles, [key]: e.target.value });
             }}
-            className="w-full h-10 rounded-xl cursor-pointer bg-white/5 border-none" 
+            className="w-full h-8 rounded-lg cursor-pointer bg-white/5 border-none" 
           />
         </div>
 
@@ -65,7 +65,7 @@ function ElementQuickSettings({
               const key = type === 'title' ? 'titleFont' : type === 'desc' ? 'descFont' : 'buttonFontFamily';
               onUpdate({ ...styles, [key]: e.target.value });
             }}
-            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none uppercase"
+            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[9px] font-bold outline-none uppercase"
           >
             {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12] text-white">{f.toUpperCase()}</option>)}
           </select>
@@ -81,22 +81,12 @@ function ElementQuickSettings({
               const key = type === 'title' ? 'titleOpacity' : type === 'desc' ? 'descOpacity' : 'buttonOpacity';
               onUpdate({ ...styles, [key]: parseFloat(e.target.value) });
             }}
-            className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+            className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
           />
         </div>
 
         {type === 'btn' && (
           <>
-            <div className="space-y-2">
-              <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Текст кнопки</label>
-              <input 
-                type="text" 
-                value={content?.buttonText || ''} 
-                onChange={(e) => onUpdate(styles, { buttonText: e.target.value })}
-                placeholder="Текст кнопки"
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] outline-none font-bold" 
-              />
-            </div>
             <div className="space-y-2">
               <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Ссылка (URL)</label>
               <input 
@@ -104,17 +94,17 @@ function ElementQuickSettings({
                 value={content?.buttonUrl || ''} 
                 onChange={(e) => onUpdate(styles, { buttonUrl: e.target.value })}
                 placeholder="https://..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] outline-none font-mono" 
+                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[9px] outline-none font-mono" 
               />
             </div>
             <div className="space-y-2">
               <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Скругление</label>
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 {(['none', 'md', 'full'] as const).map(r => (
                   <button 
                     key={r}
                     onClick={() => onUpdate({ ...styles, buttonRadius: r })}
-                    className={`flex-1 py-2 text-[8px] font-black uppercase rounded-lg border transition-all ${styles.buttonRadius === r ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10 hover:bg-white/5'}`}
+                    className={`flex-1 py-1 text-[7px] font-black uppercase rounded-md border transition-all ${styles.buttonRadius === r ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10 hover:bg-white/5'}`}
                   >
                     {r}
                   </button>
@@ -193,33 +183,36 @@ function DraggableElement({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSettings]);
 
+  // Умное позиционирование: если элемент слишком высоко, показываем настройки снизу
+  const showBelow = y < 150;
+
   return (
     <div 
       onMouseDown={handleMouseDown}
       className={`${className} relative group/drag select-none transition-shadow duration-300 ${isDragging ? 'z-50' : ''}`}
       style={{ transform: `translate(${x}px, ${y}px)` }}
     >
-      {/* Ручка перемещения слева */}
-      <div className="drag-handle absolute -left-12 top-1/2 -translate-y-1/2 p-2.5 bg-primary/20 text-primary rounded-xl cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-all hover:bg-primary hover:text-white z-20 shadow-xl border border-primary/20">
-        <GripHorizontal className="w-4 h-4" />
+      <div className="drag-handle absolute -left-10 top-1/2 -translate-y-1/2 p-2 bg-primary/20 text-primary rounded-lg cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-all hover:bg-primary hover:text-white z-20 shadow-xl border border-primary/20">
+        <GripHorizontal className="w-3.5 h-3.5" />
       </div>
 
-      {/* Иконка настроек справа */}
       <div 
-        className={`absolute -right-12 top-1/2 -translate-y-1/2 p-2.5 border text-white/40 rounded-xl cursor-pointer opacity-0 group-hover/drag:opacity-100 transition-all z-20 shadow-xl ${showSettings ? 'bg-primary text-white border-primary' : 'bg-card/80 backdrop-blur-xl border-white/10 hover:bg-primary hover:text-white'}`} 
+        className={`absolute -right-10 top-1/2 -translate-y-1/2 p-2 border text-white/40 rounded-lg cursor-pointer opacity-0 group-hover/drag:opacity-100 transition-all z-20 shadow-xl ${showSettings ? 'bg-primary text-white border-primary' : 'bg-card/80 backdrop-blur-xl border-white/10 hover:bg-primary hover:text-white'}`} 
         onClick={() => setShowSettings(!showSettings)}
       >
-        <Settings2 className="w-4 h-4" />
+        <Settings2 className="w-3.5 h-3.5" />
       </div>
 
-      {/* Окно быстрых настроек - Позиционируется НАД элементом, чтобы не обрезаться по бокам */}
       {showSettings && (
-        <div ref={settingsRef} className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 z-[100] animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200">
+        <div 
+          ref={settingsRef} 
+          className={`absolute left-1/2 -translate-x-1/2 z-[100] animate-in fade-in zoom-in slide-in-from-bottom-1 duration-200 ${showBelow ? 'top-full mt-4' : 'bottom-full mb-4'}`}
+        >
           {settingsContent}
         </div>
       )}
 
-      <div className={`${isDragging ? 'ring-2 ring-primary ring-offset-8 ring-offset-transparent rounded-2xl scale-[1.02] shadow-2xl' : ''} transition-all duration-300`}>
+      <div className={`${isDragging ? 'ring-2 ring-primary ring-offset-4 ring-offset-transparent rounded-lg scale-[1.01] shadow-2xl' : ''} transition-all duration-300`}>
         {children}
       </div>
     </div>
@@ -243,7 +236,7 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
 
   if (type === 'header') {
     return (
-      <header className="w-full flex items-center justify-between px-10 relative z-50" style={{ 
+      <header className="w-full flex items-center justify-between px-10 relative z-50 transition-all duration-500" style={{ 
         backgroundColor: styles.backgroundColor, 
         minHeight: styles.minHeight,
         color: styles.textColor,
@@ -391,7 +384,7 @@ export function BuilderCanvas() {
   };
 
   return (
-    <div className="flex-1 bg-[#050507] overflow-y-auto p-12 transition-all duration-1000 relative">
+    <div className="flex-1 bg-[#050507] overflow-y-auto p-12 transition-all duration-1000 relative custom-scrollbar">
       <div className={`${canvasWidth} mx-auto min-h-dvh bg-background shadow-2xl rounded-[4rem] flex flex-col transition-all duration-1000 relative border border-white/5`}>
         <DragDropContext onDragEnd={(res) => res.destination && reorderBlocks(res.source.index, res.destination.index)}>
           <Droppable droppableId="canvas">
@@ -426,28 +419,28 @@ export function BuilderCanvas() {
                         </div>
 
                         {editingId === block.id && (
-                          <div className="fixed right-12 top-24 w-96 max-h-[75vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 z-[100] shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
-                            <div className="flex items-center justify-between mb-8 shrink-0">
-                              <h5 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary">Редактор Блока</h5>
+                          <div className="fixed right-12 top-24 w-96 max-h-[70vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-8 z-[100] shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
+                            <div className="flex items-center justify-between mb-6 shrink-0">
+                              <h5 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary">Настройки Блока</h5>
                               <button onClick={() => setEditingId(null)} className="p-2 hover:bg-white/5 rounded-full transition-all"><X className="w-5 h-5 opacity-40" /></button>
                             </div>
                             
-                            <ScrollArea className="flex-1 pr-4">
+                            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                               <div className="space-y-10 pb-10">
                                 <div className="space-y-4">
                                   <label className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-3"><Palette className="w-4 h-4" /> Внешний вид</label>
                                   <div className="grid grid-cols-2 gap-5">
                                     <div className="space-y-2">
                                       <span className="text-[9px] uppercase font-bold opacity-50">Цвет фона</span>
-                                      <input type="color" value={block.styles.backgroundColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
+                                      <input type="color" value={block.styles.backgroundColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })} className="w-full h-10 rounded-2xl bg-white/5 border-none cursor-pointer" />
                                     </div>
                                     <div className="space-y-2">
                                       <span className="text-[9px] uppercase font-bold opacity-50">Цвет текста</span>
-                                      <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
+                                      <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-10 rounded-2xl bg-white/5 border-none cursor-pointer" />
                                     </div>
                                   </div>
-                                  <button onClick={() => fileInputRef.current?.click()} className="w-full py-5 bg-primary/10 text-primary rounded-[1.5rem] text-[10px] font-black uppercase flex items-center justify-center gap-3 hover:bg-primary/20 transition-all border border-primary/20 premium-border">
-                                    <Upload className="w-4 h-4" /> Загрузить изображение
+                                  <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 bg-primary/10 text-primary rounded-[1.5rem] text-[10px] font-black uppercase flex items-center justify-center gap-3 hover:bg-primary/20 transition-all border border-primary/20 premium-border">
+                                    <Upload className="w-4 h-4" /> Загрузить фото
                                   </button>
                                   <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
                                 </div>
@@ -476,29 +469,29 @@ export function BuilderCanvas() {
 
                                 <div className="space-y-4">
                                   <label className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-3"><Maximize2 className="w-4 h-4" /> Геометрия</label>
-                                  <div className="space-y-3">
+                                  <div className="space-y-4">
                                     <div className="space-y-2">
-                                      <span className="text-[9px] uppercase font-bold opacity-50">Минимальная высота (напр. 80vh)</span>
+                                      <span className="text-[9px] uppercase font-bold opacity-50">Высота (напр. 80vh)</span>
                                       <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] font-bold outline-none" />
                                     </div>
                                     <div className="space-y-2">
-                                      <span className="text-[9px] uppercase font-bold opacity-50">Радиус скругления (напр. 40px)</span>
+                                      <span className="text-[9px] uppercase font-bold opacity-50">Закругление (напр. 40px)</span>
                                       <input type="text" value={block.styles.borderRadius} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderRadius: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] font-bold outline-none" />
                                     </div>
-                                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
-                                      <span className="text-[9px] uppercase font-bold opacity-50">Поверх контента (Overlay)</span>
+                                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                                      <span className="text-[9px] uppercase font-bold opacity-50">Overlay режим</span>
                                       <input 
                                         type="checkbox" 
                                         checked={block.styles.isOverlay} 
                                         onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, isOverlay: e.target.checked } })}
-                                        className="w-5 h-5 accent-primary"
+                                        className="w-5 h-5 accent-primary cursor-pointer"
                                       />
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                            </ScrollArea>
-                            <Button onClick={() => setEditingId(null)} className="w-full mt-8 rounded-[1.5rem] bg-primary text-primary-foreground font-black uppercase tracking-[0.3em] text-[11px] h-14 shadow-2xl shadow-primary/30 shrink-0">Завершить</Button>
+                            </div>
+                            <Button onClick={() => setEditingId(null)} className="w-full mt-6 rounded-[1.5rem] bg-primary text-primary-foreground font-black uppercase tracking-[0.3em] text-[11px] h-14 shadow-2xl shadow-primary/30 shrink-0">Сохранить</Button>
                           </div>
                         )}
 
@@ -523,3 +516,4 @@ export function BuilderCanvas() {
     </div>
   );
 }
+
