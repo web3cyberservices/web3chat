@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 
 export type BuilderMode = 'landing' | 'ai-agent' | 'bot' | 'whatsapp' | null;
@@ -170,7 +169,7 @@ export const useBuilderStore = create<BuilderState>((set) => ({
         backgroundColor: (type === 'header' || type === 'footer') ? '#020204' : '#ffffff',
         textColor: (type === 'header' || type === 'footer') ? '#ffffff' : '#1e293b',
         padding: isSpecialMode ? 'p-10' : 'py-32 px-10',
-        minHeight: type === 'header' ? '5rem' : (type === 'hero' ? '85vh' : 'auto'),
+        minHeight: type === 'header' ? '5rem' : (type === 'hero' ? '85dvh' : 'auto'),
         fontFamily: 'sans',
         fontSize: 'large',
         overlayOpacity: 0.5,

@@ -439,7 +439,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden ${isLast ? 'flex-grow' : ''}`} style={{ 
       backgroundColor: bgRgba, 
       borderRadius: styles.borderRadius || '0px', 
-      minHeight: styles.minHeight,
+      minHeight: styles.minHeight.replace('vh', 'dvh'),
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>
@@ -450,15 +450,15 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
             inset: 0, 
             backgroundImage: `url(${styles.backgroundImage})`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center center',
+            backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            zIndex: 0,
+            zIndex: -1,
             pointerEvents: 'none'
           }} 
         />
       )}
       {styles.backgroundImage && styles.overlayOpacity !== undefined && (
-        <div className="absolute inset-0 bg-black pointer-events-none" style={{ opacity: styles.overlayOpacity, borderRadius: styles.borderRadius || '0px', zIndex: 1 }} />
+        <div className="absolute inset-0 bg-black pointer-events-none" style={{ opacity: styles.overlayOpacity, borderRadius: styles.borderRadius || '0px', zIndex: 0 }} />
       )}
       <div className={`relative z-10 flex flex-col items-center justify-center text-center w-full h-full ${styles.padding || 'py-32 px-10'}`}>
         <DraggableElement 
@@ -698,7 +698,7 @@ export function BuilderCanvas() {
                                   <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Maximize2 className="w-5 h-5" /> Геометрия</label>
                                   <div className="space-y-6">
                                     <div className="space-y-3">
-                                      <span className="text-[10px] uppercase font-bold opacity-50">Минимальная высота (напр. 85vh)</span>
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Минимальная высота (напр. 85dvh)</span>
                                       <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[12px] font-bold outline-none" />
                                     </div>
                                     <div className="space-y-3">
