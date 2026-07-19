@@ -437,12 +437,14 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
 
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden ${isLast ? 'flex-grow' : ''}`} style={{ 
-      backgroundColor: bgRgba, 
       borderRadius: styles.borderRadius || '0px', 
       minHeight: styles.minHeight.replace('vh', 'dvh'),
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>
+      {/* Слой с цветом фона */}
+      <div style={{ position: 'absolute', inset: 0, backgroundColor: bgRgba, zIndex: -2, pointerEvents: 'none' }} />
+      
       {styles.backgroundImage && (
         <div 
           style={{ 

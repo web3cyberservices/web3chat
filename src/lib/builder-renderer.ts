@@ -67,7 +67,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
     return `
-      <header id="${id}" style="width: 100%; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; border: ${borderStyle}; box-shadow: ${blockGlow}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${FONT_MAP[styles.fontFamily]}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
+      <header id="${id}" style="width: 100%; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight.replace('vh', 'dvh')}; border: ${borderStyle}; box-shadow: ${blockGlow}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${FONT_MAP[styles.fontFamily]}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
         <div style="font-weight: 900; font-size: 1.5rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
         <nav style="display: flex; gap: 40px;">
           ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.7;">${escapeHTML(l.label)}</a>`).join('')}
@@ -79,11 +79,13 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const fontSizeValue = styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem';
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
-  // Use dvh for height synchronization
-  const rawMinHeight = styles.minHeight || (isFirst && isOverlayHeaderActive ? '100vh' : 'auto');
+  const rawMinHeight = styles.minHeight || (isFirst && isOverlayHeaderActive ? '100dvh' : 'auto');
   const minHeight = rawMinHeight.replace('vh', 'dvh');
 
-  const bgLayer = styles.backgroundImage 
+  // Мы используем слои с z-index, чтобы фон не перекрывался цветом родителя
+  const bgBaseLayer = `<div style="position: absolute; inset: 0; background-color: ${bgRgba}; z-index: -2; pointer-events: none;"></div>`;
+
+  const bgImageLayer = styles.backgroundImage 
     ? `<div style="position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; background-repeat: no-repeat; z-index: -1; pointer-events: none;"></div>`
     : '';
 
@@ -108,8 +110,9 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
   return `
-    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeight}; background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
-      ${bgLayer}
+    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeight}; border: ${borderStyle}; box-shadow: ${blockGlow}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
+      ${bgBaseLayer}
+      ${bgImageLayer}
       ${overlayLayer}
       <div style="position: relative; z-index: 10; width: 100%; padding: 120px 50px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: ${FONT_MAP[styles.fontFamily]};">
         <h2 style="color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin: 0 0 40px 0; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleCombinedShadow};">${safeTitle}</h2>
@@ -164,6 +167,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           width: 100%;
           flex-shrink: 0;
           overflow: hidden;
+          position: relative;
         }
         a { transition: all 0.3s ease; }
         ::-webkit-scrollbar { width: 8px; }
