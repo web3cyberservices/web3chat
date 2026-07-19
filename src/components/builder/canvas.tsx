@@ -26,9 +26,16 @@ const FONT_MAP: Record<FontFamily, string> = {
   inter: 'Inter, sans-serif'
 };
 
-const SHADOW_MAP = {
+const TEXT_SHADOW_MAP = {
   none: 'none',
-  soft: '0 15px 35px rgba(0,0,0,0.25)',
+  soft: '0 4px 15px rgba(0,0,0,0.3)',
+  medium: '0 8px 30px rgba(0,0,0,0.5)',
+  hard: '0 12px 50px rgba(0,0,0,0.8)'
+};
+
+const BOX_SHADOW_MAP = {
+  none: 'none',
+  soft: '0 15px 35px -5px rgba(0,0,0,0.25)',
   medium: '0 25px 60px -10px rgba(0,0,0,0.4)',
   hard: '0 40px 100px -15px rgba(0,0,0,0.6)'
 };
@@ -408,22 +415,22 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
 
   // Title Effects (Text Shadow used for uniform blur)
   const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
-  const titleShadowValue = SHADOW_MAP[styles.titleShadow || 'none'];
+  const titleShadowValue = TEXT_SHADOW_MAP[styles.titleShadow || 'none'];
   const titleCombinedShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowValue !== 'none' ? `, ${titleShadowValue}` : ''}` : titleShadowValue;
 
   // Desc Effects (Text Shadow used for uniform blur)
   const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
-  const descShadowValue = SHADOW_MAP[styles.descShadow || 'none'];
+  const descShadowValue = TEXT_SHADOW_MAP[styles.descShadow || 'none'];
   const descCombinedShadow = descGlow !== 'none' ? `${descGlow}${descShadowValue !== 'none' ? `, ${descShadowValue}` : ''}` : descShadowValue;
 
   // Calculations for Button Container styles
   const btnContainerGlow = styles.buttonBorderGlow ? `0 0 ${styles.buttonBorderGlowStrength || 40}px ${styles.buttonBorderColor || styles.buttonBgColor}` : 'none';
-  const btnContainerShadowValue = SHADOW_MAP[styles.buttonShadow || 'none'];
+  const btnContainerShadowValue = BOX_SHADOW_MAP[styles.buttonShadow || 'none'];
   const btnContainerCombinedShadow = btnContainerGlow !== 'none' ? `${btnContainerGlow}${btnContainerShadowValue !== 'none' ? `, ${btnContainerShadowValue}` : ''}` : btnContainerShadowValue;
 
   // Calculations for Button Text styles
   const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 15}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
-  const btnTextShadowValue = SHADOW_MAP[styles.buttonTextShadow || 'none'];
+  const btnTextShadowValue = TEXT_SHADOW_MAP[styles.buttonTextShadow || 'none'];
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadowValue !== 'none' ? `, ${btnTextShadowValue}` : ''}` : btnTextShadowValue;
 
   return (
