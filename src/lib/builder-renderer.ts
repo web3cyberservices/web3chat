@@ -15,9 +15,9 @@ const FONT_MAP: Record<FontFamily, string> = {
 
 const SHADOW_MAP = {
   none: 'none',
-  soft: '0 10px 40px -10px rgba(0,0,0,0.2)',
-  medium: '0 20px 60px -15px rgba(0,0,0,0.4)',
-  hard: '0 30px 100px -20px rgba(0,0,0,0.6)'
+  soft: '0 15px 35px rgba(0,0,0,0.25)',
+  medium: '0 25px 60px -10px rgba(0,0,0,0.4)',
+  hard: '0 40px 100px -15px rgba(0,0,0,0.6)'
 };
 
 function escapeHTML(str: string): string {
@@ -74,7 +74,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   const btnRadiusValue = styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px';
   
   const marginTop = (isFirstContent && headerOverlay) ? `margin-top: -${headerHeight};` : '';
-  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; ${glowStyle !== 'none' ? glowStyle : ''} overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''} ${marginTop}`;
+  const containerStyle = `min-height: ${styles.minHeight || 'auto'}; ${borderRadiusStyle} background-color: ${bgRgba}; border: ${borderStyle}; ${glowStyle !== 'none' ? glowStyle : ''} overflow: visible; position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; ${isLast ? 'flex-grow: 1;' : ''} ${marginTop}`;
   
   const bgImageStyle = styles.backgroundImage 
     ? `position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center; opacity: ${styles.backgroundOpacity ?? 1}; pointer-events: none; z-index: 1;`
@@ -82,14 +82,14 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
 
   const overlay = styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity || 0.5}; z-index: 2; pointer-events: none;"></div>` : '';
 
-  // Title Effects (Text Shadow used for uniform blur)
+  // Title Effects
   const titleGlow = styles.titleBorderGlow ? `0 0 ${styles.titleBorderGlowStrength || 20}px ${styles.titleBorderColor || styles.titleColor || styles.textColor}` : 'none';
   const titleShadowVal = SHADOW_MAP[styles.titleShadow || 'none'];
   const titleTextShadow = titleGlow !== 'none' ? `${titleGlow}${titleShadowVal !== 'none' ? `, ${titleShadowVal}` : ''}` : titleShadowVal;
 
   const titleStyle = `color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleTextShadow};`;
 
-  // Desc Effects (Text Shadow used for uniform blur)
+  // Desc Effects
   const descGlow = styles.descBorderGlow ? `0 0 ${styles.descBorderGlowStrength || 20}px ${styles.descBorderColor || styles.descColor || styles.textColor}` : 'none';
   const descShadowVal = SHADOW_MAP[styles.descShadow || 'none'];
   const descTextShadow = descGlow !== 'none' ? `${descGlow}${descShadowVal !== 'none' ? `, ${descShadowVal}` : ''}` : descShadowVal;
@@ -106,7 +106,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isFirstContent: boolean,
   const btnTextShadowVal = SHADOW_MAP[styles.buttonTextShadow || 'none'];
   const btnTextShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadowVal !== 'none' ? `, ${btnTextShadowVal}` : ''}` : btnTextShadowVal;
 
-  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnBoxShadow}; -webkit-text-stroke: ${styles.buttonTextBorderWidth || '0px'} ${styles.buttonTextBorderColor || 'transparent'}; text-shadow: ${btnTextShadow};`;
+  const btnStyle = `background-color: ${styles.buttonBgColor}; color: ${styles.buttonTextColor}; font-family: ${FONT_MAP[styles.buttonFontFamily || 'sans']}; border-radius: ${btnRadiusValue}; display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; transform: translate(${styles.btnX}px, ${styles.btnY}px); opacity: ${styles.buttonOpacity ?? 1}; border: ${styles.buttonBorderWidth || '0px'} solid ${styles.buttonBorderColor || 'transparent'}; box-shadow: ${btnBoxShadow}; -webkit-text-stroke: ${styles.buttonTextBorderWidth || '0px'} ${styles.buttonTextBorderColor || 'transparent'}; text-shadow: ${btnTextShadow}; transition: all 0.3s ease;`;
 
   return `
     <section id="${id}" style="${containerStyle}">
@@ -172,7 +172,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
           width: 100%;
         }
         a { transition: all 0.3s ease; }
-        a:hover { opacity: 0.8; transform: translateY(-2px); }
+        a:hover { opacity: 0.95; transform: translateY(-2px); }
         
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }

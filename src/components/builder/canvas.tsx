@@ -28,9 +28,9 @@ const FONT_MAP: Record<FontFamily, string> = {
 
 const SHADOW_MAP = {
   none: 'none',
-  soft: '0 10px 40px -10px rgba(0,0,0,0.2)',
-  medium: '0 20px 60px -15px rgba(0,0,0,0.4)',
-  hard: '0 30px 100px -20px rgba(0,0,0,0.6)'
+  soft: '0 15px 35px rgba(0,0,0,0.25)',
+  medium: '0 25px 60px -10px rgba(0,0,0,0.4)',
+  hard: '0 40px 100px -15px rgba(0,0,0,0.6)'
 };
 
 function hexToRgba(hex: string, opacity: number): string {
