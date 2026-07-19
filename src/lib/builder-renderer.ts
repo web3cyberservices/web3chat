@@ -1,4 +1,3 @@
-
 import { PageBlock, FontFamily } from './builder-store';
 
 const FONT_MAP: Record<FontFamily, string> = {
@@ -38,7 +37,7 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
-function renderBlock(block: PageBlock, isLast: boolean): string {
+function renderBlock(block: PageBlock, isLast: boolean, nextBlockIsOverlay: boolean): string {
   const { type, content, styles, id } = block;
   const safeTitle = escapeHTML(content.title || '');
   const safeDesc = escapeHTML(content.description || '');
@@ -49,13 +48,13 @@ function renderBlock(block: PageBlock, isLast: boolean): string {
   
   const sizeClass = {
     normal: 'text-2xl md:text-3xl',
-    large: 'text-4xl md:text-5xl',
-    huge: 'text-6xl md:text-7xl'
+    large: 'text-4xl md:text-5xl lg:text-7xl',
+    huge: 'text-6xl md:text-8xl'
   }[styles.fontSize || 'normal'];
 
   const btnRadiusClass = {
     none: 'rounded-none',
-    md: 'rounded-[1.5rem]',
+    md: 'rounded-[2rem]',
     full: 'rounded-full'
   }[styles.buttonRadius || 'full'];
 
@@ -75,36 +74,54 @@ function renderBlock(block: PageBlock, isLast: boolean): string {
   const overlay = styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity || 0.5}; z-index: 2; pointer-events: none;"></div>` : '';
 
   if (type === 'header') {
-    const position = styles.isSticky ? 'fixed' : (styles.isOverlay ? 'absolute' : 'relative');
+    const position = styles.isOverlay ? 'absolute' : 'relative';
     return `
-      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; font-family: ${fontStack}; position: ${position}; top: 0; left: 0; z-index: 1000; box-shadow: 0 4px 30px rgba(0,0,0,0.15); ${borderRadiusStyle}">
-        <div style="font-weight: 900; font-size: 1.75rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
+      <header id="${id}" style="width: 100%; flex-shrink: 0; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${styles.minHeight}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${fontStack}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
+        <div style="font-weight: 900; font-size: 2rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
         <nav style="display: flex; gap: 40px;">
-          ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.7; transition: opacity 0.3s;">${escapeHTML(l.label)}</a>`).join('')}
+          ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3em; opacity: 0.7; transition: opacity 0.3s;">${escapeHTML(l.label)}</a>`).join('')}
         </nav>
       </header>
     `;
   }
 
+  const sectionMarginTop = nextBlockIsOverlay ? `margin-top: -${styles.minHeight};` : '';
+
   return `
-    <section id="${id}" class="builder-section" style="${containerStyle}">
+    <section id="${id}" class="builder-section" style="${containerStyle} ${sectionMarginTop}">
       ${bgImageStyle ? `<div style="${bgImageStyle}"></div>` : ''}
       ${overlay}
-      <div style="position: relative; z-index: 10; width: 100%; max-width: 1200px; padding: 100px 40px; text-align: center;">
-        <h2 class="${sizeClass}" style="font-weight: 900; letter-spacing: -0.03em; line-height: 1; margin-bottom: 30px; transition: transform 0.2s ease; ${titleFinalStyle}">${safeTitle}</h2>
-        <p style="font-size: 1.25rem; line-height: 1.6; max-width: 850px; margin: 0 auto 50px; transition: transform 0.2s ease; ${descFinalStyle}">${safeDesc}</p>
-        ${safeBtn ? `<a href="${safeBtnUrl}" class="${btnRadiusClass}" style="display: inline-block; padding: 20px 60px; text-decoration: none; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.2em; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); ${btnFinalStyle}">${safeBtn}</a>` : ''}
+      <div style="position: relative; z-index: 10; width: 100%; max-width: 1400px; padding: 120px 50px; text-align: center;">
+        <h2 class="${sizeClass}" style="font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 40px; transition: transform 0.2s ease; ${titleFinalStyle}">${safeTitle}</h2>
+        <p style="font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px; transition: transform 0.2s ease; ${descFinalStyle}">${safeDesc}</p>
+        ${safeBtn ? `<a href="${safeBtnUrl}" class="${btnRadiusClass}" style="display: inline-block; padding: 25px 80px; text-decoration: none; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; box-shadow: 0 30px 80px rgba(0,0,0,0.4); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); ${btnFinalStyle}">${safeBtn}</a>` : ''}
       </div>
     </section>
   `;
 }
 
 export function generateFullHTML(blocks: PageBlock[]): string {
-  const headers = blocks.filter(b => b.type === 'header').map(b => renderBlock(b, false)).join('\n');
-  const footers = blocks.filter(b => b.type === 'footer').map(b => renderBlock(b, false)).join('\n');
+  const headers = blocks.filter(b => b.type === 'header');
+  const footers = blocks.filter(b => b.type === 'footer');
   const contentBlocks = blocks.filter(b => b.type !== 'header' && b.type !== 'footer');
   
-  const content = contentBlocks.map((b, i) => renderBlock(b, i === contentBlocks.length - 1)).join('\n');
+  let html = '';
+  
+  // Render Headers
+  headers.forEach(h => {
+    html += renderBlock(h, false, false);
+  });
+
+  // Render Content
+  contentBlocks.forEach((b, i) => {
+    const isOverlayHeaderAbove = i === 0 && headers.length > 0 && headers[0].styles.isOverlay;
+    html += renderBlock(b, i === contentBlocks.length - 1, isOverlayHeaderAbove);
+  });
+
+  // Render Footers
+  footers.forEach(f => {
+    html += renderBlock(f, false, false);
+  });
 
   return `
 <!DOCTYPE html>
@@ -112,7 +129,7 @@ export function generateFullHTML(blocks: PageBlock[]): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web3 Synthesis Project</title>
+    <title>Synthesis Web3 Project</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
@@ -139,27 +156,26 @@ export function generateFullHTML(blocks: PageBlock[]): string {
         }
         a:hover { opacity: 0.6; }
         .rounded-full { border-radius: 9999px; }
-        .rounded-xl { border-radius: 1.5rem; }
+        .rounded-xl { border-radius: 2rem; }
         
         /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body class="antialiased">
-    ${headers}
     <main>
-      ${content}
+      ${html}
     </main>
-    ${footers || `
-      <footer style="padding: 80px 40px; background-color: #010101; color: #fff; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;">
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.3; letter-spacing: 0.4em; text-transform: uppercase;">
+    ${footers.length === 0 ? `
+      <footer style="padding: 100px 50px; background-color: #010101; color: #fff; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; opacity: 0.3; letter-spacing: 0.5em; text-transform: uppercase;">
           &copy; ${new Date().getFullYear()} WEB3 CYBER SERVICES • THE SOVEREIGN STANDARD
         </div>
       </footer>
-    `}
+    ` : ''}
 </body>
 </html>
   `;

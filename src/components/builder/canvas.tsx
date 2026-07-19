@@ -37,13 +37,13 @@ function ElementQuickSettings({
   onUpdate: (s: any, c?: any) => void;
 }) {
   return (
-    <div className="flex flex-col gap-4 p-5 w-[260px] max-h-[320px] overflow-y-auto bg-card/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl shadow-black/80 custom-scrollbar scrollbar-hide">
+    <div className="flex flex-col gap-4 p-5 w-[280px] max-h-[400px] overflow-y-auto bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[9999] custom-scrollbar">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">Настройка</span>
-        <Sliders className="w-3 h-3 text-primary" />
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Свойства элемента</span>
+        <Sliders className="w-3.5 h-3.5 text-primary" />
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 pb-2">
         <div className="space-y-2">
           <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Цвет / Фон</label>
           <input 
@@ -53,7 +53,7 @@ function ElementQuickSettings({
               const key = type === 'title' ? 'titleColor' : type === 'desc' ? 'descColor' : 'buttonBgColor';
               onUpdate({ ...styles, [key]: e.target.value });
             }}
-            className="w-full h-8 rounded-lg cursor-pointer bg-white/5 border-none" 
+            className="w-full h-10 rounded-xl cursor-pointer bg-white/5 border-none" 
           />
         </div>
 
@@ -65,7 +65,7 @@ function ElementQuickSettings({
               const key = type === 'title' ? 'titleFont' : type === 'desc' ? 'descFont' : 'buttonFontFamily';
               onUpdate({ ...styles, [key]: e.target.value });
             }}
-            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[9px] font-bold outline-none uppercase"
+            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-bold outline-none uppercase"
           >
             {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12] text-white">{f.toUpperCase()}</option>)}
           </select>
@@ -81,12 +81,21 @@ function ElementQuickSettings({
               const key = type === 'title' ? 'titleOpacity' : type === 'desc' ? 'descOpacity' : 'buttonOpacity';
               onUpdate({ ...styles, [key]: parseFloat(e.target.value) });
             }}
-            className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+            className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
           />
         </div>
 
         {type === 'btn' && (
           <>
+            <div className="space-y-2">
+              <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Текст кнопки</label>
+              <input 
+                type="text" 
+                value={content?.buttonText || ''} 
+                onChange={(e) => onUpdate(styles, { buttonText: e.target.value })}
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] outline-none" 
+              />
+            </div>
             <div className="space-y-2">
               <label className="text-[8px] font-black uppercase tracking-widest opacity-40">Ссылка (URL)</label>
               <input 
@@ -94,7 +103,7 @@ function ElementQuickSettings({
                 value={content?.buttonUrl || ''} 
                 onChange={(e) => onUpdate(styles, { buttonUrl: e.target.value })}
                 placeholder="https://..."
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[9px] outline-none font-mono" 
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] outline-none font-mono" 
               />
             </div>
             <div className="space-y-2">
@@ -104,7 +113,7 @@ function ElementQuickSettings({
                   <button 
                     key={r}
                     onClick={() => onUpdate({ ...styles, buttonRadius: r })}
-                    className={`flex-1 py-1 text-[7px] font-black uppercase rounded-md border transition-all ${styles.buttonRadius === r ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10 hover:bg-white/5'}`}
+                    className={`flex-1 py-2 text-[8px] font-black uppercase rounded-lg border transition-all ${styles.buttonRadius === r ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10 hover:bg-white/5'}`}
                   >
                     {r}
                   </button>
@@ -140,6 +149,7 @@ function DraggableElement({
   const startPos = useRef({ x: 0, y: 0 });
   const startVal = useRef({ x, y });
   const settingsRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -183,30 +193,40 @@ function DraggableElement({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSettings]);
 
-  // Умное позиционирование: если элемент слишком высоко, показываем настройки снизу
-  const showBelow = y < 150;
+  // Умное позиционирование: если элемент в нижней половине экрана, показываем настройки сверху
+  const [positionAbove, setPositionAbove] = useState(true);
+  
+  useEffect(() => {
+    if (showSettings && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      // Если до низа экрана меньше 450px, открываем наверх
+      setPositionAbove(viewportHeight - rect.bottom < 450);
+    }
+  }, [showSettings]);
 
   return (
     <div 
+      ref={containerRef}
       onMouseDown={handleMouseDown}
-      className={`${className} relative group/drag select-none transition-shadow duration-300 ${isDragging ? 'z-50' : ''}`}
+      className={`${className} relative group/drag select-none transition-shadow duration-300 ${isDragging ? 'z-[999]' : 'z-10'}`}
       style={{ transform: `translate(${x}px, ${y}px)` }}
     >
-      <div className="drag-handle absolute -left-10 top-1/2 -translate-y-1/2 p-2 bg-primary/20 text-primary rounded-lg cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-all hover:bg-primary hover:text-white z-20 shadow-xl border border-primary/20">
-        <GripHorizontal className="w-3.5 h-3.5" />
+      <div className="drag-handle absolute -left-12 top-1/2 -translate-y-1/2 p-3 bg-primary/20 text-primary rounded-xl cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-all hover:bg-primary hover:text-white z-20 shadow-xl border border-primary/20">
+        <GripHorizontal className="w-4 h-4" />
       </div>
 
       <div 
-        className={`absolute -right-10 top-1/2 -translate-y-1/2 p-2 border text-white/40 rounded-lg cursor-pointer opacity-0 group-hover/drag:opacity-100 transition-all z-20 shadow-xl ${showSettings ? 'bg-primary text-white border-primary' : 'bg-card/80 backdrop-blur-xl border-white/10 hover:bg-primary hover:text-white'}`} 
+        className={`absolute -right-12 top-1/2 -translate-y-1/2 p-3 border text-white/40 rounded-xl cursor-pointer opacity-0 group-hover/drag:opacity-100 transition-all z-20 shadow-xl ${showSettings ? 'bg-primary text-white border-primary' : 'bg-card/80 backdrop-blur-xl border-white/10 hover:bg-primary hover:text-white'}`} 
         onClick={() => setShowSettings(!showSettings)}
       >
-        <Settings2 className="w-3.5 h-3.5" />
+        <Settings2 className="w-4 h-4" />
       </div>
 
       {showSettings && (
         <div 
           ref={settingsRef} 
-          className={`absolute left-1/2 -translate-x-1/2 z-[100] animate-in fade-in zoom-in slide-in-from-bottom-1 duration-200 ${showBelow ? 'top-full mt-4' : 'bottom-full mb-4'}`}
+          className={`absolute left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in zoom-in duration-200 ${positionAbove ? 'bottom-full mb-6' : 'top-full mt-6'}`}
         >
           {settingsContent}
         </div>
@@ -219,10 +239,11 @@ function DraggableElement({
   );
 }
 
-function BlockContentComponent({ block, onUpdate, isEditing }: { 
+function BlockContentComponent({ block, onUpdate, isEditing, isLast }: { 
   block: PageBlock; 
   onUpdate: (content: Partial<BlockContent>, styles?: any) => void;
   isEditing: boolean;
+  isLast: boolean;
 }) {
   const { styles, content, type } = block;
 
@@ -236,7 +257,7 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
 
   if (type === 'header') {
     return (
-      <header className="w-full flex items-center justify-between px-10 relative z-50 transition-all duration-500" style={{ 
+      <header className="w-full flex items-center justify-between px-12 relative z-[100] transition-all duration-500" style={{ 
         backgroundColor: styles.backgroundColor, 
         minHeight: styles.minHeight,
         color: styles.textColor,
@@ -246,9 +267,9 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
         <DraggableElement id="h-title" x={styles.titleX} y={styles.titleY} onMove={(nx, ny) => handleMove('title', nx, ny)}>
           <div className="font-black text-2xl tracking-tighter">{content.title}</div>
         </DraggableElement>
-        <nav className="flex items-center gap-8">
+        <nav className="flex items-center gap-10">
           {(content.links || []).map((l, i) => (
-            <span key={i} className="text-[10px] font-black uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">{l.label}</span>
+            <span key={i} className="text-[10px] font-black uppercase tracking-[0.3em] cursor-pointer hover:text-primary transition-colors">{l.label}</span>
           ))}
         </nav>
       </header>
@@ -256,10 +277,11 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
   }
 
   return (
-    <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center flex-1 ${!isEditing ? 'overflow-hidden' : ''}`} style={{ 
+    <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center ${isLast ? 'flex-grow' : ''} ${!isEditing ? 'overflow-hidden' : ''}`} style={{ 
       backgroundColor: styles.backgroundColor, 
       borderRadius: styles.borderRadius || '0px', 
-      minHeight: styles.minHeight 
+      minHeight: styles.minHeight,
+      marginTop: (type !== 'header' && block.id === useBuilderStore.getState().blocks[1]?.id && useBuilderStore.getState().blocks[0]?.styles.isOverlay) ? `-${useBuilderStore.getState().blocks[0]?.styles.minHeight}` : '0'
     }}>
       {styles.backgroundImage && (
         <div className="absolute inset-0 bg-cover bg-center" style={{ 
@@ -277,7 +299,7 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
           x={styles.titleX} 
           y={styles.titleY} 
           onMove={(nx, ny) => handleMove('title', nx, ny)} 
-          className="max-w-4xl mx-auto w-full"
+          className="max-w-5xl mx-auto w-full"
           settingsContent={
             <ElementQuickSettings 
               type="title" 
@@ -293,7 +315,7 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
             style={{ 
               color: styles.titleColor || styles.textColor,
               fontFamily: FONT_MAP[styles.titleFont || styles.fontFamily],
-              fontSize: styles.fontSize === 'huge' ? '5rem' : styles.fontSize === 'large' ? '3.5rem' : '2.5rem',
+              fontSize: styles.fontSize === 'huge' ? '6rem' : styles.fontSize === 'large' ? '4.5rem' : '2.5rem',
               opacity: styles.titleOpacity ?? 1
             }}
           />
@@ -304,7 +326,7 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
           x={styles.descX} 
           y={styles.descY} 
           onMove={(nx, ny) => handleMove('desc', nx, ny)} 
-          className="max-w-3xl mx-auto w-full"
+          className="max-w-4xl mx-auto w-full"
           settingsContent={
             <ElementQuickSettings 
               type="desc" 
@@ -316,7 +338,7 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
           <textarea 
             value={content.description} 
             onChange={(e) => onUpdate({ description: e.target.value })}
-            className="bg-transparent border-none text-xl text-center w-full outline-none resize-none mb-10 placeholder:opacity-20 leading-relaxed"
+            className="bg-transparent border-none text-xl lg:text-2xl text-center w-full outline-none resize-none mb-12 placeholder:opacity-20 leading-relaxed"
             style={{
               color: styles.descColor || styles.textColor,
               fontFamily: FONT_MAP[styles.descFont || styles.fontFamily],
@@ -342,11 +364,11 @@ function BlockContentComponent({ block, onUpdate, isEditing }: {
             }
           >
             <button 
-              className="px-12 py-5 font-black uppercase tracking-[0.3em] text-[11px] shadow-2xl transition-all hover:scale-105 active:scale-95"
+              className="px-16 py-6 font-black uppercase tracking-[0.4em] text-[12px] shadow-2xl transition-all hover:scale-105 active:scale-95"
               style={{ 
                 backgroundColor: styles.buttonBgColor,
                 color: styles.buttonTextColor,
-                borderRadius: styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '1.5rem' : '0px',
+                borderRadius: styles.buttonRadius === 'full' ? '9999px' : styles.buttonRadius === 'md' ? '2rem' : '0px',
                 fontFamily: FONT_MAP[styles.buttonFontFamily || 'sans'],
                 opacity: styles.buttonOpacity ?? 1
               }}
@@ -366,9 +388,9 @@ export function BuilderCanvas() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canvasWidth = {
-    desktop: 'max-w-6xl',
-    tablet: 'max-w-2xl',
-    mobile: 'max-w-[390px]'
+    desktop: 'max-w-7xl',
+    tablet: 'max-w-3xl',
+    mobile: 'max-w-[420px]'
   }[viewport];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -385,17 +407,17 @@ export function BuilderCanvas() {
 
   return (
     <div className="flex-1 bg-[#050507] overflow-y-auto p-12 transition-all duration-1000 relative custom-scrollbar">
-      <div className={`${canvasWidth} mx-auto min-h-dvh bg-background shadow-2xl rounded-[4rem] flex flex-col transition-all duration-1000 relative border border-white/5`}>
+      <div className={`${canvasWidth} mx-auto min-h-dvh bg-background shadow-2xl rounded-[4rem] flex flex-col transition-all duration-1000 relative border border-white/5 overflow-x-hidden`}>
         <DragDropContext onDragEnd={(res) => res.destination && reorderBlocks(res.source.index, res.destination.index)}>
           <Droppable droppableId="canvas">
             {(provided) => (
               <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 flex flex-col min-h-full">
                 {blocks.length === 0 && (
                   <div className="flex-1 flex flex-col items-center justify-center py-60 opacity-20 text-center animate-in fade-in duration-1000">
-                    <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                      <Layout className="w-10 h-10" />
+                    <div className="w-32 h-32 bg-white/5 rounded-full flex items-center justify-center mb-8 animate-pulse">
+                      <Layout className="w-12 h-12" />
                     </div>
-                    <p className="font-black uppercase tracking-[0.4em] text-[10px]">Ваш проект пуст. Добавьте первый блок.</p>
+                    <p className="font-black uppercase tracking-[0.5em] text-[12px]">Начните синтез вашего проекта</p>
                   </div>
                 )}
                 {blocks.map((block, index) => (
@@ -404,53 +426,53 @@ export function BuilderCanvas() {
                       <div 
                         ref={provided.innerRef} 
                         {...provided.draggableProps} 
-                        className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' ? 'z-50' : ''}`}
+                        className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' ? 'z-[100]' : 'z-10'}`}
                         style={{ 
                           ...provided.draggableProps.style,
                           marginBottom: (block.type === 'header' && block.styles.isOverlay) ? `-${block.styles.minHeight}` : '0'
                         }}
                       >
-                        <div className="absolute right-10 top-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all z-50">
-                          <button onClick={() => setEditingId(editingId === block.id ? null : block.id)} className={`p-4 bg-card/80 backdrop-blur-3xl border rounded-[1.5rem] hover:text-primary transition-all shadow-2xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
-                            <Settings2 className="w-5 h-5" />
+                        <div className="absolute right-12 top-12 flex gap-4 opacity-0 group-hover:opacity-100 transition-all z-[200]">
+                          <button onClick={() => setEditingId(editingId === block.id ? null : block.id)} className={`p-5 bg-card/90 backdrop-blur-3xl border rounded-[2rem] hover:text-primary transition-all shadow-2xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
+                            <Settings2 className="w-6 h-6" />
                           </button>
-                          <div {...provided.dragHandleProps} className="p-4 bg-card/80 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] cursor-grab active:cursor-grabbing shadow-2xl"><GripVertical className="w-5 h-5" /></div>
-                          <button onClick={() => removeBlock(block.id)} className="p-4 bg-card/80 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] hover:text-destructive transition-all shadow-2xl"><Trash2 className="w-5 h-5" /></button>
+                          <div {...provided.dragHandleProps} className="p-5 bg-card/90 backdrop-blur-3xl border border-white/10 rounded-[2rem] cursor-grab active:cursor-grabbing shadow-2xl"><GripVertical className="w-6 h-6" /></div>
+                          <button onClick={() => removeBlock(block.id)} className="p-5 bg-card/90 backdrop-blur-3xl border border-white/10 rounded-[2rem] hover:text-destructive transition-all shadow-2xl"><Trash2 className="w-6 h-6" /></button>
                         </div>
 
                         {editingId === block.id && (
-                          <div className="fixed right-12 top-24 w-96 max-h-[70vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-8 z-[100] shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
-                            <div className="flex items-center justify-between mb-6 shrink-0">
-                              <h5 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary">Настройки Блока</h5>
-                              <button onClick={() => setEditingId(null)} className="p-2 hover:bg-white/5 rounded-full transition-all"><X className="w-5 h-5 opacity-40" /></button>
+                          <div className="fixed right-16 top-24 w-[400px] max-h-[80vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 z-[500] shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
+                            <div className="flex items-center justify-between mb-8 shrink-0">
+                              <h5 className="text-[12px] font-black uppercase tracking-[0.5em] text-primary">Параметры блока</h5>
+                              <button onClick={() => setEditingId(null)} className="p-3 hover:bg-white/5 rounded-full transition-all"><X className="w-6 h-6 opacity-40" /></button>
                             </div>
                             
-                            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                              <div className="space-y-10 pb-10">
-                                <div className="space-y-4">
-                                  <label className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-3"><Palette className="w-4 h-4" /> Внешний вид</label>
-                                  <div className="grid grid-cols-2 gap-5">
-                                    <div className="space-y-2">
-                                      <span className="text-[9px] uppercase font-bold opacity-50">Цвет фона</span>
-                                      <input type="color" value={block.styles.backgroundColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })} className="w-full h-10 rounded-2xl bg-white/5 border-none cursor-pointer" />
+                            <div className="flex-1 overflow-y-auto pr-3 custom-scrollbar">
+                              <div className="space-y-12 pb-10">
+                                <div className="space-y-6">
+                                  <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Palette className="w-5 h-5" /> Стилизация</label>
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Фон</span>
+                                      <input type="color" value={block.styles.backgroundColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, backgroundColor: e.target.value } })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
                                     </div>
-                                    <div className="space-y-2">
-                                      <span className="text-[9px] uppercase font-bold opacity-50">Цвет текста</span>
-                                      <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-10 rounded-2xl bg-white/5 border-none cursor-pointer" />
+                                    <div className="space-y-3">
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Текст</span>
+                                      <input type="color" value={block.styles.textColor} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, textColor: e.target.value } })} className="w-full h-12 rounded-2xl bg-white/5 border-none cursor-pointer" />
                                     </div>
                                   </div>
-                                  <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 bg-primary/10 text-primary rounded-[1.5rem] text-[10px] font-black uppercase flex items-center justify-center gap-3 hover:bg-primary/20 transition-all border border-primary/20 premium-border">
-                                    <Upload className="w-4 h-4" /> Загрузить фото
+                                  <button onClick={() => fileInputRef.current?.click()} className="w-full py-5 bg-primary/10 text-primary rounded-[2rem] text-[11px] font-black uppercase flex items-center justify-center gap-4 hover:bg-primary/20 transition-all border border-primary/20 premium-border">
+                                    <Upload className="w-5 h-5" /> Изменить медиа
                                   </button>
                                   <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
                                 </div>
 
-                                <div className="space-y-4">
-                                  <label className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-3"><Type className="w-4 h-4" /> Типографика</label>
+                                <div className="space-y-6">
+                                  <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Type className="w-5 h-5" /> Шрифты</label>
                                   <select 
                                     value={block.styles.fontFamily} 
                                     onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, fontFamily: e.target.value as FontFamily } })}
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] font-black outline-none uppercase tracking-widest"
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[12px] font-black outline-none uppercase tracking-widest"
                                   >
                                     {Object.keys(FONT_MAP).map(f => <option key={f} value={f} className="bg-[#0f0f12] text-white">{f.toUpperCase()}</option>)}
                                   </select>
@@ -459,7 +481,7 @@ export function BuilderCanvas() {
                                       <button 
                                         key={size}
                                         onClick={() => updateBlock(block.id, { styles: { ...block.styles, fontSize: size } })}
-                                        className={`flex-1 py-3 text-[9px] font-black uppercase rounded-xl border transition-all ${block.styles.fontSize === size ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'border-white/10 hover:bg-white/5'}`}
+                                        className={`flex-1 py-4 text-[10px] font-black uppercase rounded-xl border transition-all ${block.styles.fontSize === size ? 'bg-primary text-primary-foreground border-primary shadow-xl shadow-primary/30' : 'border-white/10 hover:bg-white/5'}`}
                                       >
                                         {size}
                                       </button>
@@ -467,31 +489,31 @@ export function BuilderCanvas() {
                                   </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                  <label className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-3"><Maximize2 className="w-4 h-4" /> Геометрия</label>
-                                  <div className="space-y-4">
-                                    <div className="space-y-2">
-                                      <span className="text-[9px] uppercase font-bold opacity-50">Высота (напр. 80vh)</span>
-                                      <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] font-bold outline-none" />
+                                <div className="space-y-6">
+                                  <label className="text-[11px] font-black uppercase tracking-widest opacity-30 flex items-center gap-4"><Maximize2 className="w-5 h-5" /> Геометрия</label>
+                                  <div className="space-y-6">
+                                    <div className="space-y-3">
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Минимальная высота (напр. 85vh)</span>
+                                      <input type="text" value={block.styles.minHeight} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, minHeight: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[12px] font-bold outline-none" />
                                     </div>
-                                    <div className="space-y-2">
-                                      <span className="text-[9px] uppercase font-bold opacity-50">Закругление (напр. 40px)</span>
-                                      <input type="text" value={block.styles.borderRadius} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderRadius: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] font-bold outline-none" />
+                                    <div className="space-y-3">
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Скругление углов (напр. 50px)</span>
+                                      <input type="text" value={block.styles.borderRadius} onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, borderRadius: e.target.value } })} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-[12px] font-bold outline-none" />
                                     </div>
-                                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                                      <span className="text-[9px] uppercase font-bold opacity-50">Overlay режим</span>
+                                    <div className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5">
+                                      <span className="text-[10px] uppercase font-bold opacity-50">Режим наложения (Overlay)</span>
                                       <input 
                                         type="checkbox" 
                                         checked={block.styles.isOverlay} 
                                         onChange={(e) => updateBlock(block.id, { styles: { ...block.styles, isOverlay: e.target.checked } })}
-                                        className="w-5 h-5 accent-primary cursor-pointer"
+                                        className="w-6 h-6 accent-primary cursor-pointer"
                                       />
                                     </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                            <Button onClick={() => setEditingId(null)} className="w-full mt-6 rounded-[1.5rem] bg-primary text-primary-foreground font-black uppercase tracking-[0.3em] text-[11px] h-14 shadow-2xl shadow-primary/30 shrink-0">Сохранить</Button>
+                            <Button onClick={() => setEditingId(null)} className="w-full mt-8 rounded-[2rem] bg-primary text-primary-foreground font-black uppercase tracking-[0.4em] text-[12px] h-16 shadow-2xl shadow-primary/40 shrink-0 hover:scale-[1.02] active:scale-95 transition-all">Применить изменения</Button>
                           </div>
                         )}
 
@@ -502,6 +524,7 @@ export function BuilderCanvas() {
                             styles: s || block.styles
                           })}
                           isEditing={editingId === block.id}
+                          isLast={index === blocks.length - 1}
                         />
                       </div>
                     )}
@@ -516,4 +539,3 @@ export function BuilderCanvas() {
     </div>
   );
 }
-
