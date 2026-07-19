@@ -454,7 +454,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
           zIndex: 1
         }} />
       )}
-      {styles.overlayOpacity !== undefined && (
+      {styles.backgroundImage && styles.overlayOpacity !== undefined && (
         <div className="absolute inset-0 bg-black pointer-events-none" style={{ opacity: styles.overlayOpacity, borderRadius: styles.borderRadius || '0px', zIndex: 2 }} />
       )}
       <div className={`relative z-10 flex flex-col items-center justify-center text-center w-full h-full ${styles.padding || 'py-32 px-10'}`}>
@@ -584,10 +584,7 @@ export function BuilderCanvas() {
                         ref={provided.innerRef} 
                         {...provided.draggableProps} 
                         className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' ? 'z-[100]' : 'z-10'}`}
-                        style={{ 
-                          ...provided.draggableProps.style,
-                          marginBottom: (block.type === 'header' && block.styles.isOverlay) ? `-${block.styles.minHeight}` : '0'
-                        }}
+                        style={{ ...provided.draggableProps.style }}
                       >
                         <div className="absolute right-4 bottom-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-[200]">
                           <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-3 bg-card/90 backdrop-blur-3xl border rounded-2xl hover:text-primary transition-all shadow-xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
