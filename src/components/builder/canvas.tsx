@@ -590,7 +590,7 @@ export function BuilderCanvas() {
                       <div 
                         ref={provided.innerRef} 
                         {...provided.draggableProps} 
-                        className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' ? 'z-[100]' : 'z-10'}`}
+                        className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 overflow-hidden isolation-auto ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' ? 'z-[100]' : 'z-10'}`}
                         style={{ ...provided.draggableProps.style }}
                       >
                         {/* Кнопки управления - видны при наведении на любой блок включая шапку */}

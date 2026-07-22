@@ -65,7 +65,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const blockGlow = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 40}px ${styles.borderColor || styles.textColor}` : 'none';
 
   // Современный стандарт высоты DVH
-  const minHeightValue = styles.minHeight.replace(/vh|dvh/, 'dvh');
+  const minHeightValue = styles.minHeight.replace(/vh|dvh/g, 'dvh');
 
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Zap, ArrowRight, Globe, ChevronRight, Sparkles, Orbit, Hexagon, Terminal, Layers, Lock } from 'lucide-react';
+import { Shield, Zap, ArrowRight, Globe, ChevronRight, Sparkles, Orbit, Hexagon, Terminal, Layers, Lock, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -11,8 +11,9 @@ const translations = {
     heroTitle1: "The Decentralized",
     heroTitle2: "Standard",
     heroDesc: "Professional ecosystem for building neural agents, landing pages, and secure P2P networks. Elite security fused with futuristic aesthetics.",
-    ctaPrimary: "Enter Nexus",
-    ctaSecondary: "Synthesis Builder",
+    ctaChat: "Enter Web3Chat",
+    ctaBuilder: "Synthesis Builder",
+    ctaVpn: "CyberArmor VPN",
     archTitle: "Ecosystem Core",
     archDesc: "A master-suite of decentralized tools for the next generation of digital architects.",
     p2pTitle: "Encrypted Nexus",
@@ -30,8 +31,9 @@ const translations = {
     heroTitle1: "Стандарт",
     heroTitle2: "Децентрализации",
     heroDesc: "Профессиональная экосистема для создания ИИ-агентов, лендингов и P2P-сетей. Элитная безопасность и футуристичный дизайн.",
-    ctaPrimary: "Войти в Nexus",
-    ctaSecondary: "Synthesis Builder",
+    ctaChat: "Войти в Web3Chat",
+    ctaBuilder: "Synthesis Builder",
+    ctaVpn: "CyberArmor VPN",
     archTitle: "Ядро Экосистемы",
     archDesc: "Мастер-набор децентрализованных инструментов для архитекторов будущего.",
     p2pTitle: "Шифрованный Nexus",
@@ -111,17 +113,22 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 pt-12">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-12">
             <Link href="/chat">
-              <Button size="lg" className="h-14 px-10 rounded-[2rem] text-sm font-bold bg-white text-black hover:bg-primary hover:text-white border-none neo-shadow group">
-                {t.ctaPrimary} <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <Button size="lg" className="h-14 px-8 rounded-[2rem] text-xs font-black uppercase tracking-widest bg-primary text-primary-foreground hover:scale-105 transition-all neo-shadow group">
+                {t.ctaChat} <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <Link href="/builder">
-              <Button variant="outline" size="lg" className="h-14 px-10 rounded-[2rem] text-sm font-bold glass-morphism premium-border hover:bg-white/5">
-                {t.ctaSecondary}
+              <Button variant="outline" size="lg" className="h-14 px-8 rounded-[2rem] text-xs font-black uppercase tracking-widest glass-morphism premium-border hover:bg-white/5 hover:scale-105 transition-all">
+                {t.ctaBuilder}
               </Button>
             </Link>
+            <a href="https://vpn.web3cyberservices.xyz" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" className="h-14 px-8 rounded-[2rem] text-xs font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-500 text-white hover:scale-105 transition-all shadow-lg shadow-blue-600/20 group">
+                <ShieldCheck className="w-4 h-4 mr-2" /> {t.ctaVpn}
+              </Button>
+            </a>
           </div>
 
           <div className="flex justify-center pt-20">
