@@ -62,9 +62,11 @@ export default function Home() {
 
   return (
     <div className="min-h-dvh bg-background text-foreground flex flex-col overflow-x-hidden glow-mesh selection:bg-primary/30">
+      {/* Premium Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[180px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/5 blur-[180px] rounded-full" />
+        <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[200px] rounded-full" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[30%] h-[30%] bg-emerald-500/5 blur-[150px] rounded-full" />
       </div>
 
       <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-4 flex-shrink-0">
@@ -80,6 +82,7 @@ export default function Home() {
             <a href="#architecture" className="hover:text-primary transition-all duration-500">Architecture</a>
             <a href="/chat" className="hover:text-primary transition-all duration-500">Nexus</a>
             <a href="/builder" className="hover:text-primary transition-all duration-500">Builder</a>
+            <a href="/protect" className="hover:text-primary transition-all duration-500">Cyber Audit</a>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -87,7 +90,7 @@ export default function Home() {
               <Globe className="w-3.5 h-3.5" /> {lang.toUpperCase()}
             </button>
             <Link href="/chat">
-              <Button size="sm" className="rounded-full px-5 font-bold text-[9px] h-8 bg-primary uppercase tracking-widest premium-border">
+              <Button size="sm" className="rounded-full px-5 font-bold text-[9px] h-8 bg-primary uppercase tracking-widest premium-border hover:scale-105 transition-all">
                 JOIN
               </Button>
             </Link>
@@ -97,86 +100,78 @@ export default function Home() {
 
       <main className="flex-grow flex flex-col justify-center">
         <section className="relative pt-32 pb-16 px-6 text-center max-w-7xl mx-auto min-h-[90vh] flex flex-col justify-center">
-          <div className="flex justify-center mb-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 glass-morphism premium-border rounded-full text-[9px] font-bold uppercase tracking-[0.4em] text-primary animate-float">
-              <Sparkles className="w-3 h-3 fill-primary" /> {t.heroBadge}
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 glass-morphism premium-border rounded-full text-[10px] font-black uppercase tracking-[0.5em] text-primary animate-float shadow-2xl shadow-primary/10">
+              <Sparkles className="w-3.5 h-3.5 fill-primary" /> {t.heroBadge}
             </div>
           </div>
           
-          <div className="space-y-6">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[1] text-gradient">
+          <div className="space-y-8">
+            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-gradient">
               {t.heroTitle1} <br/>
               <span className="text-primary">{t.heroTitle2}</span>
             </h1>
-            <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed font-light tracking-wide opacity-80">
+            <p className="text-sm md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed font-light tracking-wide opacity-80 uppercase">
               {t.heroDesc}
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-12">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 pt-16">
             <Link href="/chat">
-              <Button size="lg" className="h-14 px-8 rounded-[2rem] text-xs font-black uppercase tracking-widest bg-primary text-primary-foreground hover:scale-105 transition-all neo-shadow group">
-                {t.ctaChat} <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <Button size="lg" className="h-16 px-10 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] bg-primary text-primary-foreground hover:scale-105 transition-all neo-shadow group">
+                {t.ctaChat} <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <Link href="/builder">
-              <Button variant="outline" size="lg" className="h-14 px-8 rounded-[2rem] text-xs font-black uppercase tracking-widest glass-morphism premium-border hover:bg-white/5 hover:scale-105 transition-all">
+              <Button variant="outline" size="lg" className="h-16 px-10 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] glass-morphism premium-border hover:bg-white/5 hover:scale-105 transition-all">
                 {t.ctaBuilder}
               </Button>
             </Link>
             <a href="https://vpn.web3cyberservices.xyz" target="_blank" rel="noopener noreferrer">
-              <Button size="lg" className="h-14 px-8 rounded-[2rem] text-xs font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-500 text-white hover:scale-105 transition-all shadow-lg shadow-blue-600/20 group">
-                <ShieldCheck className="w-4 h-4 mr-2" /> {t.ctaVpn}
+              <Button size="lg" className="h-16 px-10 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] bg-blue-600 hover:bg-blue-500 text-white hover:scale-105 transition-all shadow-2xl shadow-blue-600/30 group">
+                <ShieldCheck className="w-5 h-5 mr-3" /> {t.ctaVpn}
               </Button>
             </a>
           </div>
-
-          <div className="flex justify-center pt-20">
-            <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-30 grayscale hover:grayscale-0 transition-all duration-1000">
-              <BrandLogo icon={Orbit} label="QUANTUM" />
-              <BrandLogo icon={Shield} label="ETHEREUM" />
-              <BrandLogo icon={Zap} label="SOLANA" />
-              <BrandLogo icon={Hexagon} label="POLYGON" />
-            </div>
-          </div>
         </section>
 
-        <section id="architecture" className="py-24 px-6 relative">
+        <section id="architecture" className="py-32 px-6 relative">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-20 space-y-4 text-center">
-              <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-gradient">{t.archTitle}</h2>
-              <p className="text-muted-foreground text-sm max-w-xl mx-auto font-light tracking-wide">{t.archDesc}</p>
+            <div className="mb-24 space-y-6 text-center">
+              <h2 className="text-5xl md:text-6xl font-black tracking-tighter text-gradient">{t.archTitle}</h2>
+              <div className="h-1 w-24 bg-primary mx-auto rounded-full" />
+              <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto font-light tracking-[0.2em] uppercase">{t.archDesc}</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
               <ProductCard 
-                className="h-[400px]"
+                className="h-[450px]"
                 icon={Terminal}
                 title={t.p2pTitle}
                 desc={t.p2pDesc}
                 link="/chat"
                 color="text-primary"
-                bgColor="bg-primary/5"
+                bgColor="bg-primary/10"
                 cta={t.launchNow}
               />
               <ProductCard 
-                className="h-[400px]"
+                className="h-[450px]"
                 icon={Lock}
                 title={t.vpnTitle}
                 desc={t.vpnDesc}
                 link="https://vpn.web3cyberservices.xyz"
                 color="text-blue-400"
-                bgColor="bg-blue-400/5"
+                bgColor="bg-blue-400/10"
                 cta={t.launchNow}
               />
               <ProductCard 
-                className="h-[400px]"
+                className="h-[450px]"
                 icon={Layers}
                 title={t.builderTitle}
                 desc={t.builderDesc}
                 link="/builder"
                 color="text-emerald-400"
-                bgColor="bg-emerald-400/5"
+                bgColor="bg-emerald-400/10"
                 cta={t.launchNow}
               />
             </div>
@@ -184,26 +179,22 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="py-16 border-t border-white/5 px-8 bg-[#010101]/95 text-center flex-shrink-0">
-        <div className="max-w-7xl mx-auto space-y-8">
-          <div className="flex items-center justify-center gap-3">
-            <Shield className="w-6 h-6 text-primary" />
-            <span className="font-black text-2xl tracking-tighter uppercase text-gradient">Web3CyberServices</span>
+      <footer className="py-20 border-t border-white/5 px-8 bg-[#010101]/95 text-center flex-shrink-0">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="flex items-center justify-center gap-4">
+            <Shield className="w-8 h-8 text-primary" />
+            <span className="font-black text-3xl tracking-tighter uppercase text-gradient">Web3CyberServices</span>
           </div>
-          <div className="opacity-20 text-[9px] font-bold tracking-[0.4em] uppercase">
+          <div className="flex justify-center gap-10 text-[10px] font-black uppercase tracking-[0.5em] text-muted-foreground/40">
+            <a href="#" className="hover:text-primary transition-colors">Documentation</a>
+            <a href="#" className="hover:text-primary transition-colors">Privacy</a>
+            <a href="#" className="hover:text-primary transition-colors">Protocol</a>
+          </div>
+          <div className="opacity-20 text-[9px] font-bold tracking-[0.6em] uppercase">
             &copy; {new Date().getFullYear()} Web3CyberServices • THE SOVEREIGN STANDARD
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function BrandLogo({ icon: Icon, label }: any) {
-  return (
-    <div className="flex items-center gap-3 font-black tracking-[0.4em] text-[10px]">
-      <Icon className="w-5 h-5 text-white/50" />
-      <span>{label}</span>
     </div>
   );
 }
@@ -214,15 +205,16 @@ function ProductCard({ icon: Icon, title, desc, link, color, bgColor, cta, class
   const wrapperProps = isExternal ? { href: link, target: "_blank", rel: "noopener noreferrer" } : { href: link };
 
   return (
-    <CardWrapper {...(wrapperProps as any)} className={`group p-8 glass-morphism premium-border rounded-[4.5rem] hover:border-primary/50 transition-all duration-1000 flex flex-col gap-6 bento-inner-glow ${className}`}>
-      <div className={`w-14 h-14 ${bgColor} premium-border rounded-[2rem] flex items-center justify-center group-hover:scale-110 transition-transform duration-1000`}>
-        <Icon className={`w-7 h-7 ${color}`} />
+    <CardWrapper {...(wrapperProps as any)} className={`group p-10 glass-morphism premium-border rounded-[5rem] hover:border-primary/50 transition-all duration-1000 flex flex-col gap-8 bento-inner-glow relative overflow-hidden ${className}`}>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+      <div className={`w-16 h-16 ${bgColor} premium-border rounded-[2.5rem] flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-1000 shadow-2xl`}>
+        <Icon className={`w-8 h-8 ${color}`} />
       </div>
-      <div className="space-y-4 text-left">
-        <h3 className="text-2xl md:text-3xl font-black tracking-tighter text-gradient">{title}</h3>
-        <p className="text-muted-foreground text-sm md:text-base leading-relaxed font-light">{desc}</p>
+      <div className="space-y-6 text-left relative z-10">
+        <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-gradient leading-tight">{title}</h3>
+        <p className="text-muted-foreground text-sm md:text-base leading-relaxed font-light opacity-60">{desc}</p>
       </div>
-      <div className="mt-auto flex items-center text-[10px] font-bold gap-2 text-primary opacity-0 group-hover:opacity-100 transition-all duration-1000 translate-y-2 group-hover:translate-y-0 tracking-[0.3em] uppercase">
+      <div className="mt-auto flex items-center text-[11px] font-black gap-3 text-primary opacity-0 group-hover:opacity-100 transition-all duration-1000 translate-y-4 group-hover:translate-y-0 tracking-[0.4em] uppercase">
         {cta} <ChevronRight className="w-4 h-4" />
       </div>
     </CardWrapper>
