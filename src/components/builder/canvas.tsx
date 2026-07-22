@@ -575,7 +575,7 @@ export function BuilderCanvas() {
         <DragDropContext onDragEnd={(res) => res.destination && reorderBlocks(res.source.index, res.destination.index)}>
           <Droppable droppableId="canvas">
             {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 flex flex-col min-h-full">
+              <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 flex flex-col min-h-full relative">
                 {blocks.length === 0 && (
                   <div className="flex-1 flex flex-col items-center justify-center py-60 opacity-20 text-center animate-in fade-in duration-1000">
                     <div className="w-32 h-32 bg-white/5 rounded-full flex items-center justify-center mb-8 animate-pulse">
@@ -590,7 +590,7 @@ export function BuilderCanvas() {
                       <div 
                         ref={provided.innerRef} 
                         {...provided.draggableProps} 
-                        className={`group border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 overflow-hidden ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' && block.styles.isOverlay ? 'absolute top-0 left-0 w-full z-[1000]' : block.type === 'header' ? 'relative z-[1000]' : 'relative z-10'}`}
+                        className={`group border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 overflow-hidden ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' && block.styles.isOverlay ? 'absolute top-0 left-0 w-full z-[1000]' : block.type === 'header' ? 'relative z-[1000] border-t-2 border-primary/20' : 'relative z-10'}`}
                         style={{ ...provided.draggableProps.style }}
                       >
                         {/* Кнопки управления - видны при наведении на любой блок включая шапку */}

@@ -5,7 +5,6 @@ export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
 export type BlockType = 
   | 'header' | 'hero' | 'features' | 'pricing' | 'contacts' | 'footer' | 'faq' | 'testimonials' | 'gallery' | 'custom-code'
-  | 'web3-wallet' | 'nft-gallery' | 'on-chain-form'
   | 'system-prompt' | 'knowledge' | 'tools' | 'reply' | 'command' | 'menu' | 'wa-config' | 'wa-template';
 
 export type FontFamily = 
@@ -32,12 +31,11 @@ export interface BlockStyles {
   borderGlowStrength?: number;
 
   // Title specific
-  titleColor?: string;
-  titleFont?: FontFamily;
-  titleSize?: 'normal' | 'large' | 'huge';
-  titleOpacity?: number;
   titleX: number;
   titleY: number;
+  titleColor?: string;
+  titleFont?: FontFamily;
+  titleOpacity?: number;
   titleBorderColor?: string;
   titleBorderWidth?: string;
   titleBorderGlow?: boolean;
@@ -45,12 +43,11 @@ export interface BlockStyles {
   titleShadow?: 'none' | 'soft' | 'medium' | 'hard';
 
   // Desc specific
-  descColor?: string;
-  descFont?: FontFamily;
-  descSize?: 'normal' | 'large' | 'huge';
-  descOpacity?: number;
   descX: number;
   descY: number;
+  descColor?: string;
+  descFont?: FontFamily;
+  descOpacity?: number;
   descBorderColor?: string;
   descBorderWidth?: string;
   descBorderGlow?: boolean;
@@ -218,9 +215,24 @@ export const useBuilderStore = create<BuilderState>((set) => ({
       content: getDefaultContent(type)
     };
     
+    // Always add header to top, footer to bottom, others in between
+    let newBlocks = [...state.blocks];
+    if (type === 'header') {
+      newBlocks.unshift(newBlock);
+    } else if (type === 'footer') {
+      newBlocks.push(newBlock);
+    } else {
+      const footerIndex = newBlocks.findIndex(b => b.type === 'footer');
+      if (footerIndex !== -1) {
+        newBlocks.splice(footerIndex, 0, newBlock);
+      } else {
+        newBlocks.push(newBlock);
+      }
+    }
+    
     return { 
       past: [...state.past, state.blocks],
-      blocks: [...state.blocks, newBlock],
+      blocks: newBlocks,
       future: []
     };
   }),
@@ -252,7 +264,6 @@ function getDefaultContent(type: BlockType): BlockContent {
   switch (type) {
     case 'header': return { title: 'Web3Nexus', links: [{label: 'Home', url: '#'}, {label: 'Features', url: '#features'}, {label: 'DApp', url: '#dapp'}] };
     case 'hero': return { title: 'Decentralized Future', description: 'Experience the next generation of web engineering with integrated AI and Blockchain protocol.', buttonText: 'Get Started', buttonUrl: '#' };
-    case 'web3-wallet': return { title: 'Connect to Nexus', description: 'Sync your digital identity via MetaMask, Phantom or Ledger securely.', buttonText: 'Connect Wallet', buttonUrl: '#' };
     case 'system-prompt': return { title: 'AI Identity Node', description: 'Define the neural signature and behavior protocols for your autonomous agent.', buttonText: 'Initialize Agent', buttonUrl: '#' };
     default: return { title: 'New Synthesis Block', description: 'Configure your block parameters in the sidebar.', buttonText: 'Action', buttonUrl: '#' };
   }

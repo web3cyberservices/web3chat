@@ -15,15 +15,12 @@ const TEMPLATES: Record<NonNullable<BuilderMode>, { type: BlockType; label: stri
   'landing': [
     { type: 'header', label: 'Шапка (Nav)', icon: PanelTop, category: 'Структура' },
     { type: 'hero', label: 'Главный экран', icon: Sparkles, category: 'Структура' },
-    { type: 'web3-wallet', label: 'Wallet Connect', icon: Wallet, category: 'Web3 Core' },
-    { type: 'nft-gallery', label: 'NFT Галерея', icon: Image, category: 'Web3 Core' },
-    { type: 'on-chain-form', label: 'On-chain Форма', icon: Lock, category: 'Web3 Core' },
+    { type: 'footer', label: 'Подвал', icon: PanelBottom, category: 'Структура' },
     { type: 'features', label: 'Преимущества', icon: Type, category: 'Контент' },
     { type: 'pricing', label: 'Тарифы', icon: CreditCard, category: 'Контент' },
     { type: 'testimonials', label: 'Отзывы', icon: Users, category: 'Контент' },
     { type: 'faq', label: 'Вопросы', icon: HelpCircle, category: 'Контент' },
     { type: 'custom-code', label: 'Свой код (JSX)', icon: Code, category: 'Developer' },
-    { type: 'footer', label: 'Подвал', icon: PanelBottom, category: 'Структура' },
   ],
   'ai-agent': [
     { type: 'system-prompt', label: 'Identity (Prompt)', icon: Terminal, category: 'Intelligence' },
