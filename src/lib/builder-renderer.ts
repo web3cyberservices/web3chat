@@ -98,19 +98,11 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const btnTextGlow = styles.buttonTextBorderGlow ? `0 0 ${styles.buttonTextBorderGlowStrength || 20}px ${styles.buttonTextBorderColor || styles.buttonTextColor}` : 'none';
   const btnTextCombinedShadow = btnTextGlow !== 'none' ? `${btnTextGlow}${btnTextShadow !== 'none' ? `, ${btnTextShadow}` : ''}` : btnTextShadow;
 
-  const bgImageLayer = styles.backgroundImage 
-    ? `<div style="position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; z-index: -1; pointer-events: none;"></div>`
-    : '';
-
-  const overlayLayer = (styles.backgroundImage && styles.overlayOpacity !== undefined) 
-    ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity}; z-index: 0; pointer-events: none;"></div>` 
-    : '';
-
   return `
     <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeightValue}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; isolation: isolate; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
       <div style="position: absolute; inset: 0; background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockGlow}; z-index: -2; pointer-events: none; ${borderRadiusStyle}"></div>
-      ${bgImageLayer}
-      ${overlayLayer}
+      ${styles.backgroundImage ? `<div style="position: absolute; inset: 0; background-image: url('${styles.backgroundImage}'); background-size: cover; background-position: center center; background-repeat: no-repeat; z-index: -1; pointer-events: none;"></div>` : ''}
+      ${(styles.backgroundImage && styles.overlayOpacity !== undefined) ? `<div style="position: absolute; inset: 0; background-color: black; opacity: ${styles.overlayOpacity}; z-index: 0; pointer-events: none;"></div>` : ''}
       <div style="position: relative; z-index: 10; width: 100%; padding: 120px 50px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: ${FONT_MAP[styles.fontFamily]};">
         <h2 style="color: ${styles.titleColor || styles.textColor}; font-family: ${FONT_MAP[styles.titleFont || styles.fontFamily]}; font-size: ${fontSizeValue}; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin: 0 0 40px 0; transform: translate(${styles.titleX}px, ${styles.titleY}px); opacity: ${styles.titleOpacity ?? 1}; -webkit-text-stroke: ${styles.titleBorderWidth || '0px'} ${styles.titleBorderColor || 'transparent'}; text-shadow: ${titleCombinedShadow};">${safeTitle}</h2>
         <p style="color: ${styles.descColor || styles.textColor}; font-family: ${FONT_MAP[styles.descFont || styles.fontFamily]}; font-size: 1.5rem; line-height: 1.6; max-width: 900px; margin: 0 auto 60px auto; transform: translate(${styles.descX}px, ${styles.descY}px); opacity: ${styles.descOpacity ?? 0.85}; -webkit-text-stroke: ${styles.descBorderWidth || '0px'} ${styles.descBorderColor || 'transparent'}; text-shadow: ${descCombinedShadow};">${safeDesc}</p>

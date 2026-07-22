@@ -98,54 +98,54 @@ export default function Home() {
         </header>
       </div>
 
-      <main className="flex-grow flex flex-col justify-center">
-        <section className="relative pt-32 pb-16 px-6 text-center max-w-7xl mx-auto min-h-[90vh] flex flex-col justify-center">
-          <div className="flex justify-center mb-8">
+      <main className="flex-grow flex flex-col">
+        <section className="relative pt-24 pb-12 px-6 text-center max-w-7xl mx-auto min-h-[85vh] flex flex-col justify-center items-center">
+          <div className="flex justify-center mb-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 glass-morphism premium-border rounded-full text-[10px] font-black uppercase tracking-[0.5em] text-primary animate-float shadow-2xl shadow-primary/10">
               <Sparkles className="w-3.5 h-3.5 fill-primary" /> {t.heroBadge}
             </div>
           </div>
           
-          <div className="space-y-8">
-            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-gradient">
+          <div className="space-y-4">
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[1] text-gradient">
               {t.heroTitle1} <br/>
               <span className="text-primary">{t.heroTitle2}</span>
             </h1>
-            <p className="text-sm md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed font-light tracking-wide opacity-80 uppercase">
+            <p className="text-[11px] md:text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed font-light tracking-widest opacity-80 uppercase">
               {t.heroDesc}
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 pt-16">
-            <Link href="/chat">
-              <Button size="lg" className="h-16 px-10 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] bg-primary text-primary-foreground hover:scale-105 transition-all neo-shadow group">
-                {t.ctaChat} <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-10 w-full">
+            <Link href="/chat" className="w-full md:w-auto">
+              <Button size="lg" className="w-full h-14 px-8 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-primary-foreground hover:scale-105 transition-all neo-shadow group">
+                {t.ctaChat} <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-            <Link href="/builder">
-              <Button variant="outline" size="lg" className="h-16 px-10 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] glass-morphism premium-border hover:bg-white/5 hover:scale-105 transition-all">
+            <Link href="/builder" className="w-full md:w-auto">
+              <Button variant="outline" size="lg" className="w-full h-14 px-8 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] glass-morphism premium-border hover:bg-white/5 hover:scale-105 transition-all">
                 {t.ctaBuilder}
               </Button>
             </Link>
-            <a href="https://vpn.web3cyberservices.xyz" target="_blank" rel="noopener noreferrer">
-              <Button size="lg" className="h-16 px-10 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] bg-blue-600 hover:bg-blue-500 text-white hover:scale-105 transition-all shadow-2xl shadow-blue-600/30 group">
-                <ShieldCheck className="w-5 h-5 mr-3" /> {t.ctaVpn}
+            <a href="https://vpn.web3cyberservices.xyz" target="_blank" rel="noopener noreferrer" className="w-full md:w-auto">
+              <Button size="lg" className="w-full h-14 px-8 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] bg-blue-600 hover:bg-blue-500 text-white hover:scale-105 transition-all shadow-2xl shadow-blue-600/30 group">
+                <ShieldCheck className="w-4 h-4 mr-2" /> {t.ctaVpn}
               </Button>
             </a>
           </div>
         </section>
 
-        <section id="architecture" className="py-32 px-6 relative">
+        <section id="architecture" className="py-24 px-6 relative">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-24 space-y-6 text-center">
-              <h2 className="text-5xl md:text-6xl font-black tracking-tighter text-gradient">{t.archTitle}</h2>
-              <div className="h-1 w-24 bg-primary mx-auto rounded-full" />
-              <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto font-light tracking-[0.2em] uppercase">{t.archDesc}</p>
+            <div className="mb-16 space-y-4 text-center">
+              <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-gradient">{t.archTitle}</h2>
+              <div className="h-1 w-16 bg-primary mx-auto rounded-full" />
+              <p className="text-muted-foreground text-[10px] md:text-xs max-w-xl mx-auto font-light tracking-[0.3em] uppercase">{t.archDesc}</p>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <ProductCard 
-                className="h-[450px]"
+                className="h-[400px]"
                 icon={Terminal}
                 title={t.p2pTitle}
                 desc={t.p2pDesc}
@@ -155,7 +155,7 @@ export default function Home() {
                 cta={t.launchNow}
               />
               <ProductCard 
-                className="h-[450px]"
+                className="h-[400px]"
                 icon={Lock}
                 title={t.vpnTitle}
                 desc={t.vpnDesc}
@@ -165,7 +165,7 @@ export default function Home() {
                 cta={t.launchNow}
               />
               <ProductCard 
-                className="h-[450px]"
+                className="h-[400px]"
                 icon={Layers}
                 title={t.builderTitle}
                 desc={t.builderDesc}
@@ -179,18 +179,18 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="py-20 border-t border-white/5 px-8 bg-[#010101]/95 text-center flex-shrink-0">
-        <div className="max-w-7xl mx-auto space-y-12">
-          <div className="flex items-center justify-center gap-4">
-            <Shield className="w-8 h-8 text-primary" />
-            <span className="font-black text-3xl tracking-tighter uppercase text-gradient">Web3CyberServices</span>
+      <footer className="py-12 border-t border-white/5 px-8 bg-[#010101]/95 text-center flex-shrink-0">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="flex items-center justify-center gap-3">
+            <Shield className="w-6 h-6 text-primary" />
+            <span className="font-black text-xl tracking-tighter uppercase text-gradient">Web3CyberServices</span>
           </div>
-          <div className="flex justify-center gap-10 text-[10px] font-black uppercase tracking-[0.5em] text-muted-foreground/40">
+          <div className="flex justify-center gap-8 text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40">
             <a href="#" className="hover:text-primary transition-colors">Documentation</a>
             <a href="#" className="hover:text-primary transition-colors">Privacy</a>
             <a href="#" className="hover:text-primary transition-colors">Protocol</a>
           </div>
-          <div className="opacity-20 text-[9px] font-bold tracking-[0.6em] uppercase">
+          <div className="opacity-20 text-[8px] font-bold tracking-[0.5em] uppercase">
             &copy; {new Date().getFullYear()} Web3CyberServices • THE SOVEREIGN STANDARD
           </div>
         </div>
@@ -205,17 +205,17 @@ function ProductCard({ icon: Icon, title, desc, link, color, bgColor, cta, class
   const wrapperProps = isExternal ? { href: link, target: "_blank", rel: "noopener noreferrer" } : { href: link };
 
   return (
-    <CardWrapper {...(wrapperProps as any)} className={`group p-10 glass-morphism premium-border rounded-[5rem] hover:border-primary/50 transition-all duration-1000 flex flex-col gap-8 bento-inner-glow relative overflow-hidden ${className}`}>
+    <CardWrapper {...(wrapperProps as any)} className={`group p-8 glass-morphism premium-border rounded-[3rem] hover:border-primary/50 transition-all duration-1000 flex flex-col gap-6 bento-inner-glow relative overflow-hidden ${className}`}>
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-      <div className={`w-16 h-16 ${bgColor} premium-border rounded-[2.5rem] flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-1000 shadow-2xl`}>
-        <Icon className={`w-8 h-8 ${color}`} />
+      <div className={`w-12 h-12 ${bgColor} premium-border rounded-[1.5rem] flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-1000 shadow-2xl`}>
+        <Icon className={`w-6 h-6 ${color}`} />
       </div>
-      <div className="space-y-6 text-left relative z-10">
-        <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-gradient leading-tight">{title}</h3>
-        <p className="text-muted-foreground text-sm md:text-base leading-relaxed font-light opacity-60">{desc}</p>
+      <div className="space-y-4 text-left relative z-10">
+        <h3 className="text-2xl md:text-3xl font-black tracking-tighter text-gradient leading-tight">{title}</h3>
+        <p className="text-muted-foreground text-xs md:text-sm leading-relaxed font-light opacity-60">{desc}</p>
       </div>
-      <div className="mt-auto flex items-center text-[11px] font-black gap-3 text-primary opacity-0 group-hover:opacity-100 transition-all duration-1000 translate-y-4 group-hover:translate-y-0 tracking-[0.4em] uppercase">
-        {cta} <ChevronRight className="w-4 h-4" />
+      <div className="mt-auto flex items-center text-[10px] font-black gap-2 text-primary opacity-0 group-hover:opacity-100 transition-all duration-1000 translate-y-4 group-hover:translate-y-0 tracking-[0.3em] uppercase">
+        {cta} <ChevronRight className="w-3 h-3" />
       </div>
     </CardWrapper>
   );
