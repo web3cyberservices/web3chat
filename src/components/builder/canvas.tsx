@@ -389,7 +389,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
     return (
-      <header className={`w-full flex items-center justify-between px-12 z-[100] transition-all duration-500`} style={{ 
+      <header className={`w-full flex items-center justify-between px-12 z-[1000] transition-all duration-500`} style={{ 
         backgroundColor: bgRgba, 
         minHeight: minHeightValue,
         color: styles.textColor,
@@ -590,11 +590,11 @@ export function BuilderCanvas() {
                       <div 
                         ref={provided.innerRef} 
                         {...provided.draggableProps} 
-                        className={`group relative border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 overflow-hidden isolation-auto ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' ? 'z-[100]' : 'z-10'}`}
+                        className={`group border-b border-white/5 last:border-b-0 flex flex-col transition-all duration-500 overflow-hidden ${index === blocks.length - 1 ? 'flex-grow' : ''} ${block.type === 'header' && block.styles.isOverlay ? 'absolute top-0 left-0 w-full z-[1000]' : block.type === 'header' ? 'relative z-[1000]' : 'relative z-10'}`}
                         style={{ ...provided.draggableProps.style }}
                       >
                         {/* Кнопки управления - видны при наведении на любой блок включая шапку */}
-                        <div className="absolute right-4 bottom-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-[200]">
+                        <div className="absolute right-4 bottom-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-[2000]">
                           <button onClick={() => { setEditingId(editingId === block.id ? null : block.id); setEditingElement(null); }} className={`p-3 bg-card/90 backdrop-blur-3xl border rounded-2xl hover:text-primary transition-all shadow-xl ${editingId === block.id ? 'bg-primary text-primary-foreground border-primary' : 'border-white/10'}`}>
                             <Settings2 className="w-5 h-5" />
                           </button>
@@ -603,7 +603,7 @@ export function BuilderCanvas() {
                         </div>
 
                         {editingId === block.id && (
-                          <div className="fixed right-16 top-24 w-[400px] h-[75vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 z-[500] shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
+                          <div className="fixed right-16 top-24 w-[400px] h-[75vh] bg-card/95 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 z-[5000] shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in duration-300 flex flex-col overflow-hidden bento-inner-glow">
                             <div className="flex items-center justify-between mb-8 shrink-0">
                               <h5 className="text-[12px] font-black uppercase tracking-[0.5em] text-primary">Параметры блока</h5>
                               <button onClick={() => setEditingId(null)} className="p-3 hover:bg-white/5 rounded-full transition-all"><X className="w-6 h-6 opacity-40" /></button>
