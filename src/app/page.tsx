@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Zap, ArrowRight, Globe, ChevronRight, Sparkles, Orbit, Hexagon, Terminal, Layers } from 'lucide-react';
+import { Shield, Zap, ArrowRight, Globe, ChevronRight, Sparkles, Orbit, Hexagon, Terminal, Layers, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -19,6 +19,8 @@ const translations = {
     p2pDesc: "Zero-knowledge protocol. Pure mesh encryption for absolute digital sovereignty.",
     builderTitle: "Omni-Builder IDE",
     builderDesc: "Synthesize high-performance nodes and neural agents in a single visual workspace.",
+    vpnTitle: "Sovereign VPN",
+    vpnDesc: "Next-gen encrypted tunnel. Bypass censorship and secure your node with high-performance protocols.",
     protectTitle: "Sentinel Shield",
     protectDesc: "Real-time vulnerability intelligence and automated security audits for Web3.",
     launchNow: "Deploy Protocol",
@@ -36,6 +38,8 @@ const translations = {
     p2pDesc: "Протокол с нулевым разглашением. Чистая P2P-сеть для абсолютного суверенитета.",
     builderTitle: "Omni-Builder IDE",
     builderDesc: "Синтезируйте нейро-агентов и лендинги в едином визуальном пространстве.",
+    vpnTitle: "Суверенный VPN",
+    vpnDesc: "Шифрованный туннель нового поколения. Обход цензуры и защита вашего узла высокопроизводительными протоколами.",
     protectTitle: "Щит Sentinel",
     protectDesc: "Интеллектуальный поиск уязвимостей и автоматический аудит для Web3.",
     launchNow: "Развернуть протокол",
@@ -120,11 +124,13 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="pt-20 flex flex-wrap justify-center gap-8 md:gap-16 opacity-30 grayscale hover:grayscale-0 transition-all duration-1000">
-            <BrandLogo icon={Orbit} label="QUANTUM" />
-            <BrandLogo icon={Shield} label="ETHEREUM" />
-            <BrandLogo icon={Zap} label="SOLANA" />
-            <BrandLogo icon={Hexagon} label="POLYGON" />
+          <div className="flex justify-center pt-20">
+            <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-30 grayscale hover:grayscale-0 transition-all duration-1000">
+              <BrandLogo icon={Orbit} label="QUANTUM" />
+              <BrandLogo icon={Shield} label="ETHEREUM" />
+              <BrandLogo icon={Zap} label="SOLANA" />
+              <BrandLogo icon={Hexagon} label="POLYGON" />
+            </div>
           </div>
         </section>
 
@@ -135,9 +141,9 @@ export default function Home() {
               <p className="text-muted-foreground text-sm max-w-xl mx-auto font-light tracking-wide">{t.archDesc}</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <ProductCard 
-                className="md:col-span-8 h-[400px]"
+                className="h-[400px]"
                 icon={Terminal}
                 title={t.p2pTitle}
                 desc={t.p2pDesc}
@@ -147,7 +153,17 @@ export default function Home() {
                 cta={t.launchNow}
               />
               <ProductCard 
-                className="md:col-span-4 h-[400px]"
+                className="h-[400px]"
+                icon={Lock}
+                title={t.vpnTitle}
+                desc={t.vpnDesc}
+                link="https://vpn.web3cyberservices.xyz"
+                color="text-blue-400"
+                bgColor="bg-blue-400/5"
+                cta={t.launchNow}
+              />
+              <ProductCard 
+                className="h-[400px]"
                 icon={Layers}
                 title={t.builderTitle}
                 desc={t.builderDesc}
@@ -186,8 +202,12 @@ function BrandLogo({ icon: Icon, label }: any) {
 }
 
 function ProductCard({ icon: Icon, title, desc, link, color, bgColor, cta, className }: any) {
+  const isExternal = link.startsWith('http');
+  const CardWrapper = isExternal ? 'a' : Link;
+  const wrapperProps = isExternal ? { href: link, target: "_blank", rel: "noopener noreferrer" } : { href: link };
+
   return (
-    <Link href={link} className={`group p-8 glass-morphism premium-border rounded-[4.5rem] hover:border-primary/50 transition-all duration-1000 flex flex-col gap-6 bento-inner-glow ${className}`}>
+    <CardWrapper {...(wrapperProps as any)} className={`group p-8 glass-morphism premium-border rounded-[4.5rem] hover:border-primary/50 transition-all duration-1000 flex flex-col gap-6 bento-inner-glow ${className}`}>
       <div className={`w-14 h-14 ${bgColor} premium-border rounded-[2rem] flex items-center justify-center group-hover:scale-110 transition-transform duration-1000`}>
         <Icon className={`w-7 h-7 ${color}`} />
       </div>
@@ -198,6 +218,6 @@ function ProductCard({ icon: Icon, title, desc, link, color, bgColor, cta, class
       <div className="mt-auto flex items-center text-[10px] font-bold gap-2 text-primary opacity-0 group-hover:opacity-100 transition-all duration-1000 translate-y-2 group-hover:translate-y-0 tracking-[0.3em] uppercase">
         {cta} <ChevronRight className="w-4 h-4" />
       </div>
-    </Link>
+    </CardWrapper>
   );
 }

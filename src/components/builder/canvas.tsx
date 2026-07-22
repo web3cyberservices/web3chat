@@ -384,14 +384,14 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   const glowStyle = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 15}px ${styles.borderColor || styles.textColor}` : 'none';
 
   // Современный стандарт высоты
-  const minHeight = styles.minHeight.replace('vh', 'dvh');
+  const minHeightValue = styles.minHeight.replace(/vh|dvh/, 'dvh');
 
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
     return (
       <header className={`w-full flex items-center justify-between px-12 z-[100] transition-all duration-500`} style={{ 
         backgroundColor: bgRgba, 
-        minHeight: minHeight,
+        minHeight: minHeightValue,
         color: styles.textColor,
         fontFamily: FONT_MAP[styles.fontFamily],
         borderRadius: styles.borderRadius || '0px',
@@ -441,7 +441,7 @@ function BlockContentComponent({ block, onUpdate, editingElement, onSetEditingEl
   return (
     <div className={`relative w-full transition-all duration-1000 flex flex-col items-center justify-center overflow-hidden z-[1] isolation-auto ${isLast ? 'flex-grow' : ''}`} style={{ 
       borderRadius: styles.borderRadius || '0px', 
-      minHeight: minHeight,
+      minHeight: minHeightValue,
       border: `${styles.borderWidth || '0px'} solid ${styles.borderColor || 'transparent'}`,
       boxShadow: glowStyle
     }}>

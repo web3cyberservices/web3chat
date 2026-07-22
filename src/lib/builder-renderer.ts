@@ -65,12 +65,12 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
   const blockGlow = styles.borderGlow ? `0 0 ${styles.borderGlowStrength || 40}px ${styles.borderColor || styles.textColor}` : 'none';
 
   // Современный стандарт высоты DVH
-  const minHeight = styles.minHeight.replace(/vh|dvh/, 'dvh');
+  const minHeightValue = styles.minHeight.replace(/vh|dvh/, 'dvh');
 
   if (type === 'header') {
     const position = styles.isOverlay ? 'absolute' : 'relative';
     return `
-      <header id="${id}" style="width: 100%; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${minHeight}; border: ${borderStyle}; box-shadow: ${blockGlow}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${FONT_MAP[styles.fontFamily]}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
+      <header id="${id}" style="width: 100%; background-color: ${bgRgba}; color: ${styles.textColor}; min-height: ${minHeightValue}; border: ${borderStyle}; box-shadow: ${blockGlow}; display: flex; align-items: center; justify-content: space-between; padding: 0 50px; font-family: ${FONT_MAP[styles.fontFamily]}; position: ${position}; top: 0; left: 0; z-index: 1000; ${borderRadiusStyle}">
         <div style="font-weight: 900; font-size: 1.5rem; letter-spacing: -0.05em; color: ${styles.textColor};">${safeTitle}</div>
         <nav style="display: flex; gap: 40px;">
           ${(content.links || []).map(l => `<a href="${l.url}" style="text-decoration: none; color: inherit; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.7;">${escapeHTML(l.label)}</a>`).join('')}
@@ -107,7 +107,7 @@ function renderBlock(block: PageBlock, isLast: boolean, isOverlayHeaderActive: b
     : '';
 
   return `
-    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeight}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; isolation: isolate; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
+    <section id="${id}" style="position: relative; width: 100%; min-height: ${minHeightValue}; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; isolation: isolate; ${isLast ? 'flex-grow: 1;' : ''} ${borderRadiusStyle}">
       <div style="position: absolute; inset: 0; background-color: ${bgRgba}; border: ${borderStyle}; box-shadow: ${blockGlow}; z-index: -2; pointer-events: none; ${borderRadiusStyle}"></div>
       ${bgImageLayer}
       ${overlayLayer}
